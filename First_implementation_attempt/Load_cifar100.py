@@ -13,6 +13,7 @@ import torchvision
 from torch.utils.data import Dataset
 from torch.utils.data import Subset
 import pickle
+DEBUG = False
 
 cifar100_train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True)
 cifar100_test = torchvision.datasets.CIFAR100(root='./data', train=False, download=True)
@@ -40,55 +41,16 @@ cifar100_superclasses = {
     "vehicles_2": ["lawn_mower", "rocket", "streetcar", "tank", "tractor"]
 }
 
-'''#Code from https://github.com/ryanchankh/cifar100coarse and https://pytorch.org/tutorials/beginner/data_loading_tutorial.html and https://docs.pytorch.org/tutorials/beginner/basics/data_tutorial.html
-# Also useful, https://discuss.pytorch.org/t/how-to-get-name-of-files-while-loading-images-in-pytorch/135736
-class Cifar100Coarse(Dataset):
-    def __init__(self, root, train=True, download=True, transform=None, target_transform=None):
-        self.base_dataset = torchvision.datasets.CIFAR100(
-            root=root,
-            train=train,
-            download=download,
-            transform=None
-        )
-        self.transform = transform
-        self.target_transform = target_transform
-        self.coarse_labels = self._sparse2coarse(self.base_dataset.targets) #call _sparse2coarse from within __innit__ such that it is automatically applied when creating a Cifar100Coarse object
-
-    def __len__(self):
-        return len(self.base_dataset)
-
-    def __getitem__(self, idx):
-        image, fine_label = self.base_dataset[idx]  # image is a PIL.Image, fine_label is int
-        coarse_label = self.coarse_labels[idx]
-
-        if self.transform:
-            image = self.transform(image)
-        if self.target_transform:
-            fine_label = self.target_transform(fine_label)
-            coarse_label = self.target_transform(coarse_label)
-
-        return image, fine_label, coarse_label
-
-    @staticmethod
-    def _sparse2coarse(targets):
-        """Map fine label indices (0-99) to coarse label indices (0-19)."""
-        coarse_map = np.array([ 4,  1, 14,  8,  0,  6,  7,  7, 18,  3,
-                                 3, 14,  9, 18,  7, 11,  3,  9,  7, 11,
-                                 6, 11,  5, 10,  7,  6, 13, 15,  3, 15,
-                                 0, 11,  1, 10, 12, 14, 16,  9, 11,  5,
-                                 5, 19,  8,  8, 15, 13, 14, 17, 18, 10,
-                                16,  4, 17,  4,  2,  0, 17,  4, 18, 17,
-                                10,  3,  2, 12, 12, 16, 12,  1,  9, 19,
-                                 2, 10,  0,  1, 16, 12,  9, 13, 15, 13,
-                                16, 19,  2,  4,  6, 19,  5,  5,  8, 19,
-                                18,  1,  2, 15,  6,  0, 17,  8, 14, 13])
-        return coarse_map[np.array(targets)]
-        
-        
-print(train_dataset.coarse_labels)
-image, fine_label, coarse_label = train_dataset[5]
-print(image, fine_label, coarse_label)
-    #print(train_dataset.base_dataset.data[i], train_dataset.coarse_labels[i], train_dataset.base_dataset.targets[i])'''
+similar_superclasses = {
+    "aquatic": ["aquatic mammals","fish"],
+    "nature": ["flowers","trees","large natural outdoor scenes"],
+    "animals": ["large carnivores","large omnivores and herbivores","medium-sized mammals","small mammals","reptiles","insects","non-insect invertebrates"],
+    "human": ["people"],
+    "objects": ["household furniture","household electrical devices","food containers"],
+    "transport": ["vehicles 1","vehicles 2"],
+    "man-made": ["large man-made outdoor things"],
+    "food": ["fruit and vegetables"]
+}
 
 # I discovered the CIFAR-100 dataset offered by torchvision does offer coarse labels, as in its source code
 # (https://docs.pytorch.org/vision/stable/_modules/torchvision/datasets/cifar.html) it specified that its CIFAR-100 dataset
@@ -145,17 +107,19 @@ transform = transforms.Compose([
 train_dataset = Cifar100Coarse(root='./data', train=True, download=True, transform=transform)
 test_dataset = Cifar100Coarse(root='./data', train=False, download=True, transform=transform)
 
-'''for i in range(len(train_dataset)):
-    image, fine_label, coarse_label = train_dataset[i]
-    print(f"{image.shape}\n"
-          f"Fine label number: {fine_label}, Fine label name: {train_dataset.fine_label_names[fine_label]} \n"
-          f"Coarse label number: {coarse_label}, Coarse label name: {train_dataset.coarse_label_names[coarse_label]} \n\n\n")
+#TODO: Remember to change DEBUG to False if running experiments.
+if DEBUG:
+    for i in range(len(train_dataset)):
+        image, fine_label, coarse_label = train_dataset[i]
+        print(f"{image.shape}\n"
+              f"Fine label number: {fine_label}, Fine label name: {train_dataset.fine_label_names[fine_label]} \n"
+              f"Coarse label number: {coarse_label}, Coarse label name: {train_dataset.coarse_label_names[coarse_label]} \n\n\n")
 
-    if train_dataset.fine_label_names[fine_label] not in cifar100_superclasses[train_dataset.coarse_label_names[coarse_label]]:
-        raise ValueError(
-            f"Incorrect mapping for data sample {i}: "
-            f"An image sample of fine label '{train_dataset.fine_label_names[fine_label]}' has incorrectly been assigned the coarse label '{train_dataset.coarse_label_names[coarse_label]}'"
-        )'''
+        if train_dataset.fine_label_names[fine_label] not in cifar100_superclasses[train_dataset.coarse_label_names[coarse_label]]:
+            raise ValueError(
+                f"Incorrect mapping for data sample {i}: "
+                f"An image sample of fine label '{train_dataset.fine_label_names[fine_label]}' has incorrectly been assigned the coarse label '{train_dataset.coarse_label_names[coarse_label]}'"
+            )
 
 val_size = 5000  # 10% of the 50000 that make up the training set
 train_size = len(train_dataset) - val_size
@@ -171,38 +135,7 @@ test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_worker
 val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
 
 
-#TODO: Let the split_by_coarse_label be for now and pre-train the global model first using the enture train
-'''def split_by_coarse_label(dataset, coarse_label_names):
-    #coarse_label_to_dataset = {}
-    for (image, fine_label, coarse_label) in train_dataset:
-        if train_dataset.coarse_label_names[coarse_label] == "aquatic_mammals":
-            coarse_label_to_dataset[coarse_label] = []
-        coarse_label_to_dataset[coarse_label].append((image, fine_label))
-    return coarse_label_to_dataset
-
-
-
-def split_by_coarse_label(dataset, coarse_label_name):
-    indices = []
-    for subset_idx, original_idx in enumerate(dataset.indices):
-        _, _, coarse_label = dataset.dataset[original_idx]
-        if dataset.dataset.coarse_label_names[coarse_label] == coarse_label_name:
-            indices.append(subset_idx)
-    return Subset(dataset, indices)
-
-
-def split_by_coarse_label(dataset, coarse_label_name):
-    for (image, fine_label, coarse_label) in train_dataset:
-        if train_dataset.coarse_label_names[coarse_label] == coarse_label_name:
-            subset = Cifar100Coarse(image, fine_label, coarse_label)
-            #print(type((image, fine_label, coarse_label)))
-
-def split_by_coarse_label(dataset, coarse_label_name):
-    for (image, fine_label, coarse_label) in train_dataset:
-        if dataset.coarse_label_names[coarse_label] == coarse_label_name:
-            subset = Cifar100Coarse(image, fine_label, coarse_label)
-            return subset'''
-
+#TODO: Let the split_by_coarse_label be for now and pre-train the global model first using the entire train dataset
 def split_by_coarse_label(dataset, coarse_label_name):
     indices = []
     for idx, (_, _, coarse_label) in enumerate(dataset):
@@ -211,15 +144,24 @@ def split_by_coarse_label(dataset, coarse_label_name):
     return Subset(dataset, indices)
 
 
+def split_by_superclass_similarity(dataset, superclass_similarity_group):
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        coarse_name = dataset.dataset.coarse_label_names[coarse_label]
+        if coarse_name in superclass_similarity_group:
+            indices.append(idx)
+    return Subset(dataset, indices)
+
+
 
 if __name__ == "__main__":
-    '''print(cifar100_train.data, cifar100_train.classes)
+    '''# Code for testing train_loader
     images, fine_labels, coarse_labels = next(iter(train_loader))
     print(images[:5])  # [128, 3, 32, 32]
     print(fine_labels[:5])
     print(coarse_labels[:5])'''
-    #split_by_coarse_label(train_dataset,e [for e in cifar100_superclasses.keys()])
 
+    '''# Code for splitting train dataset by coarse label
     aquatic_mammals_train_subset = split_by_coarse_label(train_dataset, "aquatic_mammals")
     fish_train_subset = split_by_coarse_label(train_dataset, "fish")
     flowers_train_subset = split_by_coarse_label(train_dataset, "flowers")
@@ -236,6 +178,36 @@ if __name__ == "__main__":
               #f"Image tensor: {image},"
               f"Fine label number: {fine_label}, Fine label name: {aquatic_mammals_train_subset.dataset.dataset.fine_label_names[fine_label]} \n"
               f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_mammals_train_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
+'''
+
+# TODO: 1) finish calling of split_by_superclass_similarity and testing if it works
+
+#TODO: 2) finish similar_superclasses_grouping. This is for further classifying into broader groups. Is the below a valid example of that?
+# I think not, but double-check
 
 
+
+similar_superclasses["nature"] = [
+    "flowers",
+    "trees",
+    "large natural outdoor scenes"
+]
+similar_superclasses["animals"] = [
+    "large carnivores",
+    "large omnivores and herbivores",
+    "medium-sized mammals",
+    "small mammals",
+]
+similar_superclasses["human"] = [
+    "people"
+]
+similar_superclasses["objects"] = [
+    "household furniture",
+    "household electrical devices",
+    "food containers"
+]
+similar_superclasses["transport"] = [
+    "vehicles 1",
+    "vehicles 2"
+]
 
