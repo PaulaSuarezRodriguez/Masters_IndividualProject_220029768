@@ -221,6 +221,15 @@ if __name__ == "__main__":
     #split_by_coarse_label(train_dataset,e [for e in cifar100_superclasses.keys()])
 
     aquatic_mammals_train_subset = split_by_coarse_label(train_dataset, "aquatic_mammals")
+    fish_train_subset = split_by_coarse_label(train_dataset, "fish")
+    flowers_train_subset = split_by_coarse_label(train_dataset, "flowers")
+    food_containers_train_subset = split_by_coarse_label(train_dataset, "food_containers")
+    fruit_and_vegetables_train_subset = split_by_coarse_label(train_dataset, "fruit_and_vegetables")
+    household_electrical_devices_train_subset = split_by_coarse_label(train_dataset, "household_electrical_devices")
+    household_furniture_train_subset = split_by_coarse_label(train_dataset, "household_furniture")
+    insects_train_subset = split_by_coarse_label(train_dataset, "insects")
+    large_carnivores_train_subset = split_by_coarse_label(train_dataset, "large_carnivores")
+
     for (image, fine_label, coarse_label) in aquatic_mammals_train_subset:
         print(f"{image.shape}\n"
               f"type(aquatic_mammals_train_subset): {type(aquatic_mammals_train_subset)}"
