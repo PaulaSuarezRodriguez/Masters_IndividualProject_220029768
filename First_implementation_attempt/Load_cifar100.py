@@ -11,6 +11,7 @@ from torchvision.io import decode_image
 import numpy as np
 import torchvision
 from torch.utils.data import Dataset
+from torch.utils.data import Subset
 import pickle
 
 cifar100_train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True)
@@ -144,7 +145,7 @@ transform = transforms.Compose([
 train_dataset = Cifar100Coarse(root='./data', train=True, download=True, transform=transform)
 test_dataset = Cifar100Coarse(root='./data', train=False, download=True, transform=transform)
 
-for i in range(len(train_dataset)):
+'''for i in range(len(train_dataset)):
     image, fine_label, coarse_label = train_dataset[i]
     print(f"{image.shape}\n"
           f"Fine label number: {fine_label}, Fine label name: {train_dataset.fine_label_names[fine_label]} \n"
@@ -154,7 +155,7 @@ for i in range(len(train_dataset)):
         raise ValueError(
             f"Incorrect mapping for data sample {i}: "
             f"An image sample of fine label '{train_dataset.fine_label_names[fine_label]}' has incorrectly been assigned the coarse label '{train_dataset.coarse_label_names[coarse_label]}'"
-        )
+        )'''
 
 val_size = 5000  # 10% of the 50000 that make up the training set
 train_size = len(train_dataset) - val_size
@@ -170,13 +171,62 @@ test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_worker
 val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
 
 
+#TODO: Let the split_by_coarse_label be for now and pre-train the global model first using the enture train
+'''def split_by_coarse_label(dataset, coarse_label_names):
+    #coarse_label_to_dataset = {}
+    for (image, fine_label, coarse_label) in train_dataset:
+        if train_dataset.coarse_label_names[coarse_label] == "aquatic_mammals":
+            coarse_label_to_dataset[coarse_label] = []
+        coarse_label_to_dataset[coarse_label].append((image, fine_label))
+    return coarse_label_to_dataset
+
+
+
+def split_by_coarse_label(dataset, coarse_label_name):
+    indices = []
+    for subset_idx, original_idx in enumerate(dataset.indices):
+        _, _, coarse_label = dataset.dataset[original_idx]
+        if dataset.dataset.coarse_label_names[coarse_label] == coarse_label_name:
+            indices.append(subset_idx)
+    return Subset(dataset, indices)
+
+
+def split_by_coarse_label(dataset, coarse_label_name):
+    for (image, fine_label, coarse_label) in train_dataset:
+        if train_dataset.coarse_label_names[coarse_label] == coarse_label_name:
+            subset = Cifar100Coarse(image, fine_label, coarse_label)
+            #print(type((image, fine_label, coarse_label)))
+
+def split_by_coarse_label(dataset, coarse_label_name):
+    for (image, fine_label, coarse_label) in train_dataset:
+        if dataset.coarse_label_names[coarse_label] == coarse_label_name:
+            subset = Cifar100Coarse(image, fine_label, coarse_label)
+            return subset'''
+
+def split_by_coarse_label(dataset, coarse_label_name):
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        if dataset.dataset.coarse_label_names[coarse_label] == coarse_label_name:
+            indices.append(idx)
+    return Subset(dataset, indices)
+
+
 
 if __name__ == "__main__":
     '''print(cifar100_train.data, cifar100_train.classes)
-
     images, fine_labels, coarse_labels = next(iter(train_loader))
     print(images[:5])  # [128, 3, 32, 32]
     print(fine_labels[:5])
     print(coarse_labels[:5])'''
+    #split_by_coarse_label(train_dataset,e [for e in cifar100_superclasses.keys()])
+
+    aquatic_mammals_train_subset = split_by_coarse_label(train_dataset, "aquatic_mammals")
+    for (image, fine_label, coarse_label) in aquatic_mammals_train_subset:
+        print(f"{image.shape}\n"
+              f"type(aquatic_mammals_train_subset): {type(aquatic_mammals_train_subset)}"
+              #f"Image tensor: {image},"
+              f"Fine label number: {fine_label}, Fine label name: {aquatic_mammals_train_subset.dataset.dataset.fine_label_names[fine_label]} \n"
+              f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_mammals_train_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
+
 
 
