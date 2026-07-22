@@ -1,3 +1,6 @@
+import Config
+from Config import SEED
+from Config import set_device
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -58,33 +61,31 @@ class Cifar100Coarse(Dataset):
 
 
 
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762]),
+])
 
+train_dataset = Cifar100Coarse(root='./data', train=True, download=True, transform=transform)
+test_dataset = Cifar100Coarse(root='./data', train=False, download=True, transform=transform)
+
+val_size = 5000  # 10% of the 50000 that make up the training set
+train_size = len(train_dataset) - val_size
+
+train_dataset, val_dataset = random_split(
+    train_dataset,
+    [train_size, val_size],
+    generator=torch.Generator().manual_seed(SEED)
+)
+
+train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
+test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
+val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
 
 
 
 if __name__ == "__main__":
     print(cifar100_train.data, cifar100_train.classes)
-
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762]),
-    ])
-
-    train_dataset = Cifar100Coarse(root='./data', train=True, download=True, transform=transform)
-    test_dataset = Cifar100Coarse(root='./data', train=False, download=True, transform=transform)
-
-    val_size = 5000  # 10% of the 50000 that make up the training set
-    train_size = len(train_dataset) - val_size
-
-    train_dataset, val_dataset = random_split(
-        train_dataset,
-        [train_size, val_size],
-        generator=torch.Generator().manual_seed(42)
-    )
-
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
-    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
 
     images, fine_labels, coarse_labels = next(iter(train_loader))
     print(images.shape)  # [128, 3, 32, 32]
