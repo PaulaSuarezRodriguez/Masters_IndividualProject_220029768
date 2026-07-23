@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import Subset
 import pickle
 import matplotlib.pyplot as plt
-DEBUG = True #TODO: Remember to change DEBUG to False if running experiments.
+DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 
 cifar100_train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True)
 cifar100_test = torchvision.datasets.CIFAR100(root='./data', train=False, download=True)
@@ -41,25 +41,26 @@ cifar100_superclasses = {
     "vehicles_1": ["bicycle", "bus", "motorcycle", "pickup_truck", "train"],
     "vehicles_2": ["lawn_mower", "rocket", "streetcar", "tank", "tractor"]
 }
-    #"aquatic_mammals",   "fish"
-
-
-
-
-
-
-
-
 
 similar_superclasses = {
-    "aquatic": ["aquatic mammals","fish"],
-    "nature": ["flowers","trees","large natural outdoor scenes"],
-    "animals": ["large carnivores","large omnivores and herbivores","medium-sized mammals","small mammals","reptiles","insects","non-insect invertebrates"],
+    "aquatic": ["aquatic_mammals","fish"],
+    "nature": ["flowers","trees","large_natural_outdoor_scenes"],
+    "animals": ["large_carnivores","large_omnivores_and_herbivores","medium_mammals","small_mammals","reptiles","insects","non-insect_invertebrates"],
     "people": ["people"],
-    "objects": ["household furniture","household electrical devices","food containers"],
-    "transport": ["vehicles 1","vehicles 2"],
+    "objects": ["household_furniture","household_electrical_devices","food_containers"],
+    "transport": ["vehicles_1","vehicles_2"],
     "man-made": ["large_man-made_outdoor_things"],
-    "food": ["fruit and vegetables"]
+    "food": ["fruit_and_vegetables"]
+}
+
+specialised_models_superclasses = {
+    #"aquatic": ["aquatic_mammals","fish"],
+    "outdoors":["large_man-made_outdoor_things", "large_natural_outdoor_scenes"],
+    "nature": ["flowers","trees", "fruit_and_vegetables"],
+    "people": ["people"],
+    "animals": ["aquatic_mammals","fish", "large_carnivores", "large_omnivores_and_herbivores", "medium_mammals", "small_mammals", "reptiles", "insects", "non-insect_invertebrates"],
+    "objects_and_vehicles": ["household_furniture","household_electrical_devices","food_containers", "vehicles_1","vehicles_2"],
+    #"objects": ["household_furniture","household_electrical_devices","food_containers"],
 }
 
 # I discovered the CIFAR-100 dataset offered by torchvision does offer coarse labels, as in its source code
@@ -125,15 +126,15 @@ if DEBUG:
         ax.axis("off")
         plt.title(f"Coarse label:\n{train_dataset.coarse_label_names[coarse_label]}\n Fine label:\n{train_dataset.fine_label_names[fine_label]}", fontsize=8)
         plt.tight_layout()
-        if train_dataset.coarse_label_names[coarse_label] == "large_man-made_outdoor_things" or train_dataset.coarse_label_names[coarse_label] == "large_natural_outdoor_scenes":
-            plt.show()
+        #if train_dataset.coarse_label_names[coarse_label] == "large_man-made_outdoor_things" or train_dataset.coarse_label_names[coarse_label] == "large_natural_outdoor_scenes":
+            #plt.show()
+        plt.show()
         plt.close()
         if train_dataset.fine_label_names[fine_label] not in cifar100_superclasses[train_dataset.coarse_label_names[coarse_label]]:
             raise ValueError(
                 f"Incorrect mapping for data sample {i}: "
                 f"An image sample of fine label '{train_dataset.fine_label_names[fine_label]}' has incorrectly been assigned the coarse label '{train_dataset.coarse_label_names[coarse_label]}'"
             )
-
 
 
 
@@ -180,6 +181,23 @@ def split_by_similar_superclasses(dataset, similar_superclasses_group):
             indices.append(idx)
     return Subset(dataset, indices)
 
+
+def split_by_specialised_models_superclasses(dataset, specialised_models_superclasses_group):#, similar_superclasses_group):
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        #coarse_name = dataset.dataset.coarse_label_names[coarse_label]
+        #if coarse_name in similar_superclasses_group:
+        if dataset.dataset.coarse_label_names[coarse_label] in specialised_models_superclasses_group:#[similar_superclasses_group]:
+            indices.append(idx)
+    return Subset(dataset, indices)
+
+# Code for splitting train dataset by specialised_models_superclasses, outside of if __name__ == "__main__" so that it is executed and imported to other .py files whenever imported from other .py files
+outdoors_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["outdoors"])
+nature_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["nature"])
+people_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["people"])
+animals_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["animals"])
+objects_and_vehicles_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["objects_and_vehicles"])
+
 if __name__ == "__main__":
     '''# Code for testing train_loader
     images, fine_labels, coarse_labels = next(iter(train_loader))
@@ -187,7 +205,7 @@ if __name__ == "__main__":
     print(fine_labels[:5])
     print(coarse_labels[:5])'''
 
-    # Code for splitting train dataset by coarse label
+    '''# Code for splitting train dataset by coarse label
     aquatic_mammals_train_subset = split_by_coarse_label(train_dataset, "aquatic_mammals")
     fish_train_subset = split_by_coarse_label(train_dataset, "fish")
     flowers_train_subset = split_by_coarse_label(train_dataset, "flowers")
@@ -220,7 +238,18 @@ if __name__ == "__main__":
               f"type(aquatic_superclass_group_subset): {type(aquatic_superclass_group_subset)}\n"
               #f"Image tensor: {image},"
               f"Fine label number: {fine_label}, Fine label name: {aquatic_superclass_group_subset.dataset.dataset.fine_label_names[fine_label]} \n"
-              f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_superclass_group_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
+              f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_superclass_group_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")'''
+
+    # Code for TESTING splitting train dataset by specialised_models_superclasses; inside if __name__ == "__main__" so that it is not executed when this .py file and the ready-to-be-used-for-training-subsets are imported to other .py files
+    #outdoors_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["outdoors"])
+    #for specialised_models_subset in [nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset]:
+    specialised_models_subset=animals_specialised_models_subset
+    for (image, fine_label, coarse_label) in specialised_models_subset:
+        print(f"{image.shape}\n"
+              f"type({specialised_models_subset}): {type(specialised_models_subset)}\n"
+              #f"Image tensor: {image},"
+              f"Fine label number: {fine_label}, Fine label name: {specialised_models_subset.dataset.dataset.fine_label_names[fine_label]} \n"
+              f"Coarse label number: {coarse_label}, Coarse label name: {specialised_models_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
 
 
 # TODO: 1) finish testing if split_by_similar_superclasses works by inspecting outcomes of calling it in the for loop
