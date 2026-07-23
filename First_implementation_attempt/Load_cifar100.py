@@ -126,10 +126,7 @@ if DEBUG:
         #image, fine_label, _ = train_dataset[coarse_label]
         pil_img = image
         orig_w, orig_h = pil_img.size
-        # Plot
-        # fig, ax = plt.subplots(1, 1, figsize=(10, 8))
         fig, ax = plt.subplots(1, 1, figsize=(2, 2))
-        # ax.imshow(pil_img)
         ax.imshow(pil_img, interpolation="nearest")
         ax.axis("off")
         plt.title(f"Coarse label:\n{train_dataset.coarse_label_names[coarse_label]}", fontsize=8)
