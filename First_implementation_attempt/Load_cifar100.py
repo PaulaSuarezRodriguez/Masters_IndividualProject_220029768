@@ -55,7 +55,7 @@ similar_superclasses = {
     "aquatic": ["aquatic mammals","fish"],
     "nature": ["flowers","trees","large natural outdoor scenes"],
     "animals": ["large carnivores","large omnivores and herbivores","medium-sized mammals","small mammals","reptiles","insects","non-insect invertebrates"],
-    "human": ["people"],
+    "people": ["people"],
     "objects": ["household furniture","household electrical devices","food containers"],
     "transport": ["vehicles 1","vehicles 2"],
     "man-made": ["large_man-made_outdoor_things"],
@@ -109,11 +109,6 @@ class Cifar100Coarse(Dataset):
         return image, fine_label, coarse_label
 
 
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762]),
-])
-
 #TODO: Remember to change DEBUG to False if running experiments.
 if DEBUG:
     train_dataset = Cifar100Coarse(root='./data', train=True, download=True)
@@ -123,15 +118,15 @@ if DEBUG:
         print(#f"{image.shape}\n"
               f"Fine label number: {fine_label}, Fine label name: {train_dataset.fine_label_names[fine_label]} \n"
               f"Coarse label number: {coarse_label}, Coarse label name: {train_dataset.coarse_label_names[coarse_label]} \n\n\n")
-        #image, fine_label, _ = train_dataset[coarse_label]
         pil_img = image
         orig_w, orig_h = pil_img.size
         fig, ax = plt.subplots(1, 1, figsize=(2, 2))
         ax.imshow(pil_img, interpolation="nearest")
         ax.axis("off")
-        plt.title(f"Coarse label:\n{train_dataset.coarse_label_names[coarse_label]}", fontsize=8)
+        plt.title(f"Coarse label:\n{train_dataset.coarse_label_names[coarse_label]}\n Fine label:\n{train_dataset.fine_label_names[fine_label]}", fontsize=8)
         plt.tight_layout()
-        plt.show()
+        if train_dataset.coarse_label_names[coarse_label] == "large_man-made_outdoor_things" or train_dataset.coarse_label_names[coarse_label] == "large_natural_outdoor_scenes":
+            plt.show()
         plt.close()
         if train_dataset.fine_label_names[fine_label] not in cifar100_superclasses[train_dataset.coarse_label_names[coarse_label]]:
             raise ValueError(
@@ -139,102 +134,51 @@ if DEBUG:
                 f"An image sample of fine label '{train_dataset.fine_label_names[fine_label]}' has incorrectly been assigned the coarse label '{train_dataset.coarse_label_names[coarse_label]}'"
             )
 
-    '''# --- group indices by coarse label ---
-    n_samples_per_class = 5
-    #label_to_indices = defaultdict(list)
-    for idx, coarse_label in enumerate(train_dataset.coarse_labels):
-    #for train_dataset.coarse_label_names[coarse_label] in cifar100_superclasses.keys():
-        i=0
-        while i < n_samples_per_class:
-            # Load raw PIL image (not transformed) for display
-            image, fine_label, _ = train_dataset[idx]
-            pil_img = image
-            orig_w, orig_h = pil_img.size
-            # Plot
-            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-            ax.imshow(pil_img)
-            ax.axis("off")
-            plt.tight_layout()
-            plt.show()
-            plt.close()
-            i=i+1'''
-    '''# WORKING :
-    n_samples_per_class = 5
-    #label_to_indices = defaultdict(list)
-    i = 0
-    while i < n_samples_per_class:
-        for idx, coarse_label in enumerate(train_dataset.coarse_labels):
-        #for train_dataset.coarse_label_names[coarse_label] in cifar100_superclasses.keys():
-            # Load raw PIL image (not transformed) for display
-            image, fine_label, _ = train_dataset[idx]
-            pil_img = image
-            orig_w, orig_h = pil_img.size
-            # Plot
-            #fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-            fig, ax = plt.subplots(1, 1, figsize=(2, 2))
-            #ax.imshow(pil_img)
-            ax.imshow(pil_img, interpolation="nearest")
-            ax.axis("off")
-            plt.tight_layout()
-            plt.show()
-            plt.close()
-        i=i+1'''
-
-    '''for coarse_label in train_dataset.coarse_labels:
-        # for train_dataset.coarse_label_names[coarse_label] in cifar100_superclasses.keys():
-        # Load raw PIL image (not transformed) for display
-        image, fine_label, _ = train_dataset[coarse_label]
-        pil_img = image
-        orig_w, orig_h = pil_img.size
-        # Plot
-        # fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-        fig, ax = plt.subplots(1, 1, figsize=(2, 2))
-        # ax.imshow(pil_img)
-        ax.imshow(pil_img, interpolation="nearest")
-        ax.axis("off")
-        plt.title(f"Coarse label: {train_dataset.coarse_label_names[coarse_label]}")
-        plt.tight_layout()
-        plt.show()
-        plt.close()'''
-
-elif not DEBUG:
-    train_dataset = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
-    test_dataset = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform)
-
-    val_size = 5000  # 10% of the 50000 that make up the training set
-    train_size = len(train_dataset) - val_size
-
-    train_dataset, val_dataset = random_split(
-        train_dataset,
-        [train_size, val_size],
-        generator=torch.Generator().manual_seed(SEED)
-    )
-
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
-    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
 
 
-    #TODO: Let the split_by_coarse_label be for now and pre-train the global model first using the entire train dataset
-    def split_by_coarse_label(dataset, coarse_label_name):
-        indices = []
-        for idx, (_, _, coarse_label) in enumerate(dataset):
-            if dataset.dataset.coarse_label_names[coarse_label] == coarse_label_name:
-                indices.append(idx)
-        return Subset(dataset, indices)
+
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762]),
+])
+
+train_dataset = Cifar100Coarse(root='./data', train=True, download=True, transform=transform)
+test_dataset = Cifar100Coarse(root='./data', train=False, download=True, transform=transform)
+
+val_size = 5000  # 10% of the 50000 that make up the training set
+train_size = len(train_dataset) - val_size
+
+train_dataset, val_dataset = random_split(
+    train_dataset,
+    [train_size, val_size],
+    generator=torch.Generator().manual_seed(SEED)
+)
+
+train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
+test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
+val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
 
 
-    def split_by_similar_superclasses(dataset, similar_superclasses_group):
-        """to be executed once per similar_superclasses_group/element in dictionary similar_superclasses to group samples from train_dataset into their corresponding superclass_similarity_groups.
-        The reason coarse classes aren't the elements being grouped is due to the torchvision.datasets.Cifar100 having no notion of coarse labels or of
-        any one training sample belonging to anything other than a fine-label. The only notion of coarse labels is generated by my custom code"""
-        indices = []
-        for idx, (_, _, coarse_label) in enumerate(dataset):
-            #coarse_name = dataset.dataset.coarse_label_names[coarse_label]
-            #if coarse_name in similar_superclasses_group:
-            if dataset.dataset.coarse_label_names[coarse_label] in similar_superclasses_group:
-                indices.append(idx)
-        return Subset(dataset, indices)
+#TODO: Let the split_by_coarse_label be for now and pre-train the global model first using the entire train dataset
+def split_by_coarse_label(dataset, coarse_label_name):
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        if dataset.dataset.coarse_label_names[coarse_label] == coarse_label_name:
+            indices.append(idx)
+    return Subset(dataset, indices)
+
+
+def split_by_similar_superclasses(dataset, similar_superclasses_group):
+    """to be executed once per similar_superclasses_group/element in dictionary similar_superclasses to group samples from train_dataset into their corresponding superclass_similarity_groups.
+    The reason coarse classes aren't the elements being grouped is due to the torchvision.datasets.Cifar100 having no notion of coarse labels or of
+    any one training sample belonging to anything other than a fine-label. The only notion of coarse labels is generated by my custom code"""
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        #coarse_name = dataset.dataset.coarse_label_names[coarse_label]
+        #if coarse_name in similar_superclasses_group:
+        if dataset.dataset.coarse_label_names[coarse_label] in similar_superclasses_group:
+            indices.append(idx)
+    return Subset(dataset, indices)
 
 if __name__ == "__main__":
     '''# Code for testing train_loader
@@ -243,7 +187,7 @@ if __name__ == "__main__":
     print(fine_labels[:5])
     print(coarse_labels[:5])'''
 
-    '''# Code for splitting train dataset by coarse label
+    # Code for splitting train dataset by coarse label
     aquatic_mammals_train_subset = split_by_coarse_label(train_dataset, "aquatic_mammals")
     fish_train_subset = split_by_coarse_label(train_dataset, "fish")
     flowers_train_subset = split_by_coarse_label(train_dataset, "flowers")
@@ -256,58 +200,30 @@ if __name__ == "__main__":
 
     for (image, fine_label, coarse_label) in aquatic_mammals_train_subset:
         print(f"{image.shape}\n"
-              f"type(aquatic_mammals_train_subset): {type(aquatic_mammals_train_subset)}"
+              f"type(aquatic_mammals_train_subset): {type(aquatic_mammals_train_subset)}\n"
               #f"Image tensor: {image},"
               f"Fine label number: {fine_label}, Fine label name: {aquatic_mammals_train_subset.dataset.dataset.fine_label_names[fine_label]} \n"
               f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_mammals_train_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
-'''
+
     # Code for splitting train dataset by similar_superclass
-    '''aquatic_superclass_group_subset = split_by_similar_superclasses(train_dataset, "aquatic")
-    nature_superclass_group_subset = split_by_similar_superclasses(train_dataset, "nature")
-    animals_superclass_group_subset = split_by_similar_superclasses(train_dataset, "animals")
-    humans_superclass_group_subset = split_by_similar_superclasses(train_dataset, "humans")
-    objects_superclass_group_subset = split_by_similar_superclasses(train_dataset, "objects")
-    transport_superclass_group_subset = split_by_similar_superclasses(train_dataset, "transport")
-    man_made_superclass_group_subset = split_by_similar_superclasses(train_dataset, "man-made")
-    food_superclass_group_subset = split_by_similar_superclasses(train_dataset, "food")
+    aquatic_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["aquatic"])
+    nature_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["nature"])
+    animals_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["animals"])
+    humans_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["people"])
+    objects_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["objects"])
+    transport_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["transport"])
+    man_made_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["man-made"])
+    food_superclass_group_subset = split_by_similar_superclasses(train_dataset, similar_superclasses["food"])
 
     for (image, fine_label, coarse_label) in aquatic_superclass_group_subset:
         print(f"{image.shape}\n"
-              f"type(aquatic_superclass_group_subset): {type(aquatic_superclass_group_subset)}"
+              f"type(aquatic_superclass_group_subset): {type(aquatic_superclass_group_subset)}\n"
               #f"Image tensor: {image},"
               f"Fine label number: {fine_label}, Fine label name: {aquatic_superclass_group_subset.dataset.dataset.fine_label_names[fine_label]} \n"
-              f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_superclass_group_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")'''
+              f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_superclass_group_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
 
 
-# TODO: 1) finish calling of split_by_similar_superclasses and testing if it works
+# TODO: 1) finish testing if split_by_similar_superclasses works by inspecting outcomes of calling it in the for loop
 
 #TODO: 2) finish similar_superclasses_grouping. This is for further classifying into broader groups. Is the below a valid example of that?
 # I think not, but double-check
-
-
-
-'''similar_superclasses["nature"] = [
-    "flowers",
-    "trees",
-    "large natural outdoor scenes"
-]
-similar_superclasses["animals"] = [
-    "large carnivores",
-    "large omnivores and herbivores",
-    "medium-sized mammals",
-    "small mammals",
-]
-similar_superclasses["human"] = [
-    "people"
-]
-similar_superclasses["objects"] = [
-    "household furniture",
-    "household electrical devices",
-    "food containers"
-]
-similar_superclasses["transport"] = [
-    "vehicles 1",
-    "vehicles 2"
-]
-
-'''
