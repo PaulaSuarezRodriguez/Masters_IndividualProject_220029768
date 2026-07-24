@@ -54,13 +54,11 @@ similar_superclasses = {
 }
 
 specialised_models_superclasses = {
-    #"aquatic": ["aquatic_mammals","fish"],
     "outdoors":["large_man-made_outdoor_things", "large_natural_outdoor_scenes"],
     "nature": ["flowers","trees", "fruit_and_vegetables"],
     "people": ["people"],
     "animals": ["aquatic_mammals","fish", "large_carnivores", "large_omnivores_and_herbivores", "medium_mammals", "small_mammals", "reptiles", "insects", "non-insect_invertebrates"],
     "objects_and_vehicles": ["household_furniture","household_electrical_devices","food_containers", "vehicles_1","vehicles_2"],
-    #"objects": ["household_furniture","household_electrical_devices","food_containers"],
 }
 
 # I discovered the CIFAR-100 dataset offered by torchvision does offer coarse labels, as in its source code
