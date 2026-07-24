@@ -7,6 +7,7 @@ import torchao
 import torchvision
 import Load_cifar100
 from Load_cifar100 import train_loader, val_loader, test_loader
+from Load_cifar100 import outdoors_specialised_models_subset, nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset
 import numpy as np
 import torch.ao.quantization as quantization
 from torchinfo import summary
@@ -41,7 +42,6 @@ quantized_mobilenetv3 = quantization.convert(quantized_mobilenetv3)
 print(quantized_mobilenetv3)'''
 #TODO: RESEARCH! if using pretrained=True, prepare model to accept input size of CIFAR100. Research how to do that!.
 
-
 ###############################################################################################################################################
 # Even though the best model for MCU is probably a quantized one, QAT via import torch.ao.quantization as quantization may not be
 # as easily integrated with Avalanche and since I must first learn how to use Avalanche, let me use mobilenetv3_small_pretrainedTrue
@@ -58,6 +58,21 @@ print(quantized_mobilenetv3)'''
 
 # temporary baseline models until I learn to use Avalanche and how it combines with torchvision:
 mobilenetv3_small_pretrainedTrue = torchvision.models.mobilenet_v3_small(pretrained=True)
+print(mobilenetv3_small_pretrainedTrue)
 
+'''resnet18 = torchvision.models.resnet18(pretrained=False)
+print(resnet18)
+summary(resnet18,input_size=(1, 3, 32, 32))
+print("resnet18 pretrained=False\n")'''
+'''convnext_tiny = torchvision.models.convnext_tiny(pretrained=False)
+print(convnext_tiny)
+summary(convnext_tiny,input_size=(1, 3, 32, 32))
+print("convnext_tiny pretrained=False\n")'''
+
+
+alexnet = torchvision.models.res(pretrained=False)
+print(alexnet)
+summary(alexnet, input_size=(1, 3, 32, 32))
+print("vgg16 pretrained=False\n")
 
 
