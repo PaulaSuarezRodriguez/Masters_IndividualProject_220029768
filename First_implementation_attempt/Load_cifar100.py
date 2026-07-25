@@ -190,11 +190,59 @@ def split_by_similar_superclasses(dataset, similar_superclasses_group):
 def split_by_specialised_models_superclasses(dataset, specialised_models_superclasses_group):#, similar_superclasses_group):
     indices = []
     for idx, (_, _, coarse_label) in enumerate(dataset):
-        #coarse_name = dataset.dataset.coarse_label_names[coarse_label]
-        #if coarse_name in similar_superclasses_group:
         if dataset.dataset.coarse_label_names[coarse_label] in specialised_models_superclasses_group:#[similar_superclasses_group]:
             indices.append(idx)
     return Subset(dataset, indices)
+
+
+'''def split_by_indices_specialised_models_superclasses(dataset, specialised_models_superclasses):
+    # Flatten all superclass lists into a set
+    all_superclasses = {
+        superclass
+        for superclasses in specialised_models_superclasses.values()
+        for superclass in superclasses
+    }
+
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        coarse_name = dataset.dataset.coarse_label_names[coarse_label]
+        if coarse_name in all_superclasses:
+            indices.append(idx)
+
+    return indices'''
+
+def split_by_indices_specialised_models_superclasses(dataset, specialised_models_superclasses):
+    indices = []
+
+    for specialised_models_superclasses_group in specialised_models_superclasses.values():
+        for idx, (_, _, coarse_label) in enumerate(dataset):
+            if dataset.dataset.coarse_label_names[coarse_label] in specialised_models_superclasses_group:
+                indices.append(idx)
+
+    return indices
+
+
+'''def split_by_indices_specialised_models_superclasses(dataset, specialised_models_superclasses_group):#, similar_superclasses_group):
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        if dataset.dataset.coarse_label_names[coarse_label] in specialised_models_superclasses_group:#[similar_superclasses_group]:
+            indices.append(idx)
+    return indices
+
+
+
+specialised_indices = split_by_indices_specialised_models_superclasses(train_dataset, specialised_models_superclasses["outdoors"])'''
+
+'''def split_by_indices_specialised_models_superclasses(dataset, specialised_models_superclasses_param):#, similar_superclasses_group):
+    indices = []
+    for idx, (_, _, coarse_label) in enumerate(dataset):
+        # the for loop below is equivalent to the following, but with variable names changed to avoid confusion between the parameter name and the global variable "specialised_models_superclasses" the parameter name is referring to (as it is this global variable that will be passed as argument to the function): for specialised_models_superclasses in [specialised_models_superclasses["outdoors"], specialised_models_superclasses["nature"], specialised_models_superclasses["people"], specialised_models_superclasses["animals"], specialised_models_superclasses["objects_and_vehicles"]]:
+        #for specialised_models_superclass, specialised_models_superclasses_elements in specialised_models_superclasses_param.items():
+        #for specialised_models_superclass in specialised_models_superclasses_list:
+        if dataset.dataset.coarse_label_names[coarse_label] in specialised_models_superclasses_param[specialised_models_superclass]:#[similar_superclasses_group]:
+                indices.append(idx)
+    return indices'''
+
 
 
 
@@ -225,20 +273,6 @@ def split_by_specialised_models_superclasses(dataset, specialised_models_supercl
     )
 
     exp.dataset.coarse_label ''' # should exist post-split, alongside exp.dataset.targets
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -303,7 +337,24 @@ if __name__ == "__main__":
               f"Coarse label number: {coarse_label}, Coarse label name: {specialised_models_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")'''
 
 print(outdoors_specialised_models_subset.indices)
+print(nature_specialised_models_subset.indices)
+print(people_specialised_models_subset.indices)
+print(animals_specialised_models_subset.indices)
+print(objects_and_vehicles_specialised_models_subset.indices)
 
+print("\n\n\n\n\n\n\n\n\n\n")
+
+'''specialised_models_indices_all_superclasses = split_by_indices_specialised_models_superclasses(train_dataset, specialised_models_superclasses)
+print(specialised_models_indices_all_superclasses)'''
+
+
+specialised_models_indices_all_superclasses = (
+    split_by_indices_specialised_models_superclasses(
+        train_dataset,
+        specialised_models_superclasses
+    )
+)
+print(specialised_models_indices_all_superclasses)
 # TODO: 1) finish testing if split_by_similar_superclasses works by inspecting outcomes of calling it in the for loop
 
 #TODO: 2) finish similar_superclasses_grouping. This is for further classifying into broader groups. Is the below a valid example of that?
