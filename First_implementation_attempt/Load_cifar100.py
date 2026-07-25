@@ -14,6 +14,13 @@ from torch.utils.data import Dataset
 from torch.utils.data import Subset
 import pickle
 import matplotlib.pyplot as plt
+import avalanche
+from avalanche.benchmarks import nc_benchmark
+from avalanche.benchmarks.utils.data import make_avalanche_dataset
+#from avalanche.benchmarks.utils import make_classification_dataset # DEPRECATED! This is from v0.3.0 and the latest stable version / the one I am using is v0.6.0
+#from avalanche.benchmarks.utils import make_tensor_classification_dataset # # DEPRECATED! This is from v0.3.1 and only in the docs of up to v0.5.0. The latest stable version / the one I am using is v0.6.0
+from avalanche.benchmarks.utils.data import AvalancheDataset
+from avalanche.benchmarks.utils.data_attribute import DataAttribute
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 
 cifar100_train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True)
@@ -189,6 +196,52 @@ def split_by_specialised_models_superclasses(dataset, specialised_models_supercl
             indices.append(idx)
     return Subset(dataset, indices)
 
+
+
+'''def split_by_specialised_models_superclasses_using_avalanche(num_classes):#num_classes meaning num_classes_per_group as in for the specialised model for which we are creating a subset, how many classes does its specialised group of coarse classes / specialised subset contain? SAME AS num_classes IN class ResNet20 !!!
+    avl_train = make_avalanche_dataset(train_dataset)#(cifar100_train) #DEPRECATED make_classification_dataset(cifar100_train)  # .targets auto-detected (fine labels)
+    avl_train = AvalancheDataset(
+        [avl_train],
+        data_attributes=[DataAttribute(train_dataset.dataset.coarse_labels.tolist(), "coarse_label")],
+    )
+    avl_val = make_avalanche_dataset(val_dataset)#(cifar100_test) #DEPRECATED make_classification_dataset(cifar100_test)
+    avl_val = AvalancheDataset(
+        [avl_val],
+        data_attributes=[DataAttribute(val_dataset.coarse_labels.tolist(), "coarse_label")],
+    )
+    avl_test = make_avalanche_dataset(test_dataset)#(cifar100_test) #DEPRECATED make_classification_dataset(cifar100_test)
+    avl_test = AvalancheDataset(
+        [avl_test],
+        data_attributes=[DataAttribute(test_dataset.coarse_labels.tolist(), "coarse_label")],
+    )
+
+    scenario = nc_benchmark(
+        train_dataset=avl_train, test_dataset=avl_test,
+        n_experiences=len(specialised_models_superclasses),
+        task_labels=False,
+        fixed_class_order=class_order,
+        per_exp_classes={i: n for i, n in enumerate(num_classes)},
+        class_ids_from_zero_in_each_exp=True,
+    )
+
+    exp.dataset.coarse_label ''' # should exist post-split, alongside exp.dataset.targets
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Code for splitting train dataset by specialised_models_superclasses, outside of if __name__ == "__main__" so that it is executed and imported to other .py files whenever imported from other .py files
 outdoors_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["outdoors"])
 nature_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["nature"])
@@ -238,7 +291,7 @@ if __name__ == "__main__":
               f"Fine label number: {fine_label}, Fine label name: {aquatic_superclass_group_subset.dataset.dataset.fine_label_names[fine_label]} \n"
               f"Coarse label number: {coarse_label}, Coarse label name: {aquatic_superclass_group_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")'''
 
-    # Code for TESTING splitting train dataset by specialised_models_superclasses; inside if __name__ == "__main__" so that it is not executed when this .py file and the ready-to-be-used-for-training-subsets are imported to other .py files
+    '''# Code for TESTING splitting train dataset by specialised_models_superclasses; inside if __name__ == "__main__" so that it is not executed when this .py file and the ready-to-be-used-for-training-subsets are imported to other .py files
     #outdoors_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["outdoors"])
     #for specialised_models_subset in [nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset]:
     specialised_models_subset=animals_specialised_models_subset
@@ -247,8 +300,9 @@ if __name__ == "__main__":
               f"type({specialised_models_subset}): {type(specialised_models_subset)}\n"
               #f"Image tensor: {image},"
               f"Fine label number: {fine_label}, Fine label name: {specialised_models_subset.dataset.dataset.fine_label_names[fine_label]} \n"
-              f"Coarse label number: {coarse_label}, Coarse label name: {specialised_models_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
+              f"Coarse label number: {coarse_label}, Coarse label name: {specialised_models_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")'''
 
+print(outdoors_specialised_models_subset.indices)
 
 # TODO: 1) finish testing if split_by_similar_superclasses works by inspecting outcomes of calling it in the for loop
 
