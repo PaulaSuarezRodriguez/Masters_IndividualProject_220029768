@@ -1,5 +1,3 @@
-from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
-
 import Config
 from Config import SEED
 from Config import set_device
@@ -25,10 +23,14 @@ from avalanche.benchmarks.utils.data import make_avalanche_dataset
 #from avalanche.benchmarks.utils import make_tensor_classification_dataset # # DEPRECATED! This is from v0.3.1 and only in the docs of up to v0.5.0. The latest stable version / the one I am using is v0.6.0
 from avalanche.benchmarks.utils.data import AvalancheDataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
+from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 
-cifar100_train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True)
-cifar100_test = torchvision.datasets.CIFAR100(root='./data', train=False, download=True)
+import os
+print(os.getcwd())
+
+cifar100_train = torchvision.datasets.CIFAR100(root='../data', train=True, download=True)
+cifar100_test = torchvision.datasets.CIFAR100(root='../data', train=False, download=True)
 
 cifar100_superclasses = {
     "aquatic_mammals": ["beaver", "dolphin", "otter", "seal", "whale"],
@@ -121,8 +123,8 @@ class Cifar100Coarse(Dataset):
 
 #TODO: Remember to change DEBUG to False if running experiments.
 if DEBUG:
-    train_dataset = Cifar100Coarse(root='./data', train=True, download=True)
-    test_dataset = Cifar100Coarse(root='./data', train=False, download=True)
+    train_dataset = Cifar100Coarse(root='../data', train=True, download=True)
+    test_dataset = Cifar100Coarse(root='../data', train=False, download=True)
     for i in range(len(train_dataset)):
         image, fine_label, coarse_label = train_dataset[i]
         print(#f"{image.shape}\n"
@@ -152,8 +154,8 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762]),
 ])
 
-train_dataset = Cifar100Coarse(root='./data', train=True, download=True, transform=transform)
-test_dataset = Cifar100Coarse(root='./data', train=False, download=True, transform=transform)
+train_dataset = Cifar100Coarse(root='../data', train=True, download=True, transform=transform)
+test_dataset = Cifar100Coarse(root='../data', train=False, download=True, transform=transform)
 
 val_size = 5000  # 10% of the 50000 that make up the training set
 train_size = len(train_dataset) - val_size
