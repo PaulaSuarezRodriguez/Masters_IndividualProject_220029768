@@ -1,8 +1,8 @@
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 
-import Config
-from Config import SEED
-from Config import set_device
+import Config_v2
+from Config_v2 import SEED
+from Config_v2 import set_device
 import torch
 import torchvision
 import torchvision.transforms as transforms

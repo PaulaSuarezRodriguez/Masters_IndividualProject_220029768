@@ -1,14 +1,14 @@
 # Implementation from https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
-import Config
-from Config import set_seed
+import Config_v2
+from Config_v2 import set_seed
 set_seed()
-from Config import set_device
+from Config_v2 import set_device
 import torch
 import torchao
 import torchvision
-import Load_cifar100
-from Load_cifar100 import train_loader, val_loader, test_loader
-from Load_cifar100 import outdoors_specialised_models_subset, nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset
+import Load_cifar100_v2
+from Load_cifar100_v2 import train_loader, val_loader, test_loader
+from Load_cifar100_v2 import outdoors_specialised_models_subset, nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset
 import numpy as np
 import torch.ao.quantization as quantization
 from torchinfo import summary
@@ -98,16 +98,16 @@ class ResNet20(nn.Module):
 ########################################################################################################################################
 
 # Implementation from https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
-import Config
-from Config import set_seed
+import Config_v2
+from Config_v2 import set_seed
 set_seed()
-from Config import set_device
+from Config_v2 import set_device
 import torch
 import torchao
 import torchvision
-import Load_cifar100
-from Load_cifar100 import train_loader, val_loader, test_loader
-from Load_cifar100 import outdoors_specialised_models_subset, nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset
+import Load_cifar100_v2
+from Load_cifar100_v2 import train_loader, val_loader, test_loader
+from Load_cifar100_v2 import outdoors_specialised_models_subset, nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset
 import numpy as np
 import torch.ao.quantization as quantization
 from torchinfo import summary
