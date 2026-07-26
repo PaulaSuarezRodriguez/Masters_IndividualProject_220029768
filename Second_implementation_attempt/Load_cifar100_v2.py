@@ -24,6 +24,10 @@ from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data import AvalancheDataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
+from avalanche.benchmarks import benchmark_with_validation_stream
+from torchvision import transforms
+#from avalanche.benchmarks.utils import make_classification_dataset
+from avalanche.benchmarks.utils import AvalancheDataset
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 
 import os
@@ -31,6 +35,9 @@ print(os.getcwd())
 
 cifar100_train = torchvision.datasets.CIFAR100(root='../data', train=True, download=True)
 cifar100_test = torchvision.datasets.CIFAR100(root='../data', train=False, download=True)
+
+print("Type cifar100_train")
+print(type(cifar100_train))
 
 cifar100_superclasses = {
     "aquatic_mammals": ["beaver", "dolphin", "otter", "seal", "whale"],
@@ -148,7 +155,6 @@ if DEBUG:
             )
 
 
-
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5071, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2762]),
@@ -156,6 +162,9 @@ transform = transforms.Compose([
 
 train_dataset = Cifar100Coarse(root='../data', train=True, download=True, transform=transform)
 test_dataset = Cifar100Coarse(root='../data', train=False, download=True, transform=transform)
+
+'''print("Type train_dataset BEFORE val split")
+print(type(train_dataset))
 
 val_size = 5000  # 10% of the 50000 that make up the training set
 train_size = len(train_dataset) - val_size
@@ -165,10 +174,52 @@ train_dataset, val_dataset = random_split(
     [train_size, val_size],
     generator=torch.Generator().manual_seed(SEED)
 )
+print("Type train_dataset AFTER val split")
+print(type(train_dataset))
 
 train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
 test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
 val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=2)
+
+print("Type train_loader")
+print(type(train_loader))'''
+
+# split train_dataset into train and validation subsets using Avalanche functionality
+#train_val_split = benchmark_with_validation_stream(train_dataset, 0.1, False,)
+
+val_transform = transforms.Compose([
+    transforms.RandomCrop(28, padding=4),
+    transforms.ToTensor()
+])
+
+val_target_transform = None
+
+transform_groups_with_replay = {
+    'train': (None, None),
+    'eval': (None, None),
+    'val': (val_transform, val_target_transform)
+}
+val_dataset = AvalancheDataset(train_dataset, transform_groups=transform_groups_with_replay)
+
+val_dataset = val_dataset.with_transforms('val')
+cgroup = val_dataset._transform_groups.current_group
+print(val_dataset._transform_groups.transform_groups[cgroup])
+
+# prints output:
+# Compose(
+#     RandomCrop(size=(28, 28), padding=4)
+#     ToTensor()
+# )
+
+
+
+
+
+
+
+
+
+
 
 
 #TODO: Let the split_by_coarse_label be for now and pre-train the global model first using the entire train dataset
