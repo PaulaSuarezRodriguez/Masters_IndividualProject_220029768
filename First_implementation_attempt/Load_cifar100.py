@@ -239,27 +239,19 @@ def split_by_specialised_models_superclasses_using_avalanche(cifar100_train_para
     avl_train = make_avalanche_dataset(cifar100_train_param) # make_classification_dataset(cifar100_train)  # .targets auto-detected
     avl_train = ClassificationDataset(
         [avl_train],
-        data_attributes=[DataAttribute(train_dataset_param.dataset.coarse_labels.tolist(), "coarse_label")],
+        data_attributes=[DataAttribute(train_dataset_param.dataset.coarse_labels.tolist(), "coarse_label"),
+                         DataAttribute(train_dataset_param.indices, "fine_label")],
     )
 
     avl_test = make_avalanche_dataset(test_dataset_param) #make_classification_dataset(cifar100_test)
     avl_test = ClassificationDataset(
         [avl_test],
-        data_attributes=[DataAttribute(test_dataset_param.coarse_labels.tolist(), "coarse_label")],
+        data_attributes=[DataAttribute(test_dataset_param.coarse_labels.tolist(), "coarse_label"),
+                         DataAttribute(test_dataset_param.base_dataset.targets, "fine_label")],
     )
 
     scenario = class_incremental_benchmark({"train": avl_train, "test":avl_test}, class_order=specialised_models_indices_all_superclasses_param, num_experiences=5, num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
     return scenario.streams.train_stream
-    '''scenario = nc_benchmark(
-        train_dataset=(avl_train,avl_train.),
-        test_dataset=avl_test,
-        n_experiences= 5, # len(specialised_models_superclasses),
-        task_labels=False,
-        fixed_class_order=specialised_models_indices_all_superclasses_param,
-        per_exp_classes={i: n for i, n in enumerate(num_classes_per_group)},
-        class_ids_from_zero_in_each_exp=True,
-    )
-    return scenario.train_stream'''
 
 ################## Calls to the functions that produce structures that need to be imported to other .py files: ############################################################################################################
 
