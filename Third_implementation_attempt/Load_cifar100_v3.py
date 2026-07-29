@@ -281,63 +281,31 @@ if IMPLEMENTATION_1:
                                            class_order=specialised_models_indices_all_superclasses, #num_experiences=5,
                                            num_classes_per_exp=num_classes_per_group)#num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
 
-    print("Print scenario:\n", scenario)
-    print("Print scenario.streams.train_stream:\n", scenario.streams)
-    print("Print TYPE scenario.streams.train_stream:\n", type(scenario.streams))
-    train_steam_class_il = scenario.streams["train"]
-    test_steam_class_il = scenario.streams["test"]
+    print("Print scenario:\n", scenario, "\n")
+    print("Print scenario.streams.train_stream:\n", scenario.streams, "\n")
+    print("Print type(scenario.streams):\n", type(scenario.streams), "\n")
+    train_stream_class_il = scenario.streams["train"]
+    test_stream_class_il = scenario.streams["test"]
+
+    outdoors_specialised_models_subset = train_stream_class_il[0]
+    nature_specialised_models_subset = train_stream_class_il[1]
+    people_specialised_models_subset = train_stream_class_il[2]
+    animals_specialised_models_subset = train_stream_class_il[3]
+    objects_and_vehicles_specialised_models_subset = train_stream_class_il[4]
+
+    print("Print outdoors_specialised_models_subset:\n", outdoors_specialised_models_subset)
+    print("type outdoors_specialised_models_subset:\n", type(outdoors_specialised_models_subset), "\n")
+    print("Print nature_specialised_models_subset:\n", nature_specialised_models_subset)
+    print("type nature_specialised_models_subset:\n", type(nature_specialised_models_subset), "\n")
+    print("Print people_specialised_models_subset:\n", people_specialised_models_subset)
+    print("type people_specialised_models_subset:\n", type(people_specialised_models_subset), "\n")
+    print("Print animals_specialised_models_subset:\n", animals_specialised_models_subset)
+    print("type animals_specialised_models_subset:\n", type(animals_specialised_models_subset), "\n")
+    print("Print objects_and_vehicles_specialised_models_subset:\n", objects_and_vehicles_specialised_models_subset)
+    print("type objects_and_vehicles_specialised_models_subset:\n", type(objects_and_vehicles_specialised_models_subset), "\n")
 
 
-
-IMPLEMENTATION_2 = False
-if IMPLEMENTATION_2:
-    avl_train_dataset = make_avalanche_dataset(train_dataset,
-                                               data_attributes=[
-                                                   DataAttribute(train_dataset.coarse_labels, "coarse_label"),
-                                                   DataAttribute(train_dataset.base_dataset.targets, "fine_label")], )
-    # avl_val_dataset = make_avalanche_dataset(val_dataset)
-    avl_test_dataset = make_avalanche_dataset(test_dataset,
-                                               data_attributes=[
-                                                   DataAttribute(test_dataset.coarse_labels, "coarse_label"),
-                                                   DataAttribute(test_dataset.base_dataset.targets, "fine_label")], )
-
-    print("Type avl_train_dataset")
-    print(type(avl_train_dataset))
-    '''print("Type avl_val_dataset")
-    print(type(avl_val_dataset))'''
-    print("Type avl_test_dataset")
-    print(type(avl_test_dataset))
-    print("Print avl_train_dataset:\n", avl_train_dataset)
-    # print("Print avl_val_dataset:\n",avl_val_dataset)
-    print("Print avl_test_dataset:\n", avl_test_dataset)
-
-    '''specialised_models_indices_all_superclasses = (
-        split_by_indices_specialised_models_superclasses(
-            train_dataset,
-            specialised_models_superclasses
-        )
-    )'''
-    classil_dict = {
-        "train": avl_train_dataset,
-        "test": avl_test_dataset,
-    }
-    scenario = class_incremental_benchmark(classil_dict,
-                                           class_order=specialised_models_indices_all_superclasses,
-                                           num_experiences=1)  # ,
-    # num_classes_per_exp={i: n for i, n in enumerate([10, 15, 5, 45, 25])})
 ###########################################################################################################################################################################################################################
 
 if __name__ == "__main__":
-    # Code for TESTING specialised_models_indices_all_superclasses such that it can serve as argument for parameter "fixed_class_order=" in avalanche's nc_benchmark for splitting train dataset by specialised_models_superclasses IN A MANNER THAT WILL NOT CAUSE A "RE-MAPPING OF LABELS" ERROR; inside if __name__ == "__main__" so that it is not executed when this .py file and the ready-to-be-used-for-training-subsets are imported to other .py files
-    specialised_models_indices_all_superclasses = (
-        split_by_indices_specialised_models_superclasses(
-            train_dataset,
-            specialised_models_superclasses #the dictionary indicating the split at the very top, not the name of any function
-        )
-    )
-    print(specialised_models_indices_all_superclasses)
-
-    # TODO: 1) finish testing if split_by_similar_superclasses works by inspecting outcomes of calling it in the for loop
-
-    # TODO: 2) finish similar_superclasses_grouping. This is for further classifying into broader groups. Is the below a valid example of that?
-    # I think not, but double-check
+    print("This is the main file")
