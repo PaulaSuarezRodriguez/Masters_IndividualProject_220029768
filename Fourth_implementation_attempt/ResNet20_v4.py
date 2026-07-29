@@ -83,10 +83,10 @@ class ResNet20(nn.Module):
 
 
 if __name__ == "__main__":
-    resnet20_global_model = ResNet20(num_classes=100)
-    outdoors_specialised_model = ResNet20(num_classes=10)
-    nature_specialised_model = ResNet20(num_classes=15)
-    people_specialised_model = ResNet20(num_classes=5)
-    animals_specialised_model = ResNet20(num_classes=45)
-    objects_and_vehicles_specialised_model = ResNet20(num_classes=25)
+    dummy_resnet20_global_model = ResNet20(num_classes=100)
+    dummy_outdoors_specialised_model = ResNet20(num_classes=10)
+    dummy_nature_specialised_model = ResNet20(num_classes=15)
+    dummy_people_specialised_model = ResNet20(num_classes=5)
+    dummy_animals_specialised_model = ResNet20(num_classes=45)
+    dummy_objects_and_vehicles_specialised_model = ResNet20(num_classes=25)
 
