@@ -29,6 +29,7 @@ from torchvision import transforms
 #from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils import AvalancheDataset
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
+PRETRAINING = False
 
 import os
 print(os.getcwd())
@@ -265,7 +266,7 @@ print("Print type(scenario_train_test.streams):\n", type(scenario_train_test.str
 train_stream_all_specialised_models = scenario_train_test.streams["train"]
 test_stream_all_specialised_models = scenario_train_test.streams["test"]
 
-# Train subsets for each specialised model
+# Train subsets for each specialised model BEFORE train-val split
 outdoors_specialised_models_full_train_subset = train_stream_all_specialised_models[0]
 nature_specialised_models_full_train_subset = train_stream_all_specialised_models[1]
 people_specialised_models_full_train_subset = train_stream_all_specialised_models[2]
@@ -284,7 +285,7 @@ print("Print objects_and_vehicles_specialised_models_full_train_subset:\n", obje
 print("type objects_and_vehicles_specialised_models_full_train_subset:\n", type(objects_and_vehicles_specialised_models_full_train_subset), "\n")
 
 
-# Test subsets for each specialised model
+# Test subsets for each specialised model BEFORE train-val split
 outdoors_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[0]
 nature_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[1]
 people_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[2]
@@ -302,12 +303,15 @@ print("type animals_specialised_models_test_subset_before_train_val_split:\n", t
 print("Print objects_and_vehicles_specialised_models_test_subset_before_train_val_split:\n", objects_and_vehicles_specialised_models_test_subset_before_train_val_split)
 print("type objects_and_vehicles_specialised_models_test_subset_before_train_val_split:\n", type(objects_and_vehicles_specialised_models_test_subset_before_train_val_split), "\n")
 
-##################################################################################################################################
-#TODO:############################################################################################################################
-#TODO: "PASTE FINAL IMPLEMENTATION HERE!!!! CODE FOR SPLITTING DATASET, AT THE VERY LEAST FOR SPLITTING IT INTO TRAIN AND
-# VAL SUBSETS, SHOULD GO HERE!!!!!"
-#TODO:############################################################################################################################
 
+# Code for splitting the train dataset already processed by class Cifar100Coarse and already divided into "experiences" to serve as the subsets for
+# training the specialised models (i.e. the train subsets that are already class 'avalanche.benchmarks.scenarios.dataset_scenario.DatasetExperience'
+# objects given they are elements within the .streams["train"] returned by class_incremental_benchmark) into train and validation datasets.
+# Although, even though the validation dataset comes out of the train dataset only, and not the test one, since benchmark_with_validation_stream
+# expects the entire scenario_train_test: CLScenario = class_incremental_benchmark from which the "experiences" to serve as the subsets for
+# training the specialised models, scenario_train_val_test = benchmark_with_validation_stream returns a train, validation and test set, with the test
+# being identical to the one passed as input and only the train set being edited to produce the validation set / be split into train and validation sets,
+# BOTH OF WHICH CONTAINING "experiences" to serve as the subsets for training the specialised models
 scenario_train_val_test = benchmark_with_validation_stream(
     scenario_train_test,
     validation_size=0.2,
