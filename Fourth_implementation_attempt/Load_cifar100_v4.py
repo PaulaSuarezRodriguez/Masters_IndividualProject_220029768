@@ -168,15 +168,6 @@ transform = transforms.Compose([
 train_dataset = Cifar100Coarse(root='../data', train=True, download=True, transform=transform)
 test_dataset = Cifar100Coarse(root='../data', train=False, download=True, transform=transform)
 
-
-##################################################################################################################################
-#TODO:############################################################################################################################
-#TODO: "PASTE FINAL IMPLEMENTATION HERE!!!! CODE FOR SPLITTING DATASET, AT THE VERY LEAST FOR SPLITTING IT INTO TRAIN AND 
-# VAL SUBSETS, SHOULD GO HERE!!!!!"
-#TODO:############################################################################################################################
-##################################################################################################################################
-
-
 def split_by_coarse_label(dataset, coarse_label_name):
     indices = []
     for idx, (_, _, coarse_label) in enumerate(dataset):
@@ -236,65 +227,164 @@ specialised_models_indices_all_superclasses = (
     )
 )
 
-IMPLEMENTATION_1 = True
-if IMPLEMENTATION_1:
-    # Former def split_by_specialised_models_superclasses_using_avalanche_VERSION_4(cifar100_train_param, cifar100_test_param, train_dataset_param, test_dataset_param, specialised_models_indices_all_superclasses_param, num_classes_per_group = [10, 15, 5, 45, 25]): ,
-    # which in turn was a replacement for def split_by_specialised_models_superclasses_using_avalanche(...) FROM PREVIOUS VERSIONS TO WORK WITHOUT object Subset / train dataset already split by random_split creating Subset objects
-    
-    avl_train = make_avalanche_dataset(train_dataset)  # make_classification_dataset(cifar100_train)  # .targets auto-detected
-    avl_train = ClassificationDataset(
-        [avl_train],
-        data_attributes=[DataAttribute(train_dataset.coarse_labels.tolist(), "coarse_label"),
-                         DataAttribute(train_dataset.base_dataset.targets, "targets")], #"fine_label")],
-    )
-    
-    avl_test = make_avalanche_dataset(test_dataset)  # make_classification_dataset(cifar100_test)
-    avl_test = ClassificationDataset(
-        [avl_test],
-        data_attributes=[DataAttribute(test_dataset.coarse_labels.tolist(), "coarse_label"),
-                         DataAttribute(test_dataset.base_dataset.targets, "targets")],# "fine_label")],
-    )
+# Former def split_by_specialised_models_superclasses_using_avalanche_VERSION_4(cifar100_train_param, cifar100_test_param, train_dataset_param, test_dataset_param, specialised_models_indices_all_superclasses_param, num_classes_per_group = [10, 15, 5, 45, 25]): ,
+# which in turn was a replacement for def split_by_specialised_models_superclasses_using_avalanche(...) FROM PREVIOUS VERSIONS TO WORK WITHOUT object Subset / train dataset already split by random_split creating Subset objects
+avl_train = make_avalanche_dataset(train_dataset)  # make_classification_dataset(cifar100_train)  # .targets auto-detected
+avl_train = ClassificationDataset(
+    [avl_train],
+    data_attributes=[DataAttribute(train_dataset.coarse_labels.tolist(), "coarse_label"),
+                     DataAttribute(train_dataset.base_dataset.targets, "targets")], #"fine_label")],
+)
+
+avl_test = make_avalanche_dataset(test_dataset)  # make_classification_dataset(cifar100_test)
+avl_test = ClassificationDataset(
+    [avl_test],
+    data_attributes=[DataAttribute(test_dataset.coarse_labels.tolist(), "coarse_label"),
+                     DataAttribute(test_dataset.base_dataset.targets, "targets")],# "fine_label")],
+)
 
 
-    print("Type avl_train")
-    print(type(avl_train))
-    print("Type avl_test")
-    print(type(avl_test))
-    print("Print avl_train:\n", avl_train)
-    print("Print avl_test:\n", avl_test)
-    print("Print len(specialised_models_indices_all_superclasses):", len(specialised_models_indices_all_superclasses))
-    print("Print specialised_models_indices_all_superclasses:")
-    print(specialised_models_indices_all_superclasses)
+print("Type avl_train")
+print(type(avl_train))
+print("Type avl_test")
+print(type(avl_test))
+print("Print avl_train:\n", avl_train)
+print("Print avl_test:\n", avl_test)
+print("Print len(specialised_models_indices_all_superclasses):", len(specialised_models_indices_all_superclasses))
+print("Print specialised_models_indices_all_superclasses:")
+print(specialised_models_indices_all_superclasses)
 
 
-    scenario = class_incremental_benchmark({"train": avl_train, "test": avl_test},
-                                           class_order=specialised_models_indices_all_superclasses, #num_experiences=5,
-                                           num_classes_per_exp=num_classes_per_group)#num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
+scenario_train_test = class_incremental_benchmark({"train": avl_train, "test": avl_test},
+                                       class_order=specialised_models_indices_all_superclasses, #num_experiences=5,
+                                       num_classes_per_exp=num_classes_per_group)#num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
 
-    print("Print scenario:\n", scenario, "\n")
-    print("Print scenario.streams.train_stream:\n", scenario.streams, "\n")
-    print("Print type(scenario.streams):\n", type(scenario.streams), "\n")
-    train_stream_class_il = scenario.streams["train"]
-    test_stream_class_il = scenario.streams["test"]
+print("Print scenario_train_test:\n", scenario_train_test, "\n")
+print("Print scenario_train_test.streams:\n", scenario_train_test.streams, "\n")
+print("Print type(scenario_train_test.streams):\n", type(scenario_train_test.streams), "\n")
+train_stream_all_specialised_models = scenario_train_test.streams["train"]
+test_stream_all_specialised_models = scenario_train_test.streams["test"]
 
-    outdoors_specialised_models_subset = train_stream_class_il[0]
-    nature_specialised_models_subset = train_stream_class_il[1]
-    people_specialised_models_subset = train_stream_class_il[2]
-    animals_specialised_models_subset = train_stream_class_il[3]
-    objects_and_vehicles_specialised_models_subset = train_stream_class_il[4]
+# Train subsets for each specialised model
+outdoors_specialised_models_full_train_subset = train_stream_all_specialised_models[0]
+nature_specialised_models_full_train_subset = train_stream_all_specialised_models[1]
+people_specialised_models_full_train_subset = train_stream_all_specialised_models[2]
+animals_specialised_models_full_train_subset = train_stream_all_specialised_models[3]
+objects_and_vehicles_specialised_models_full_train_subset = train_stream_all_specialised_models[4]
 
-    print("Print outdoors_specialised_models_subset:\n", outdoors_specialised_models_subset)
-    print("type outdoors_specialised_models_subset:\n", type(outdoors_specialised_models_subset), "\n")
-    print("Print nature_specialised_models_subset:\n", nature_specialised_models_subset)
-    print("type nature_specialised_models_subset:\n", type(nature_specialised_models_subset), "\n")
-    print("Print people_specialised_models_subset:\n", people_specialised_models_subset)
-    print("type people_specialised_models_subset:\n", type(people_specialised_models_subset), "\n")
-    print("Print animals_specialised_models_subset:\n", animals_specialised_models_subset)
-    print("type animals_specialised_models_subset:\n", type(animals_specialised_models_subset), "\n")
-    print("Print objects_and_vehicles_specialised_models_subset:\n", objects_and_vehicles_specialised_models_subset)
-    print("type objects_and_vehicles_specialised_models_subset:\n", type(objects_and_vehicles_specialised_models_subset), "\n")
+print("Print outdoors_specialised_models_full_train_subset:\n", outdoors_specialised_models_full_train_subset)
+print("type outdoors_specialised_models_full_train_subset:\n", type(outdoors_specialised_models_full_train_subset), "\n")
+print("Print nature_specialised_models_full_train_subset:\n", nature_specialised_models_full_train_subset)
+print("type nature_specialised_models_full_train_subset:\n", type(nature_specialised_models_full_train_subset), "\n")
+print("Print people_specialised_models_full_train_subset:\n", people_specialised_models_full_train_subset)
+print("type people_specialised_models_full_train_subset:\n", type(people_specialised_models_full_train_subset), "\n")
+print("Print animals_specialised_models_full_train_subset:\n", animals_specialised_models_full_train_subset)
+print("type animals_specialised_models_full_train_subset:\n", type(animals_specialised_models_full_train_subset), "\n")
+print("Print objects_and_vehicles_specialised_models_full_train_subset:\n", objects_and_vehicles_specialised_models_full_train_subset)
+print("type objects_and_vehicles_specialised_models_full_train_subset:\n", type(objects_and_vehicles_specialised_models_full_train_subset), "\n")
 
 
+# Test subsets for each specialised model
+outdoors_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[0]
+nature_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[1]
+people_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[2]
+animals_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[3]
+objects_and_vehicles_specialised_models_test_subset_before_train_val_split = test_stream_all_specialised_models[4]
+
+print("Print outdoors_specialised_models_test_subset_before_train_val_split:\n", outdoors_specialised_models_test_subset_before_train_val_split)
+print("type outdoors_specialised_models_test_subset_before_train_val_split:\n", type(outdoors_specialised_models_test_subset_before_train_val_split), "\n")
+print("Print nature_specialised_models_test_subset_before_train_val_split:\n", nature_specialised_models_test_subset_before_train_val_split)
+print("type nature_specialised_models_test_subset_before_train_val_split:\n", type(nature_specialised_models_test_subset_before_train_val_split), "\n")
+print("Print people_specialised_models_test_subset_before_train_val_split:\n", people_specialised_models_test_subset_before_train_val_split)
+print("type people_specialised_models_test_subset_before_train_val_split:\n", type(people_specialised_models_test_subset_before_train_val_split), "\n")
+print("Print animals_specialised_models_test_subset_before_train_val_split:\n", animals_specialised_models_test_subset_before_train_val_split)
+print("type animals_specialised_models_test_subset_before_train_val_split:\n", type(animals_specialised_models_test_subset_before_train_val_split), "\n")
+print("Print objects_and_vehicles_specialised_models_test_subset_before_train_val_split:\n", objects_and_vehicles_specialised_models_test_subset_before_train_val_split)
+print("type objects_and_vehicles_specialised_models_test_subset_before_train_val_split:\n", type(objects_and_vehicles_specialised_models_test_subset_before_train_val_split), "\n")
+
+##################################################################################################################################
+#TODO:############################################################################################################################
+#TODO: "PASTE FINAL IMPLEMENTATION HERE!!!! CODE FOR SPLITTING DATASET, AT THE VERY LEAST FOR SPLITTING IT INTO TRAIN AND
+# VAL SUBSETS, SHOULD GO HERE!!!!!"
+#TODO:############################################################################################################################
+
+scenario_train_val_test = benchmark_with_validation_stream(
+    scenario_train_test,
+    validation_size=0.2,
+    seed=SEED
+)
+
+print("Print scenario_train_val_test:\n", scenario_train_val_test, "\n")
+print("Print scenario_train_val_test.streams:\n", scenario_train_val_test.streams, "\n")
+print("Print type(scenario_train_val_test.streams):\n", type(scenario_train_val_test.streams), "\n")
+train_stream_class_il = scenario_train_val_test.streams["train"]
+val_stream_class_il = scenario_train_val_test.streams["valid"]
+test_stream_class_il = scenario_train_val_test.streams["test"]
+
+# Train subsets for each specialised model AFTER train-val split
+outdoors_specialised_models_train_subset = train_stream_class_il[0]
+nature_specialised_models_train_subset = train_stream_class_il[1]
+people_specialised_models_train_subset = train_stream_class_il[2]
+animals_specialised_models_train_subset = train_stream_class_il[3]
+objects_and_vehicles_specialised_models_train_subset = train_stream_class_il[4]
+
+print("Print outdoors_specialised_models_train_subset:\n", outdoors_specialised_models_train_subset)
+print("type outdoors_specialised_models_train_subset:\n", type(outdoors_specialised_models_train_subset), "\n")
+print("Print nature_specialised_models_train_subset:\n", nature_specialised_models_train_subset)
+print("type nature_specialised_models_train_subset:\n", type(nature_specialised_models_train_subset), "\n")
+print("Print people_specialised_models_train_subset:\n", people_specialised_models_train_subset)
+print("type people_specialised_models_train_subset:\n", type(people_specialised_models_train_subset), "\n")
+print("Print animals_specialised_models_train_subset:\n", animals_specialised_models_train_subset)
+print("type animals_specialised_models_train_subset:\n", type(animals_specialised_models_train_subset), "\n")
+print("Print objects_and_vehicles_specialised_models_train_subset:\n", objects_and_vehicles_specialised_models_train_subset)
+print("type objects_and_vehicles_specialised_models_train_subset:\n", type(objects_and_vehicles_specialised_models_train_subset), "\n")
+
+
+
+# Test subsets for each specialised model AFTER train-val split (which are identical to the test subsets before the train-val split since the val
+# subset is taken only from the full training subset provided by torchvision, not the test one. The only thing that changes is the DATA TYPE since
+# after the split, all three subsets train, test and val will still be CLScenario, but the kind returned by benchmark_with_validation_stream, which
+# has three elements/streams to unpack (one per subset), as opposed to only two, like the CLScenario object produced by scenario_train_test =
+# class_incremental_benchmark did)
+outdoors_specialised_models_test_subset = test_stream_class_il[0]
+nature_specialised_models_test_subset = test_stream_class_il[1]
+people_specialised_models_test_subset = test_stream_class_il[2]
+animals_specialised_models_test_subset = test_stream_class_il[3]
+objects_and_vehicles_specialised_models_test_subset = test_stream_class_il[4]
+
+print("Print outdoors_specialised_models_test_subset:\n", outdoors_specialised_models_test_subset)
+print("type outdoors_specialised_models_test_subset:\n", type(outdoors_specialised_models_test_subset), "\n")
+print("Print nature_specialised_models_test_subset:\n", nature_specialised_models_test_subset)
+print("type nature_specialised_models_test_subset:\n", type(nature_specialised_models_test_subset), "\n")
+print("Print people_specialised_models_test_subset:\n", people_specialised_models_test_subset)
+print("type people_specialised_models_test_subset:\n", type(people_specialised_models_test_subset), "\n")
+print("Print animals_specialised_models_test_subset:\n", animals_specialised_models_test_subset)
+print("type animals_specialised_models_test_subset:\n", type(animals_specialised_models_test_subset), "\n")
+print("Print objects_and_vehicles_specialised_models_test_subset:\n", objects_and_vehicles_specialised_models_test_subset)
+print("type objects_and_vehicles_specialised_models_test_subset:\n", type(objects_and_vehicles_specialised_models_test_subset), "\n")
+
+
+
+# Validation subsets for each specialised model AFTER train-val split (not that there were any val subsets before the split train-val split)
+outdoors_specialised_models_val_subset = val_stream_class_il[0]
+nature_specialised_models_val_subset = val_stream_class_il[1]
+people_specialised_models_val_subset = val_stream_class_il[2]
+animals_specialised_models_val_subset = val_stream_class_il[3]
+objects_and_vehicles_specialised_models_val_subset = val_stream_class_il[4]
+
+print("Print outdoors_specialised_models_val_subset:\n", outdoors_specialised_models_val_subset)
+print("type outdoors_specialised_models_val_subset:\n", type(outdoors_specialised_models_val_subset), "\n")
+print("Print nature_specialised_models_val_subset:\n", nature_specialised_models_val_subset)
+print("type nature_specialised_models_val_subset:\n", type(nature_specialised_models_val_subset), "\n")
+print("Print people_specialised_models_val_subset:\n", people_specialised_models_val_subset)
+print("type people_specialised_models_val_subset:\n", type(people_specialised_models_val_subset), "\n")
+print("Print animals_specialised_models_val_subset:\n", animals_specialised_models_val_subset)
+print("type animals_specialised_models_val_subset:\n", type(animals_specialised_models_val_subset), "\n")
+print("Print objects_and_vehicles_specialised_models_val_subset:\n", objects_and_vehicles_specialised_models_val_subset)
+print("type objects_and_vehicles_specialised_models_val_subset:\n", type(objects_and_vehicles_specialised_models_val_subset), "\n")
+
+
+##################################################################################################################################
 ###########################################################################################################################################################################################################################
 
 if __name__ == "__main__":
