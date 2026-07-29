@@ -11,7 +11,13 @@ from Fourth_implementation_attempt.Load_cifar100_v4 import (outdoors_specialised
 
 #resnet20_global_model = ResNet20()
 
-# NAIVE / BASELINE IMPLEMENTATIION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
+# NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
 # Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
 # and no techniques to mitigate ST-CF):
 
+resnet20_global_model = ResNet20(num_classes=100)
+outdoors_specialised_model = ResNet20(num_classes=10)
+nature_specialised_model = ResNet20(num_classes=15)
+people_specialised_model = ResNet20(num_classes=5)
+animals_specialised_model = ResNet20(num_classes=45)
+objects_and_vehicles_specialised_model = ResNet20(num_classes=25)
