@@ -1,5 +1,5 @@
 # Implementation from https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
-from Third_implementation_attempt.Config_v3 import set_seed
+from Fourth_implementation_attempt.Config_v4 import set_seed
 set_seed()
 import torch.nn as nn
 
@@ -84,7 +84,7 @@ class ResNet20(nn.Module):
 ########################################################################################################################################
 
 # Implementation from https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
-from Third_implementation_attempt.Config_v3 import set_seed
+from Fourth_implementation_attempt.Config_v4 import set_seed
 set_seed()
 import torch.nn as nn
 import torch.nn.functional as F

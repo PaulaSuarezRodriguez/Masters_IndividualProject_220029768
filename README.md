@@ -19,12 +19,12 @@ First_implementation_attempt.
 
 In Load_Cifar100_v2.py of Second_implementation_attempt, I implemented 5 different versions for trying to split the dataset 
 into train and val subsets and/or trying to split anyone of these by "specialised_models_superclasses". 
-None of them work. Versions 1 to 3 I had already discarded in the past. The novelty attempts were versions 4 and 5 
-and these do not work either. Possible reason for VERSION_4 and VERSION_5 not working: 
+None of them work. Versions 1 to 3 I had already discarded in the past. The novelty attempts were versions 4 and 5,
+and these do not work either. Possible reasons for VERSION_4 and VERSION_5 not working: 
 
 - thanks to the errors from VERSION_4, I now know this is due to the dataset_dict object(s) expecting a target and that 
 it does not consider the coarse nor fine labels I passed as DataAttributes to the avl_train_dataset of classil_dict passed
-as the dataset_dict in  class_incremental_benchmark to be the "targets" it is referring to
+as the dataset_dict in class_incremental_benchmark to be the "targets" it is referring to
 
 
 - in VERSION_5, I was supposed to change from using make_avalanche_dataset to ClassificationDatasets because class_incremental_benchmark takes 
@@ -51,3 +51,19 @@ I will have to change the functions for splitting tha dataset that are already t
 AttributeError of VERSION_4 makes no sense, as unless I fix the AttributeError of VERSION_4, I cannot be certain of what 
 the requirements for the parameters of certain class_incremental_benchmark after the dataset_dict throwing this error are,
 including parameter class_order.
+
+### Difference between Third_implementation_attempt and Fourth_implementation_attempt:
+
+In Load_Cifar100_v4.py of Fourth_implementation_attempt, I am gonna clean up the code and remove the functions that are no longer needed. I am doing that in 
+Fourth_implementation_attempt to make sure Load_cifar100_v3.py of Third_implementation_attempt can serve as a SAFECOPY of
+the version of this file THAT DOES WORK (in case the code breaks later on when cleaning it or something)!!!!!!!!!!
+It will also be in Fourth_implementation_attempt that I try to load the avalanche.benchmarks.scenarios.dataset_scenario.DatasetExperience'objects 
+that are the different subsets each corresponding to (i.e. for training a) different specialised model into the adequate
+.py files for use in training of the specialised models. 
+
+Finally, it will also be in Fourth_implementation_attempt that I attempt to further divide each of the experiences/DataExperience objects
+(i.e. specialised_models_subset) into further experiences, this time meaning actual experiences since until now 
+(Load_cifar100_v3.py of Third_implementation_attempt) I used class_incremental_benchmark to split the dataset into the 
+different specialised subsets. But since I also plan on training each of the specialised models in a class incremental manner / potentially 
+using class_incremental_benchmark, each of the experiences/DataExperience objects/ specialised_models_subset needs 
+to be further divided into experiences / incremental chunks for Class-IL, which is what I am trying to do in Fourth_implementation_attempt.

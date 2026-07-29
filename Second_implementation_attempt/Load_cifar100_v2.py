@@ -1,30 +1,20 @@
-import Third_implementation_attempt.Config_v3
-from Third_implementation_attempt.Config_v3 import SEED
-from Third_implementation_attempt.Config_v3 import set_device
+from Fourth_implementation_attempt.Config_v4 import SEED
 import torch
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data import Dataset, DataLoader, random_split
-import os
-import pandas as pd
-from torchvision.io import decode_image
+from torch.utils.data import DataLoader, random_split
 import numpy as np
 import torchvision
 from torch.utils.data import Dataset
 from torch.utils.data import Subset
 import pickle
 import matplotlib.pyplot as plt
-import avalanche
 from avalanche.benchmarks import nc_benchmark # DEPRECATED but still in existance within "deprecated" folder in Avalanche 0.6.0 GitHub (https://github.com/ContinualAI/avalanche/blob/v0.6.0/avalanche/benchmarks/scenarios/deprecated/generators.py )
 ###from avalanche.benchmarks.generators import
 from avalanche.benchmarks import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 #from avalanche.benchmarks.utils import make_classification_dataset # DEPRECATED! This is from v0.3.0 and the latest stable version / the one I am using is v0.6.0
 #from avalanche.benchmarks.utils import make_tensor_classification_dataset # # DEPRECATED! This is from v0.3.1 and only in the docs of up to v0.5.0. The latest stable version / the one I am using is v0.6.0
-from avalanche.benchmarks.utils.data import AvalancheDataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
-from avalanche.benchmarks import benchmark_with_validation_stream
 from torchvision import transforms
 #from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils import AvalancheDataset
