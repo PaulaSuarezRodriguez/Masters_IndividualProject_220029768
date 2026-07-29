@@ -198,16 +198,6 @@ def split_by_similar_superclasses(dataset, similar_superclasses_group):
     return Subset(dataset, indices)
 
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# !!!!!!! REPLACES def split_by_specialised_models_superclasses() FROM PREVIOUS VERSIONS TO WORK WITHOUT object Subset / train dataset already split by random_split creating Subset objects
-def split_by_specialised_models_superclasses(dataset,specialised_models_superclasses_group):  # , similar_superclasses_group):
-    indices = []
-    for idx, (_, _, coarse_label) in enumerate(dataset):
-        if dataset.coarse_label_names[coarse_label] in specialised_models_superclasses_group:  # [similar_superclasses_group]:
-            indices.append(idx)
-    return indices
-
-
 # !!!!!!! CORRECTS def split_by_indices_specialised_models_superclasses(dataset, specialised_models_superclasses) FROM PREVIOUS VERSIONS TO WORK
 # WITHOUT object Subset / train dataset already split by random_split creating Subset objects AND to return the fine-grained labels of all classes
 # within specialised_models_superclasses in the order that results from iterating through specialised_models_superclasses as needed for class_order
@@ -308,4 +298,4 @@ if IMPLEMENTATION_1:
 ###########################################################################################################################################################################################################################
 
 if __name__ == "__main__":
-    print("This is the main file")
+    print("This is the main file of Load_cifar100_v4.")
