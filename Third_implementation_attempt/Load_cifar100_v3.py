@@ -281,8 +281,11 @@ if IMPLEMENTATION_1:
                                            class_order=specialised_models_indices_all_superclasses, #num_experiences=5,
                                            num_classes_per_exp=num_classes_per_group)#num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
 
-    train_steam_class_il = scenario.streams.train_stream
-    test_steam_class_il = scenario.streams.test_stream
+    print("Print scenario:\n", scenario)
+    print("Print scenario.streams.train_stream:\n", scenario.streams)
+    print("Print TYPE scenario.streams.train_stream:\n", type(scenario.streams))
+    train_steam_class_il = scenario.streams["train"]
+    test_steam_class_il = scenario.streams["test"]
 
 
 
@@ -307,7 +310,7 @@ if IMPLEMENTATION_2:
     print("Print avl_train_dataset:\n", avl_train_dataset)
     # print("Print avl_val_dataset:\n",avl_val_dataset)
     print("Print avl_test_dataset:\n", avl_test_dataset)
-        
+
     '''specialised_models_indices_all_superclasses = (
         split_by_indices_specialised_models_superclasses(
             train_dataset,
@@ -325,35 +328,6 @@ if IMPLEMENTATION_2:
 ###########################################################################################################################################################################################################################
 
 if __name__ == "__main__":
-    # Before realising this split would lead to issues regarding re-mapping of labels due to PyTorch models handling of data samples, this was Code for splitting train dataset by specialised_models_superclasses, outside of if __name__ == "__main__" so that it is executed and imported to other .py files whenever imported from other .py files
-    outdoors_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset, specialised_models_superclasses["outdoors"])
-    nature_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset,
-    specialised_models_superclasses["nature"])
-    people_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset,
-    specialised_models_superclasses["people"])
-    animals_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset,
-    specialised_models_superclasses["animals"])
-    objects_and_vehicles_specialised_models_subset = split_by_specialised_models_superclasses(train_dataset,
-    specialised_models_superclasses[
-    "objects_and_vehicles"])
-
-    # Code for TESTING splitting train dataset by specialised_models_superclasses; inside if __name__ == "__main__" so that it is not executed when this .py file and the ready-to-be-used-for-training-subsets are imported to other .py files
-    for specialised_models_subset in [nature_specialised_models_subset, people_specialised_models_subset, animals_specialised_models_subset, objects_and_vehicles_specialised_models_subset]:
-        for (image, fine_label, coarse_label) in specialised_models_subset:
-            print(f"{image.shape}\n"
-                  f"type({specialised_models_subset}): {type(specialised_models_subset)}\n"
-                  #f"Image tensor: {image},"
-                  f"Fine label number: {fine_label}, Fine label name: {specialised_models_subset.dataset.dataset.fine_label_names[fine_label]} \n"
-                  f"Coarse label number: {coarse_label}, Coarse label name: {specialised_models_subset.dataset.dataset.coarse_label_names[coarse_label]} \n\n\n")
-
-    # .indices no longer needed for specialised_models_superclasses, as no Subset object is returned, but directly the actual indices
-    print(outdoors_specialised_models_subset) #.indices) 
-    print(nature_specialised_models_subset) #.indices)
-    print(people_specialised_models_subset) #.indices)
-    print(animals_specialised_models_subset) #.indices)
-    print(objects_and_vehicles_specialised_models_subset) #.indices)
-    print("\n\n\n\n\n\n\n\n\n\n")
-
     # Code for TESTING specialised_models_indices_all_superclasses such that it can serve as argument for parameter "fixed_class_order=" in avalanche's nc_benchmark for splitting train dataset by specialised_models_superclasses IN A MANNER THAT WILL NOT CAUSE A "RE-MAPPING OF LABELS" ERROR; inside if __name__ == "__main__" so that it is not executed when this .py file and the ready-to-be-used-for-training-subsets are imported to other .py files
     specialised_models_indices_all_superclasses = (
         split_by_indices_specialised_models_superclasses(
