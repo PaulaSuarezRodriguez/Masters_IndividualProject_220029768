@@ -25,11 +25,11 @@ from avalanche.benchmarks.utils.data import AvalancheDataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from avalanche.benchmarks import benchmark_with_validation_stream
+from avalanche.benchmarks.scenarios.dataset_scenario import DatasetExperience, split_validation_random, split_validation_class_balanced
 from torchvision import transforms
 #from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils import AvalancheDataset
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
-PRETRAINING = False
 
 import os
 print(os.getcwd())
@@ -258,12 +258,18 @@ print(specialised_models_indices_all_superclasses)
 
 scenario_train_test = class_incremental_benchmark({"train": avl_train, "test": avl_test},
                                        class_order=specialised_models_indices_all_superclasses, #num_experiences=5,
-                                       num_classes_per_exp=num_classes_per_group)#num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
+                                       num_classes_per_exp=num_classes_per_group) #, seed=SEED) ValueError: Can't set `seed` if a fixed `class_order` is given.
+                                                                                # num_classes_per_exp={i: n for i, n in enumerate(num_classes_per_group)})
 
 print("Print scenario_train_test:\n", scenario_train_test, "\n")
 print("Print scenario_train_test.streams:\n", scenario_train_test.streams, "\n")
 print("Print type(scenario_train_test.streams):\n", type(scenario_train_test.streams), "\n")
 train_stream_all_specialised_models = scenario_train_test.streams["train"]
+print("Print train_stream_all_specialised_models:\n", train_stream_all_specialised_models, "\n")
+print("Print train_stream_all_specialised_models.name:\n", train_stream_all_specialised_models.name, "\n")
+print("Print train_stream_all_specialised_models.set_stream_info:\n", train_stream_all_specialised_models.set_stream_info, "\n")
+print("Print train_stream_all_specialised_models.benchmark:\n", train_stream_all_specialised_models.benchmark, "\n")
+print("Print train_stream_all_specialised_models.exps_iter:\n", train_stream_all_specialised_models.exps_iter, "\n")
 test_stream_all_specialised_models = scenario_train_test.streams["test"]
 
 # Train subsets for each specialised model BEFORE train-val split
@@ -312,11 +318,26 @@ print("type objects_and_vehicles_specialised_models_test_subset_before_train_val
 # training the specialised models, scenario_train_val_test = benchmark_with_validation_stream returns a train, validation and test set, with the test
 # being identical to the one passed as input and only the train set being edited to produce the validation set / be split into train and validation sets,
 # BOTH OF WHICH CONTAINING "experiences" to serve as the subsets for training the specialised models
+validation_size = 0.2
+foo = lambda data: split_validation_class_balanced(validation_size, data)
 scenario_train_val_test = benchmark_with_validation_stream(
+    scenario_train_test,
+    #validation_size=validation_size,
+    #seed=SEED,
+    split_strategy=foo
+)
+# version that lead to "raise ValueError("`datasets` must all have the same classes") ValueError: `datasets` must all have the same classes"
+# i.e. the version from last Load_Cifar100.py commit from yesterday
+# 31/07/2026 00:06 am --> even with the changes made to Train_ResNet20_v4.py, it still raises the same error as it did before. The error is
+# DEFINITELY caused by splitting without split_validation_class_balanced in benchmark_with_validation_stream, and in turn it does NOT seem to be
+# what it's causing the new error in Train_ResNet20_v4.py (File "C:\Users\...\avalanche\benchmarks\scenarios\supervised.py", line 133, in class_incremental_benchmark
+# curr_data = data_by_class[cls].concat(curr_data) KeyError: 63), so try to debug new error in Train_ResNet20_v4.py using the
+# benchmark_with_validation_stream with split_validation_class_balanced; i.e. the one above.
+'''scenario_train_val_test = benchmark_with_validation_stream(
     scenario_train_test,
     validation_size=0.2,
     seed=SEED
-)
+)'''
 
 print("Print scenario_train_val_test:\n", scenario_train_val_test, "\n")
 print("Print scenario_train_val_test.streams:\n", scenario_train_val_test.streams, "\n")
