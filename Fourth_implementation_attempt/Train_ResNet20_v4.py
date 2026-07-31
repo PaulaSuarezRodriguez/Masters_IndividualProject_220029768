@@ -35,66 +35,125 @@ optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
 criterion = CrossEntropyLoss()
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion, train_mb_size=100, train_epochs=4, eval_mb_size=100)
 
-print("outdoors_specialised_models_train_subset.dataset", outdoors_specialised_models_train_subset.dataset)
-print("outdoors_specialised_models_val_subset.dataset", outdoors_specialised_models_val_subset.dataset)
+#print("outdoors_specialised_models_train_subset.dataset", outdoors_specialised_models_train_subset.dataset)
+#print("outdoors_specialised_models_val_subset.dataset", outdoors_specialised_models_val_subset.dataset)
 print("type(outdoors_specialised_models_train_subset.dataset)", type(outdoors_specialised_models_train_subset.dataset))
 print("type(outdoors_specialised_models_val_subset.dataset)", type(outdoors_specialised_models_val_subset.dataset))
 
-print("outdoors_specialised_models_train_subset.dataset.targets", outdoors_specialised_models_train_subset.dataset.targets)
-print("outdoors_specialised_models_val_subset.dataset.targets", outdoors_specialised_models_val_subset.dataset.targets)
+#print("outdoors_specialised_models_train_subset.dataset.targets", outdoors_specialised_models_train_subset.dataset.targets)
+#print("outdoors_specialised_models_val_subset.dataset.targets", outdoors_specialised_models_val_subset.dataset.targets)
 print("type(outdoors_specialised_models_train_subset.dataset.targets)", type(outdoors_specialised_models_train_subset.dataset.targets))
 print("type(outdoors_specialised_models_val_subset.dataset.targets)", type(outdoors_specialised_models_val_subset.dataset.targets))
 
-
-print("outdoors_specialised_models_train_subset.dataset.coarse_label)", outdoors_specialised_models_train_subset.dataset.coarse_label)
-print("outdoors_specialised_models_val_subset.dataset.coarse_label)", outdoors_specialised_models_val_subset.dataset.coarse_label)
+#print("outdoors_specialised_models_train_subset.dataset.coarse_label)", outdoors_specialised_models_train_subset.dataset.coarse_label)
+#print("outdoors_specialised_models_val_subset.dataset.coarse_label)", outdoors_specialised_models_val_subset.dataset.coarse_label)
 print("type(outdoors_specialised_models_train_subset.dataset.coarse_label))", type(outdoors_specialised_models_train_subset.dataset.coarse_label))
 print("type(outdoors_specialised_models_val_subset.dataset.coarse_label))", type(outdoors_specialised_models_val_subset.dataset.coarse_label))
 
 OPTION_1 = True
+OPTION_1A = False #True
+OPTION_1B = False #True
+OPTION_1C = False #True
+OPTION_1D = False #True
+OPTION_1E = False #True
+OPTION_1F = True
 if OPTION_1:
-    avl_train = ClassificationDataset(
-        [outdoors_specialised_models_train_subset.dataset],
-        data_attributes=[DataAttribute(outdoors_specialised_models_train_subset.dataset.targets, "targets")], #"fine_label")],
-    )
-    avl_val = ClassificationDataset(
+    if OPTION_1 and OPTION_1A:
+        avl_train = ClassificationDataset(
+            [outdoors_specialised_models_train_subset.dataset],
+            data_attributes=[DataAttribute(outdoors_specialised_models_train_subset.dataset.targets, "targets")], #"fine_label")],
+        )
+        avl_val = ClassificationDataset(
+            [outdoors_specialised_models_val_subset.dataset],
+            data_attributes=[DataAttribute(outdoors_specialised_models_val_subset.dataset.targets, "targets")], #"fine_label")],
+        )
+
+    if OPTION_1 and OPTION_1B:
+        avl_train = ClassificationDataset([outdoors_specialised_models_train_subset.dataset],
+            data_attributes = [DataAttribute(outdoors_specialised_models_train_subset.dataset.coarse_label, "coarse_label"),
+                               DataAttribute(outdoors_specialised_models_train_subset.dataset.targets, "targets")],  # "fine_label")],
+            )
+        avl_val = ClassificationDataset(
         [outdoors_specialised_models_val_subset.dataset],
-        data_attributes=[DataAttribute(outdoors_specialised_models_val_subset.dataset.targets, "targets")], #"fine_label")],
-    )
-
-    avl_train = ClassificationDataset([outdoors_specialised_models_train_subset.dataset],
-        data_attributes = [DataAttribute(outdoors_specialised_models_train_subset.dataset.coarse_label, "coarse_label"),
-                           DataAttribute(outdoors_specialised_models_train_subset.dataset.targets, "targets")],  # "fine_label")],
-        )
-    avl_val = ClassificationDataset(
-    [outdoors_specialised_models_val_subset.dataset],
-    data_attributes = [DataAttribute(outdoors_specialised_models_val_subset.dataset.coarse_label, "coarse_label"),
-                       DataAttribute(outdoors_specialised_models_val_subset.dataset.targets, "targets")],  # "fine_label")],
-    )
-
-    avl_train = ClassificationDataset(
-        [outdoors_specialised_models_train_subset.dataset],
-        data_attributes=[outdoors_specialised_models_train_subset.dataset.coarse_label, outdoors_specialised_models_train_subset.dataset.targets],  # "fine_label")],
-        )
-    avl_val = ClassificationDataset(
-        [outdoors_specialised_models_val_subset.dataset],
-        data_attributes=[outdoors_specialised_models_val_subset.dataset.coarse_label, outdoors_specialised_models_val_subset.dataset.targets],  # "fine_label")],
+        data_attributes = [DataAttribute(outdoors_specialised_models_val_subset.dataset.coarse_label, "coarse_label"),
+                           DataAttribute(outdoors_specialised_models_val_subset.dataset.targets, "targets")],  # "fine_label")],
         )
 
-    # This version of OPTION 1 leads to a completely new error THAT THE OTHER VERSIONS DO NOT GIVE; DISCARD THE BELOW:
-    '''avl_train = ClassificationDataset(
-        [outdoors_specialised_models_train_subset.dataset],
-        data_attributes=[(outdoors_specialised_models_train_subset.dataset.coarse_label, "coarse_label"), (outdoors_specialised_models_train_subset.dataset.targets, "targets")],  # "fine_label")],
-        )
-    avl_val = ClassificationDataset(
-        [outdoors_specialised_models_val_subset.dataset],
-        data_attributes=[(outdoors_specialised_models_val_subset.dataset.coarse_label, "coarse_label"), (outdoors_specialised_models_val_subset.dataset.targets, "targets")],  # "fine_label")],
-        )'''
-    print("type(avl_train)", type(avl_train))
-    print("type(avl_val)", type(avl_val))
+    if OPTION_1 and OPTION_1C:
+        avl_train = ClassificationDataset(
+            [outdoors_specialised_models_train_subset.dataset],
+            data_attributes=[outdoors_specialised_models_train_subset.dataset.coarse_label, outdoors_specialised_models_train_subset.dataset.targets],  # "fine_label")],
+            )
+        avl_val = ClassificationDataset(
+            [outdoors_specialised_models_val_subset.dataset],
+            data_attributes=[outdoors_specialised_models_val_subset.dataset.coarse_label, outdoors_specialised_models_val_subset.dataset.targets],  # "fine_label")],
+            )
 
-    outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_val},
-                                                                        num_experiences=5)
+    '''if OPTION_1 and OPTION_1D: # This version of OPTION 1 leads to a completely new error THAT THE OTHER VERSIONS DO NOT GIVE; DISCARD THE BELOW:
+        avl_train = ClassificationDataset(
+            [outdoors_specialised_models_train_subset.dataset],
+            data_attributes=[(outdoors_specialised_models_train_subset.dataset.coarse_label, "coarse_label"), (outdoors_specialised_models_train_subset.dataset.targets, "targets")],  # "fine_label")],
+            )
+        avl_val = ClassificationDataset(
+            [outdoors_specialised_models_val_subset.dataset],
+            data_attributes=[(outdoors_specialised_models_val_subset.dataset.coarse_label, "coarse_label"), (outdoors_specialised_models_val_subset.dataset.targets, "targets")],  # "fine_label")],
+            )'''
+
+    if OPTION_1 and OPTION_1E: # ValueError: Data attribute coarse_label has length 12 but the dataset has length 4000
+        print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.name)", type(outdoors_specialised_models_train_subset.dataset.coarse_label.name))
+        #print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.name.tolist())", type(outdoors_specialised_models_train_subset.dataset.coarse_label.name.tolist()))
+        #print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.tolist())",type(outdoors_specialised_models_train_subset.dataset.coarse_label.tolist()))
+
+        avl_train = ClassificationDataset(
+            [outdoors_specialised_models_train_subset.dataset],
+            data_attributes=[DataAttribute(outdoors_specialised_models_train_subset.dataset.coarse_label.name, "coarse_label"),
+                             DataAttribute(outdoors_specialised_models_train_subset.dataset.targets.name, "targets")],  # "fine_label")],
+            )
+        avl_val = ClassificationDataset(
+            [outdoors_specialised_models_val_subset.dataset],
+            data_attributes=[DataAttribute(outdoors_specialised_models_val_subset.dataset.coarse_label.name, "coarse_label"),
+                             DataAttribute(outdoors_specialised_models_val_subset.dataset.targets.name, "targets")],  # "fine_label")],
+            )
+
+    if OPTION_1 and OPTION_1F:  # ValueError: Data attribute coarse_label has length 12 but the dataset has length 4000
+        print("\n\n\n\n\n OPTION_1F:")
+        print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.name)", type(outdoors_specialised_models_train_subset.dataset.coarse_label.name))
+        print("type(outdoors_specialised_models_train_subset.dataset.targets.name)", type(outdoors_specialised_models_train_subset.dataset.targets.name))
+        print("type(outdoors_specialised_models_train_subset.dataset)", type(outdoors_specialised_models_train_subset.dataset))
+
+        print("outdoors_specialised_models_train_subset.dataset.coarse_label.name", outdoors_specialised_models_train_subset.dataset.coarse_label.name)
+        print("outdoors_specialised_models_train_subset.dataset.targets.name", outdoors_specialised_models_train_subset.dataset.targets.name)
+        print("outdoors_specialised_models_train_subset.dataset", outdoors_specialised_models_train_subset.dataset)
+
+
+        avl_train = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
+        avl_val = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
+
+        print("type(outdoors_specialised_models_train_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_train", type(avl_train))
+        print("type(outdoors_specialised_models_val_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_val", type(avl_val))
+
+        avl_train = ClassificationDataset(
+            [avl_train], #[outdoors_specialised_models_train_subset.dataset],
+            data_attributes=[
+                DataAttribute(avl_train.coarse_label, "coarse_label"),
+                DataAttribute(avl_train.targets, "targets")],
+            # "fine_label")],
+        )
+        avl_val = ClassificationDataset(
+            [avl_val], #[outdoors_specialised_models_val_subset.dataset],
+            data_attributes=[
+                DataAttribute(avl_val.coarse_label, "coarse_label"),
+                DataAttribute(avl_val.targets, "targets")],
+            # "fine_label")],
+        )
+
+        '''print("type(avl_train)", type(avl_train))
+        print("type(avl_val)", type(avl_val))'''
+        print("Type avl_train AFTER being passed to ClassificationDataset", type(avl_train))
+        print("Type avl_val AFTER being passed to ClassificationDataset", type(avl_val))
+
+        outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_val},
+                                                                            num_experiences=5)
 
 OPTION_2 = False
 if OPTION_2:

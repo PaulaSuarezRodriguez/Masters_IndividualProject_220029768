@@ -231,6 +231,7 @@ specialised_models_indices_all_superclasses = (
 # Former def split_by_specialised_models_superclasses_using_avalanche_VERSION_4(cifar100_train_param, cifar100_test_param, train_dataset_param, test_dataset_param, specialised_models_indices_all_superclasses_param, num_classes_per_group = [10, 15, 5, 45, 25]): ,
 # which in turn was a replacement for def split_by_specialised_models_superclasses_using_avalanche(...) FROM PREVIOUS VERSIONS TO WORK WITHOUT object Subset / train dataset already split by random_split creating Subset objects
 avl_train = make_avalanche_dataset(train_dataset)  # make_classification_dataset(cifar100_train)  # .targets auto-detected
+print("Type avl_train BEFORE being passed to ClassificationDataset", type(avl_train))
 avl_train = ClassificationDataset(
     [avl_train],
     data_attributes=[DataAttribute(train_dataset.coarse_labels.tolist(), "coarse_label"),
@@ -238,17 +239,19 @@ avl_train = ClassificationDataset(
 )
 
 avl_test = make_avalanche_dataset(test_dataset)  # make_classification_dataset(cifar100_test)
+print("Type avl_test BEFORE being passed to ClassificationDataset", type(avl_test))
 avl_test = ClassificationDataset(
     [avl_test],
     data_attributes=[DataAttribute(test_dataset.coarse_labels.tolist(), "coarse_label"),
                      DataAttribute(test_dataset.base_dataset.targets, "targets")],# "fine_label")],
 )
 
+print("type(test_dataset.coarse_labels)", type(test_dataset.coarse_labels))
+print("type(test_dataset.coarse_labels.tolist())", type(test_dataset.coarse_labels.tolist()))
+print("type(test_dataset.base_dataset.targets)", type(test_dataset.base_dataset.targets))
 
-print("Type avl_train")
-print(type(avl_train))
-print("Type avl_test")
-print(type(avl_test))
+print("Type avl_train", type(avl_train))
+print("Type avl_test", type(avl_test))
 print("Print avl_train:\n", avl_train)
 print("Print avl_test:\n", avl_test)
 print("Print len(specialised_models_indices_all_superclasses):", len(specialised_models_indices_all_superclasses))
