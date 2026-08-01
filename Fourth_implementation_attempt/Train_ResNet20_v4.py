@@ -39,6 +39,8 @@ cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, crite
 #print("outdoors_specialised_models_val_subset.dataset", outdoors_specialised_models_val_subset.dataset)
 print("type(outdoors_specialised_models_train_subset.dataset)", type(outdoors_specialised_models_train_subset.dataset))
 print("type(outdoors_specialised_models_val_subset.dataset)", type(outdoors_specialised_models_val_subset.dataset))
+x, y, t = outdoors_specialised_models_val_subset.dataset[0]
+print("x", x, "\ny", y, "\nt", t)
 
 #print("outdoors_specialised_models_train_subset.dataset.targets", outdoors_specialised_models_train_subset.dataset.targets)
 #print("outdoors_specialised_models_val_subset.dataset.targets", outdoors_specialised_models_val_subset.dataset.targets)
@@ -120,14 +122,17 @@ if OPTION_1:
         print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.name)", type(outdoors_specialised_models_train_subset.dataset.coarse_label.name))
         print("type(outdoors_specialised_models_train_subset.dataset.targets.name)", type(outdoors_specialised_models_train_subset.dataset.targets.name))
         print("type(outdoors_specialised_models_train_subset.dataset)", type(outdoors_specialised_models_train_subset.dataset))
+        print("type(outdoors_specialised_models_val_subset.dataset)", type(outdoors_specialised_models_val_subset.dataset), "\n")
 
         print("outdoors_specialised_models_train_subset.dataset.coarse_label.name", outdoors_specialised_models_train_subset.dataset.coarse_label.name)
         print("outdoors_specialised_models_train_subset.dataset.targets.name", outdoors_specialised_models_train_subset.dataset.targets.name)
-        print("outdoors_specialised_models_train_subset.dataset", outdoors_specialised_models_train_subset.dataset)
+        print("\n", "outdoors_specialised_models_train_subset.dataset", outdoors_specialised_models_train_subset.dataset)
+        print("outdoors_specialised_models_val_subset.dataset", outdoors_specialised_models_val_subset.dataset)
 
 
         avl_train = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
         avl_val = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
+        avl_test = make_avalanche_dataset(outdoors_specialised_models_test_subset.dataset)
 
         print("type(outdoors_specialised_models_train_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_train", type(avl_train))
         print("type(outdoors_specialised_models_val_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_val", type(avl_val))
@@ -146,14 +151,47 @@ if OPTION_1:
                 DataAttribute(avl_val.targets, "targets")],
             # "fine_label")],
         )
+        avl_test = ClassificationDataset(
+            [avl_test], #[outdoors_specialised_models_test_subset.dataset],
+            data_attributes=[
+                DataAttribute(avl_test.coarse_label, "coarse_label"),
+                DataAttribute(avl_test.targets, "targets")],
+            # "fine_label")],
+        )
 
         '''print("type(avl_train)", type(avl_train))
         print("type(avl_val)", type(avl_val))'''
         print("Type avl_train AFTER being passed to ClassificationDataset", type(avl_train))
         print("Type avl_val AFTER being passed to ClassificationDataset", type(avl_val))
 
-        outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_val},
-                                                                            num_experiences=5)
+        print(avl_train.targets.uniques)
+        print(max(avl_train.targets.uniques))
+        print(len(avl_train.targets.uniques)) # print number of classes
+        print(sorted(avl_train.targets.uniques))# print class_order
+
+        class_order_len = len(avl_train.targets.uniques)
+
+
+        outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                            class_order=sorted(avl_train.targets.uniques), num_experiences=5)
+        #, num_classes_per_exp=[2, 2, 2, 2, 2])
+        # NAIVE IMPLEMENTATION: same num_experiences=5 for every specialised model, and since in order to avoid bug, num_experiences needs to be set
+        # using num_classes_per_exp, for every specialised model, the values within num_classes_per_exp will be set to the length of class_order
+        # divided by 5 which will be the num_experiences intended for every specialised model, hence why num_classes_per_exp list for the
+        # class_incremental_benchmark of every specialised model subset will always have 5 elements (all of them set to the value equal to the length
+        # of class_order divided by 5). CHANGE OF PLANS!!! It raises error given that num_classes is still set according to the bug/assumption made
+        # by the library:
+        # num_classes: int = 1 + max(list(datasets_dict.values())[0].targets.uniques)
+        #     if (num_classes_per_exp is not None) and (num_classes != sum(num_classes_per_exp)):
+        #         raise ValueError(
+        #             "`sum(num_classes_per_exp)` must be equal to the total number of classes."
+        #         )
+
+
+        print(outdoors_specialised_models_benchmark)
+        print(outdoors_specialised_models_benchmark.streams["train"])
+        print(outdoors_specialised_models_benchmark.streams["test"])
+        #print(outdoors_specialised_models_benchmark.streams["valid"]) # NOT benchmark_with_validation_stream, hence KeyError: 'valid'
 
 OPTION_2 = False
 if OPTION_2:

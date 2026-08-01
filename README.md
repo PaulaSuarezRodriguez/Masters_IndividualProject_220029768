@@ -67,3 +67,63 @@ Finally, it will also be in Fourth_implementation_attempt that I attempt to furt
 different specialised subsets. But since I also plan on training each of the specialised models in a class incremental manner / potentially 
 using class_incremental_benchmark, each of the experiences/DataExperience objects/ specialised_models_subset needs 
 to be further divided into experiences / incremental chunks for Class-IL, which is what I am trying to do in Fourth_implementation_attempt.
+
+### Difference between Fourth_implementation_attempt and Fifth_implementation_attempt:
+TASK AT HAND: How to further divide each of the experiences/DataExperience objects (i.e. specialised_models_subset imported into Train_ResNet20_v4.py)
+into further experiences this time meaning actual experiences since in this case I used class_incremental_benchmark to split the dataset into the 
+different specialised subsets, but I also plan on training each of the specialised models in a class incremental manner/potentially using 
+class_incremental_benchmark, hence each of the experiences/DataExperience objects/ specialised models_subset needs to be further divided into 
+experiences / incremental chunks for Class-IL?
+
+WHAT I LEARNED SO FAR: After fixing the "raise ValueError("`datasets` must all have the same classes") ValueError: `datasets` must all have the
+same classes" caused by the consequences of NOT using the benchmark_with_validation_stream with split_validation_class_balanced, which was fixed by
+modifying the scenario_train_val_test = benchmark_with_validation_stream in Load_cifar100_v4.py to use split_validation_class_balanced, the NEXT
+ERROR THAT I AM STILL CURRENTLY WORKING ON IN ORDER TO ACHIEVE THE FURTHER SPLIT OF EACH DataExperience can be seen by running Train_ResNet20_v4.py
+OPTION_1 none-commented out versions and OPTION_2 ; they both lead to the error in question: "curr_data = data_by_class[cls].concat(curr_data)" of
+class_incremental_benchmark source code due to KeyError: 63. This error seems to be caused by a "bug"/assumption made by the library code that the
+number of classes is a ordered sequence of integers starting from 0. Hence, it sets num_classes variable to the value of the highest label (despite
+labels not carrying numberic value, just being the class name/identificator) using max(targets) as part of line 
+"num_classes = 1 + max(list(datasets_dict.values())[0].targets.uniques)" of class_incremental_benchmark source code. Hence, IN ORDER TO MAKE 
+class_incremental_benchmark WORK WITH A SUBSET (i.e. a fraction of the original torchvision.datasets.cifar100 dataset, not necessarily an object of
+class Subset. That is, a subset of ANY TYPE, whether DataExperience or ClassificationDataset or whatever other appropriate data type), THERE 
+SEEMS TO BE NO OPTION BUT TO OVERRIDE THE LIBRARY SOURCE CODE FOR class_incremental_benchmark. THAT IS, THERE NO OPTION BUT TO OVERRIDE THE LIBRARY
+SOURCE CODE FOR class_incremental_benchmark IF I INSIST ON USING class_incremental_benchmark ON SUBSETS OF THE ORIGINAL DATASET (in this case, meaning
+the subsets that are the specialised_models_subsets for training each of the specialised models such that these can be divided further into 
+incremental chunks for Class-IL). 
+
+As such, what I plan on doing in Fifth_implementation_attempt before resorting to overriding the library code for class_incremental_benchmark is to 
+pass class_order=sorted(avl_train.targets.uniques) into class_incremental_benchmark call for creating class_incremental_benchmark for each 
+specialised models subset. This seems to provide a work-around to the consequences of the "bug"/assumption made by the library code that the number 
+of classes is an ordered sequence of integers starting from 0. Whilst it still sets num_classes: int = 1 + max(list(datasets_dict.values())[0].targets.uniques), 
+because "if class_order is None" IS NOW FALSE (i.e. is made false by passing class_order=sorted(avl_train.targets.uniques) into class_incremental_benchmark),
+"class_order = torch.randperm(num_classes).tolist()" IS SKIPPED !!!!!! This seems to work so far in 4th_implementation_attempt so far, and I will 
+formalise it and test it further in 5th_implementation_attempt.
+
+###### POTENTIAL ISSUES WITH THIS WORK-AROUND:
+num_classes is still set to the problematic num_classes: int = 1 + max(list(datasets_dict.values())[0].targets.uniques) and then used to set current 
+classes per experience in curr_classess_per_exp: int = num_classes // num_experiences. Won't this cause problems with the code "# split classes by experience"
+and "# create the streams using class_order to split the data" in class_incremental_benchmark? FIND OUT FOR 5th_implementation_attempt WHEN EXPERIMENTING 
+WITH THIS WORK-AROUND !!!
+
+###### IMPORTANT THINGS TO FIND OUT FOR 5th_implementation_attempt VIA EXPERIMENTING WITH THE IMPLEMENTATION OF THIS WORK-AROUND:
+MOST IMPORTANT!!!!! Does providing avl_train, avl_val, and avl_test to class_incremental_benchmark mean that the class_incremental_benchmark
+for each specialised_models_subset (e.g. outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val}) 
+is already divided into train, test, and validation splits as I originally intended when deciding to do scenario_train_val_test = benchmark_with_validation_stream(scenario_train_test
+where scenario_train_test is a class_incremental_benchmark created from train_dataset and test_dataset (i.e. the torchvision.datasets.cifar100 
+dataset that had already been processed by class CoarseCifar100) and hence, ready for training after being extracted from outdoors_specialised_models_benchmark
+using .stream objects .stream["train"], .stream["val"], and .stream["test"] ?????? FIND OUT FOR 5th_implementation_attempt WHEN EXPERIMENTING WITH THE WORK-AROUND !!!
+If not, would benchmark_with_validation_stream need to be applied after the class_incremental_benchmark for each specialised_models_subset to the 
+class_incremental_benchmark for each specialised_models_subset???? Is that even possible or would I have to find another function? Regardless of the
+function, I would have to make sure that the samples are divided into train, test and val splits fairly as they otherwise would when using the 
+benchmark_with_validation_stream on scenario_train_test, both to avoid library-related errors in the future and to ensure fair experientation (e.g.
+that the model is not overfitting because it has already seen part of the validation or test set in one of the experiences as a result of unfair splitting).
+
+THINGS TO KEEP IN MIND FOR 5th_implementation_attempt: 
+1. streams / CLStreams / amy of benchmark_with_validation_stream's streams / .stream objects such as .stream["train"], .stream["val"], and .stream["test"]
+contain a SEQUENCE / COLLECTION of DataExperience objects divided by class / specialised_models_superclasses in my case AND these DataExperience 
+objects for which type() returns class DataExperience IN TURN CONTAIN:
+   - an object of type ClassificationDataset returned by name_of_stream_variable.dataset (e.g.outdoors_specialised_models_train_subset.dataset)
+   - an object of type DataAttribute returned by name_of_stream_variable.dataset.targets (e.g.outdoors_specialised_models_train_subset.dataset.targets)
+   - an object of type DataAttribute returned by name_of_stream_variable.dataset.coarse_label (e.g.outdoors_specialised_models_train_subset.dataset.coarse_label)
+And, as any ClassificationDataset object, it contains a set of samples, which can be reached via indexing (e.g. x, y, t = outdoors_specialised_models_train_subset.dataset[0]) 
+would return one element of the dataset (that at index 0) where x is the tensor, and y and t are the coarse_label and fine_label of that element.
