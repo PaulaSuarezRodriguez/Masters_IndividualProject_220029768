@@ -22,7 +22,7 @@ from avalanche.training.supervised import Naive, CWRStar, Replay, GDumb, Cumulat
 print("\n\n\n################################ HERE BEGINS Train_ResNet20_v5.py ################################ \n\n\n")
 
 resnet20_global_model = ResNet20(num_classes=100)
-outdoors_specialised_model = ResNet20(num_classes=10)#TODO: (num_classes=10)
+outdoors_specialised_model = ResNet20(num_classes=100)#TODO: (num_classes=10)
 nature_specialised_model = ResNet20(num_classes=15)
 people_specialised_model = ResNet20(num_classes=5)
 animals_specialised_model = ResNet20(num_classes=45)
@@ -57,8 +57,6 @@ print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.name)"
 print("type(outdoors_specialised_models_train_subset.dataset.targets.name)", type(outdoors_specialised_models_train_subset.dataset.targets.name))
 print("type(outdoors_specialised_models_val_subset.dataset.coarse_label.name)", type(outdoors_specialised_models_val_subset.dataset.coarse_label.name))
 print("type(outdoors_specialised_models_val_subset.dataset.targets.name)", type(outdoors_specialised_models_val_subset.dataset.targets.name))'''
-
-# ValueError: Data attribute coarse_label has length 12 but the dataset has length 4000
 
 avl_train = make_avalanche_dataset(outdoors_specialised_models_train_subset.dataset)
 avl_val = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
@@ -131,11 +129,13 @@ outdoors_specialised_models_test_stream_class_il = outdoors_specialised_models_b
 
 #####################################################################################################################################################################################################################
 # TRAINING LOOP
-
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9) # example from Avalanche docs: model = SimpleMLP(num_classes=10) and since num_classes=10 in outdoors_specialised_model, I have kept the lr=0.001, momentum=0.9 as provided in the model = SimpleMLP(num_classes=10) example for the outdoors_specialised_model
 criterion = CrossEntropyLoss()
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion) #, train_mb_size=100, train_epochs=4, eval_mb_size=100)
 
+print("outdoors_specialised_models_train_stream_class_il[0]",outdoors_specialised_models_train_stream_class_il[0].dataset[0])
+print("outdoors_specialised_models_val_stream_class_il[0]",outdoors_specialised_models_val_stream_class_il[0].dataset[0])
+print("outdoors_specialised_models_test_stream_class_il[0]",outdoors_specialised_models_test_stream_class_il[0].dataset[0])
 #the block to uncomment
 # REALISATION! This code that I took from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
 # is not the one and only way to build a training loop -- IT IS THE WAY TO BUILD A TRAINING LOOP IF optimizer = SGD !!!  When optimizer = SGD, .train
@@ -155,12 +155,13 @@ results = []
 for experience in outdoors_specialised_models_train_stream_class_il:
     print("Start of experience: ", experience.current_experience)
     print("Current Classes: ", experience.classes_in_this_experience)
+    #active_classes = experience.classes_in_this_experience.tolist()
     print("experience.dataset", experience.dataset)
     print("experience.dataset.targets", experience.dataset.targets.uniques)
     print("experience.dataset.coarse_label", experience.dataset.coarse_label.uniques)
     print("experience", experience)
-    x, y, z = experience.dataset[0]
-    print("x", x, "\ny", y, "\nz", z)
+    #x, y, z = experience.dataset[0]
+    #print("x", x, "\ny", y, "\nz", z)
 
     cl_strategy.train(experience)#,[outdoors_specialised_models_train_stream_class_il[0],
                                  #outdoors_specialised_models_train_stream_class_il[1],
@@ -174,15 +175,54 @@ for experience in outdoors_specialised_models_train_stream_class_il:
 
 
 
+def label_remapping_specialised_model(outdoors_specialised_models_train_stream_class_il_param):
+    #for exp, expp in enumerate(outdoors_specialised_models_train_stream_class_il.exps_iter):
+    for exp in outdoors_specialised_models_train_stream_class_il_param:
+        i, t, c_l = exp.dataset[0]
+        print("targets:", t, "coarse_label:", c_l)
+        '''print("len(exp.dataset.targets)",len(exp[0].dataset.targets.uniques))
+        print("len(exp.dataset.coarse_label)",len(exp[0].dataset.coarse_label))'''
+        return t, c_l
+
+
+
+import copy
+import torch
+
+
+def remap_subset_labels(dataset):
+    """
+    Returns a copy of the dataset with labels remapped to
+    consecutive integers 0...(K-1).
+
+    Also returns the forward and inverse mappings.
+    """
+
+    dataset = copy.deepcopy(dataset)
+
+    unique_labels = sorted(dataset.targets.uniques.tolist())
+
+    label_map = {
+        old_label: new_label
+        for new_label, old_label in enumerate(unique_labels)
+    }
+
+    inverse_label_map = {
+        new_label: old_label
+        for old_label, new_label in label_map.items()
+    }
+
+    dataset.targets = torch.tensor(
+        [label_map[int(label)] for label in dataset.targets],
+        dtype=dataset.targets.dtype,
+    )
+
+    return dataset, label_map, inverse_label_map
 
 
 
 
-
-
-
-
-
+label_remapping_specialised_model(outdoors_specialised_models_train_stream_class_il)
 
 
 
