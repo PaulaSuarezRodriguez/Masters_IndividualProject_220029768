@@ -95,27 +95,15 @@ print("Print max(avl_train.targets.uniques) in order to be aware of the value th
 print("Print len(avl_train.targets.uniques) to know the NUMBER OF FINE CLASSES within the specialised_models_superclasses group of which the specialised subset (e.g. outdoors_specialised_models_train_subset) that is avl_train is composed:", len(avl_train.targets.uniques)) # print number of classes
 print("IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OBJECT PASSED TO class_order IN class_incremental_benchmark TO AVOID/AS A WORK-AROUND TO THE num_classes BUG IN THE LIBRARY CODE, since by provideing a class_order, 'class_order = torch.randperm(num_classes).tolist()' within 'if class_order is None:' IS AVOIDED!", sorted(avl_train.targets.uniques))# print class_order
 
-
 outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
                                                                     class_order=sorted(avl_train.targets.uniques), num_experiences=5)
-#, num_classes_per_exp=[2, 2, 2, 2, 2])
-# NAIVE IMPLEMENTATION: same num_experiences=5 for every specialised model, and since in order to avoid bug, num_experiences needs to be set
-# using num_classes_per_exp, for every specialised model, the values within num_classes_per_exp will be set to the length of class_order
-# (as returned by class_order_len = len(avl_train.targets.uniques)) divided by 5, which will be the num_experiences intended for every specialised
-# model, hence why num_classes_per_exp list for the class_incremental_benchmark of every specialised model subset will always have 5 elements (all
-# of them set to the value equal to the length of class_order divided by 5). CHANGE OF PLANS!!! It raises error given that num_classes is still set
-# according to the bug/assumption made by the library:
-# num_classes: int = 1 + max(list(datasets_dict.values())[0].targets.uniques)
-#     if (num_classes_per_exp is not None) and (num_classes != sum(num_classes_per_exp)):
-#         raise ValueError(
-#             "`sum(num_classes_per_exp)` must be equal to the total number of classes."
-#         )
+                                                                    #, num_classes_per_exp=[2, 2, 2, 2, 2]), NOT used because of if (num_classes_per_exp is not None) and (num_classes != sum(num_classes_per_exp)): raise ValueError("`sum(num_classes_per_exp)` must be equal to the total number of classes."). It raises error given that num_classes is still set according to the bug/assumption made by the library:
 
 print("Print outdoors_specialised_models_benchmark:", outdoors_specialised_models_benchmark)
-#print("Print outdoors_specialised_models_benchmark.train_stream:", outdoors_specialised_models_benchmark.train_stream)
+#print("Print outdoors_specialised_models_benchmark.train_stream:", outdoors_specialised_models_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist
 print('Print outdoors_specialised_models_benchmark.streams["train"]',outdoors_specialised_models_benchmark.streams["train"])
 print('Print outdoors_specialised_models_benchmark.streams["test"]', outdoors_specialised_models_benchmark.streams["test"])
-print('Print outdoors_specialised_models_benchmark.streams["valid"]', outdoors_specialised_models_benchmark.streams["valid"]) # NOT benchmark_with_validation_stream, hence KeyError: 'valid'
+print('Print outdoors_specialised_models_benchmark.streams["valid"]', outdoors_specialised_models_benchmark.streams["valid"])
 
 # IMPORTANT!!!!! This time, we do want to keep these as streams and NOT to further divide each stream into its composing experiences. This time,
 # since class_incremental_benchmark is actually being used to create a CLScenario for use in training in a class-IL manner, and NOT as functionality
@@ -133,137 +121,46 @@ optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
 criterion = CrossEntropyLoss()
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion) #, train_mb_size=100, train_epochs=4, eval_mb_size=100)
 
-print("outdoors_specialised_models_train_stream_class_il[0]",outdoors_specialised_models_train_stream_class_il[0].dataset[0])
-print("outdoors_specialised_models_val_stream_class_il[0]",outdoors_specialised_models_val_stream_class_il[0].dataset[0])
-print("outdoors_specialised_models_test_stream_class_il[0]",outdoors_specialised_models_test_stream_class_il[0].dataset[0])
 #the block to uncomment
 # REALISATION! This code that I took from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
 # is not the one and only way to build a training loop -- IT IS THE WAY TO BUILD A TRAINING LOOP IF optimizer = SGD !!!  When optimizer = SGD, .train
 # is the .train of class BaseSGDTemplate, where the training loop IS DESIGNED TO BE EXECUTED ONCE PER EXPERIENCE, whether you provide the entire
 # stream or a single experience as input (i.e. whether you call .train() on each experience within the stream one experience at a time, perhaps via
 # a for loop like the one in this example, or you pass the entire stream as input to .train(), and let the training loop handle the
-# experience-by-experience, given that the function supports both options). MORE IMPORTANTLY, HOWEVER, EVEN FOR optimizer = SGD, THIS TRAINING LOOP
-# IS WRONG!!! The code example provided by https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
-# and copy-pasted here is wrong!!! One of the ways in which is wrong is that as indicate by source code super().train(experiences, eval_streams, **kwargs)
-# .train() expects eval_streams to be passed, which is something the code example copy-pasted here does not do and in debugging the call cl_strategy.train(experience),
-# it can be seen that eval_streams = None and the execution path followed is that for if eval_streams = None.
-# PLAN: Instead of wasting time trying to figure out how the .train for when optimizer = SGD should work to make this code example work, learn how the
-# training functionality of Avalanche works from scratch
-# .train of class BaseSGDTemplate. M
+# experience-by-experience, given that the function supports both options).
 print('Starting experiment...')
 results = []
 for experience in outdoors_specialised_models_train_stream_class_il:
     print("Start of experience: ", experience.current_experience)
     print("Current Classes: ", experience.classes_in_this_experience)
-    #active_classes = experience.classes_in_this_experience.tolist()
+    ###################active_classes = experience.classes_in_this_experience.tolist()
     print("experience.dataset", experience.dataset)
     print("experience.dataset.targets", experience.dataset.targets.uniques)
     print("experience.dataset.coarse_label", experience.dataset.coarse_label.uniques)
     print("experience", experience)
-    #x, y, z = experience.dataset[0]
+    #x, y, z = experience.dataset[0] # returns images, targets, coarse_labels
     #print("x", x, "\ny", y, "\nz", z)
 
-    cl_strategy.train(experience)#,[outdoors_specialised_models_train_stream_class_il[0],
-                                 #outdoors_specialised_models_train_stream_class_il[1],
-                                  #outdoors_specialised_models_train_stream_class_il[2],
-                                  #outdoors_specialised_models_train_stream_class_il[3],
-                                  #outdoors_specialised_models_train_stream_class_il[4]]) #.train(outdoors_specialised_models_train_stream_class_il)
+    cl_strategy.train(experience) #,[outdoors_specialised_models_train_stream_class_il[0],
+                                  # outdoors_specialised_models_train_stream_class_il[1],
+                                  # outdoors_specialised_models_train_stream_class_il[2],
+                                  # outdoors_specialised_models_train_stream_class_il[3],
+                                  # outdoors_specialised_models_train_stream_class_il[4]]) #.train(outdoors_specialised_models_train_stream_class_il)
     print('Training completed')
 
     print('Computing accuracy on the whole test set')
     results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
 
+######## WHERE TO START NEXT:
+'''MaskedCrossEntropy is a cross-entropy loss wrapper for class-incremental learning. Its main purpose is to compute the loss only over a selected subset of output classes, instead of over every output neuron.
 
+This is useful in continual learning because, at a given experience, you may only want the model to compete among:
 
-def label_remapping_specialised_model(outdoors_specialised_models_train_stream_class_il_param):
-    #for exp, expp in enumerate(outdoors_specialised_models_train_stream_class_il.exps_iter):
-    for exp in outdoors_specialised_models_train_stream_class_il_param:
-        i, t, c_l = exp.dataset[0]
-        print("targets:", t, "coarse_label:", c_l)
-        '''print("len(exp.dataset.targets)",len(exp[0].dataset.targets.uniques))
-        print("len(exp.dataset.coarse_label)",len(exp[0].dataset.coarse_label))'''
-        return t, c_l
+the classes seen so far,
+only the newly introduced classes,
+only the previously learned classes,
+or all classes.
 
+https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py
 
-
-import copy
-import torch
-
-
-def remap_subset_labels(dataset):
-    """
-    Returns a copy of the dataset with labels remapped to
-    consecutive integers 0...(K-1).
-
-    Also returns the forward and inverse mappings.
-    """
-
-    dataset = copy.deepcopy(dataset)
-
-    unique_labels = sorted(dataset.targets.uniques.tolist())
-
-    label_map = {
-        old_label: new_label
-        for new_label, old_label in enumerate(unique_labels)
-    }
-
-    inverse_label_map = {
-        new_label: old_label
-        for old_label, new_label in label_map.items()
-    }
-
-    dataset.targets = torch.tensor(
-        [label_map[int(label)] for label in dataset.targets],
-        dtype=dataset.targets.dtype,
-    )
-
-    return dataset, label_map, inverse_label_map
-
-
-
-
-label_remapping_specialised_model(outdoors_specialised_models_train_stream_class_il)
-
-
-
-
-
-
-
-
-
-
-
-#####################################################################################################################################################################################################################
-'''#the block to uncomment
-print('Starting experiment...')
-results = []
-for experience in outdoors_specialised_models_train_stream_class_il:
-    print("Start of experience: ", experience.current_experience)
-    print("Current Classes: ", experience.classes_in_this_experience)
-
-    cl_strategy.train(experience)
-    print('Training completed')
-
-    print('Computing accuracy on the whole test set')
-    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))'''
-
-'''for group in groups:
-    for sub_experience in group:
-        strategy.train(sub_experience)'''
-
-'''print('Starting experiment...')
-results = []
-for experience in outdoors_specialised_models_train_subset.dataset.train_stream:
-    print("Start of experience: ", experience.current_experience)
-    print("Current Classes: ", experience.classes_in_this_experience)
-
-    cl_strategy.train(experience)
-    print('Training completed')
-
-    print('Computing accuracy on the whole test set')
-    results.append(cl_strategy.eval(outdoors_specialised_models_val_subset.dataset))'''
-'''results.append(cl_strategy.eval(outdoors_specialised_models_val_subset[experience.current_experience]))
-    print('Test accuracy:', results[-1].metrics['accuracy'])'''
-
-
+https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy'''
