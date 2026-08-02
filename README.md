@@ -127,3 +127,42 @@ objects for which type() returns class DataExperience IN TURN CONTAIN:
    - an object of type DataAttribute returned by name_of_stream_variable.dataset.coarse_label (e.g.outdoors_specialised_models_train_subset.dataset.coarse_label)
 And, as any ClassificationDataset object, it contains a set of samples, which can be reached via indexing (e.g. x, y, t = outdoors_specialised_models_train_subset.dataset[0]) 
 would return one element of the dataset (that at index 0) where x is the tensor, and y and t are the coarse_label and fine_label of that element.
+
+### Difference between Fifth_implementation_attempt and Sixth_implementation_attempt:
+WHAT I ACHIEVED IN Fifth_implementation_attempt: I have now verified the error (return torch._C._nn.cross_entropy_loss(IndexError: Target 12 is out of bounds.) is caused by how cross_entropy_loss function
+in PyTorch _nn.py works. The training loop of the code example from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation 
+is NOT wrong. The problem is that as specified in its documentation (https://docs.pytorch.org/docs/2.13/generated/torch.nn.CrossEntropyLoss.html), in 
+torch._C._nn.cross_entropy_loss "each target value should be between [0, C) where C = number of output logits produced by the model." That is, torch._C._nn.cross_entropy_loss 
+EXPECTS A SEQUENCE OF CONSECUTIVE VALUES STARTING AT 0 AS THE TARGETS, which given that I am training on a subset of the original model (the specialised subset for the specialised
+model), is NOT the case; the targets are those of the classes present in that subset, which can be any numbers between 0 and 99 depending on the superclasses making up that 
+specialised model subset. This is verified in outdoors_specialised_model = ResNet20(num_classes=77), i.e. by setting num_classes to one number higher than the value of the
+highest label in outdoors_specialised_models_train_subset, as this causes the error to disappear and the training loop to execute. Even though labels/tarets are only meant
+to be IDs and not have meaning in terms of value, much like num_classes: int = 1 + max(list(datasets_dict.values())[0].targets.uniques) in Avalanche's class_incremental_benchmark,
+Pytorch's torch._C._nn.cross_entropy_loss also assumes labels will be a consecutive sequence of numbers starting at 0 and hence expect the number of classes to be equal to the 
+value of the highest label (even though Avalanche and Pytorch use this assumption in a completely different manner; Avalanche uses it to set the num_classes to the label with 
+the highest value and Pytorch already knowing the correct num_classes for that dataset or subset given that this is passed as a parameter to the nn.Module that is class ResNet20(nn.Module) 
+or hard-coded within it in the linear layer (in the case of class ResNet20, in self.linear = nn.Linear(64, num_classes)), it uses it to define the range of values that are 
+acceptable as class indices/targets, where the range is 0 to the label with the highest value). 
+Regardless of how this assumption is used by either library, it leads to the same type of problem. However, for torch._C._nn.cross_entropy_loss THERE IS NO POSSIBLE WORRK-AROUND.
+In Avalanche's num_classes: int = 1 + max(list(datasets_dict.values())[0].targets.uniques) of class_incremental_benchmark, since the effects of this were only executed on the basis
+of an if statement being satisfied, a work-around based on passing an argument to class_incremental_benchmark that purposely causes this if statement to NOT be satisfied whilst still 
+achieving the desired class behavior (thanks to the specific values that were passed for this argument) was used. For torch._C._nn.cross_entropy_loss, there is no such option. After 
+having studied the torch._C._nn.cross_entropy_loss source code and that of related classes, it becomes apparent re-writing of the library would be required. Re-writing of the library 
+under any circumstance is already not ideal, but in this case it would probably require rewriting of the C++ PyTorch module, which is definitely NOT worth it, at least for now/for the 
+baseline implementation/until the entire strategy is implemented and through subsequent implementation_attempts the strategy is as perfect as possible. 
+That is, whilst ideally, given the resource-contrained/TinyML objective of my project, each specialised model would be of the bare minimum num_classes so that nn.Linear layer is as
+small as possible, I will instead set num_classes to 100 for every specialised model. PROBLEM WITH THIS: The loss function is affected and leads to less inefficient training !!! 
+The model's ability to learn to classify suffers, as the loss function takes into account classes that never appear in the training. POTENTIAL SOLUTIONS THAT I AM INVESTIGATING 
+NOW: 1)Implementing Masked Softmax in PyTorch myself. 2) Investigate if classavalanche.training.MaskedCrossEntropy could be used for this purpose, even though not meant for that 
+(similar to how class_incremental_learning was used to divide the dataset into specialised subsets for the specialised models). 
+
+I AM COMMITING AND PUSHING THIS Train_ResNet20_v5.py WHERE outdoors_specialised_model = ResNet20(num_classes=100) AS A SAFE-COPY OF THE WORKING TRAINING LOOP, WHICH THANKS TO 
+num_classes=100 (SEEMINGLY, FROM THE OUTPUTS IN THE CONSOLE) EXECUTES WITHOUT ISSUES AND TRAINS AND EVALUATES THE MODEL IN A CLASS-IL MANNER FROM BEGINNING TO END.
+
+The difference between Fifth_implementation_attempt and Sixth_implementation_attempt is that in Sixth_implementation_attempt, before settling on num_classes always being set to
+100, regardless of the model/subset, as the "solution" for this problem, since rewriting the PyTorch library is not an option I am considering, investigate 1)Implementing Masked Softmax in PyTorch myself. 2) Investigate if classavalanche.training.MaskedCrossEntropy could be used for this purpose, even though not meant for that 
+(similar to how class_incremental_learning was used to divide the dataset into specialised subsets for the specialised models). 
+Train_ResNet20_v5.py WILL BE KEPT AS A SAFE-COPY OF THE WORKING TRAINING LOOP WHICH WORKS WHEN outdoors_specialised_model = ResNet20(num_classes=100). In Sixth_implementation_attempt
+I will clean up the code and edit it to include code for the potential solutions such as alternative usage of classavalanche.training.MaskedCrossEntropy 
+
+
