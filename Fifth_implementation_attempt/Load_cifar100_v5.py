@@ -3,7 +3,7 @@ from Config_v5 import SEED
 from Config_v5 import set_seed
 from Config_v5 import set_device
 set_seed()
-set_device()
+#set_device() # TODO: FIX ERROR! Why does set_device lead to error? ValueError: Expected a torch.device with a specified index or an integer, but got:cuda
 import torch
 import torchvision
 import torchvision.transforms as transforms
