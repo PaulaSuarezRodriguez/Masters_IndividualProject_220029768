@@ -15,6 +15,8 @@ from avalanche.benchmarks import benchmark_with_validation_stream
 from torch.optim import SGD
 from torch.nn import CrossEntropyLoss
 from avalanche.training.supervised import Naive, CWRStar, Replay, GDumb, Cumulative, LwF, GEM, AGEM, EWC  # and many more!
+from avalanche.training.losses import MaskedCrossEntropy
+from avalanche.training.storage_policy import ExemplarsSelectionStrategy
 
 # NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
 # Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
@@ -116,10 +118,18 @@ outdoors_specialised_models_val_stream_class_il = outdoors_specialised_models_be
 outdoors_specialised_models_test_stream_class_il = outdoors_specialised_models_benchmark.streams["test"]
 
 #####################################################################################################################################################################################################################
+#class ExemplarSelection(ExemplarsSelectionStrategy):
+
+
+
+# Attempting to use MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset / the classes for which a particular specialised model is meant to be specialised for
+#criterion_masked = MaskedCrossEntropy(classes=[33, 68, 37, 71, 76, 12, 49, 17, 23, 60], mask="seen") #sorted(avl_train.targets.uniques)
+criterion_masked = MaskedCrossEntropy(mask="seen") #sorted(avl_train.targets.uniques)
+
 # TRAINING LOOP
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9) # example from Avalanche docs: model = SimpleMLP(num_classes=10) and since num_classes=10 in outdoors_specialised_model, I have kept the lr=0.001, momentum=0.9 as provided in the model = SimpleMLP(num_classes=10) example for the outdoors_specialised_model
 criterion = CrossEntropyLoss()
-cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion) #, train_mb_size=100, train_epochs=4, eval_mb_size=100)
+cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked) # criterion=criterion) #, train_mb_size=100, train_epochs=4, eval_mb_size=100)
 
 #the block to uncomment
 # REALISATION! This code that I took from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
@@ -130,26 +140,36 @@ cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, crite
 # experience-by-experience, given that the function supports both options).
 print('Starting experiment...')
 results = []
-for experience in outdoors_specialised_models_train_stream_class_il:
+
+cl_strategy.train(outdoors_specialised_models_train_stream_class_il.exps_iter)
+print('Training completed')
+
+print('Computing accuracy on the whole test set')
+results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+
+'''print('Starting experiment...')
+results = []
+for experience in outdoors_specialised_models_benchmark.train_stream:
+#for experience in outdoors_specialised_models_train_stream_class_il:
     print("Start of experience: ", experience.current_experience)
     print("Current Classes: ", experience.classes_in_this_experience)
     ###################active_classes = experience.classes_in_this_experience.tolist()
     print("experience.dataset", experience.dataset)
     print("experience.dataset.targets", experience.dataset.targets.uniques)
-    print("experience.dataset.coarse_label", experience.dataset.coarse_label.uniques)
+    #print("experience.dataset.coarse_label.uniques", experience.dataset.coarse_label.uniques)
     print("experience", experience)
     #x, y, z = experience.dataset[0] # returns images, targets, coarse_labels
     #print("x", x, "\ny", y, "\nz", z)
 
-    cl_strategy.train(experience) #,[outdoors_specialised_models_train_stream_class_il[0],
-                                  # outdoors_specialised_models_train_stream_class_il[1],
-                                  # outdoors_specialised_models_train_stream_class_il[2],
-                                  # outdoors_specialised_models_train_stream_class_il[3],
-                                  # outdoors_specialised_models_train_stream_class_il[4]]) #.train(outdoors_specialised_models_train_stream_class_il)
+    cl_strategy.train(experience)#,[outdoors_specialised_models_train_stream_class_il[0],
+                                  #outdoors_specialised_models_train_stream_class_il[1],
+                                  #outdoors_specialised_models_train_stream_class_il[2],
+                                  #outdoors_specialised_models_train_stream_class_il[3],
+                                  #outdoors_specialised_models_train_stream_class_il[4]]) #.train(outdoors_specialised_models_train_stream_class_il)
     print('Training completed')
 
     print('Computing accuracy on the whole test set')
-    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))'''
 
 ######## WHERE TO START NEXT:
 '''MaskedCrossEntropy is a cross-entropy loss wrapper for class-incremental learning. Its main purpose is to compute the loss only over a selected subset of output classes, instead of over every output neuron.

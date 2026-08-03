@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 import avalanche
 from avalanche.benchmarks import nc_benchmark # DEPRECATED but still in existance within "deprecated" folder in Avalanche 0.6.0 GitHub (https://github.com/ContinualAI/avalanche/blob/v0.6.0/avalanche/benchmarks/scenarios/deprecated/generators.py )
 ###from avalanche.benchmarks.generators import
-from avalanche.benchmarks import class_incremental_benchmark
+from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
+#from avalanche.benchmarks import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 #from avalanche.benchmarks.utils import make_classification_dataset # DEPRECATED! This is from v0.3.0 and the latest stable version / the one I am using is v0.6.0
 #from avalanche.benchmarks.utils import make_tensor_classification_dataset # # DEPRECATED! This is from v0.3.1 and only in the docs of up to v0.5.0. The latest stable version / the one I am using is v0.6.0
@@ -221,6 +222,8 @@ def split_by_indices_specialised_models_superclasses(dataset, specialised_models
 # such that it can serve as argument for parameter "class_order" in avalanche's class_incremental_benchmark for splitting train dataset by
 # specialised_models_superclasses IN A MANNER THAT WILL NOT CAUSE A "RE-MAPPING OF LABELS" ERROR; outside of if __name__ == "__main__" so
 # that it is executed and imported to other .py files whenever imported from other .py files
+print("Print type(train_dataset):\n", type(train_dataset))
+print("Print type(test_dataset):\n", type(test_dataset))
 
 num_classes_per_group = [10, 15, 5, 45, 25]
 
@@ -230,7 +233,8 @@ specialised_models_indices_all_superclasses = (
         specialised_models_superclasses
     )
 )
-
+print("Print type(train_dataset):\n", type(train_dataset))
+print("Print type(test_dataset):\n", type(test_dataset))
 # Former def split_by_specialised_models_superclasses_using_avalanche_VERSION_4(cifar100_train_param, cifar100_test_param, train_dataset_param, test_dataset_param, specialised_models_indices_all_superclasses_param, num_classes_per_group = [10, 15, 5, 45, 25]): ,
 # which in turn was a replacement for def split_by_specialised_models_superclasses_using_avalanche(...) FROM PREVIOUS VERSIONS TO WORK WITHOUT object Subset / train dataset already split by random_split creating Subset objects
 avl_train = make_avalanche_dataset(train_dataset)  # make_classification_dataset(cifar100_train)  # .targets auto-detected
@@ -351,6 +355,12 @@ print("Print type(scenario_train_val_test.streams):\n", type(scenario_train_val_
 train_stream_class_il = scenario_train_val_test.streams["train"]
 val_stream_class_il = scenario_train_val_test.streams["valid"]
 test_stream_class_il = scenario_train_val_test.streams["test"]
+print("Print train_stream_class_il:\n", train_stream_class_il, "\n")
+print("Print val_stream_class_il:\n", val_stream_class_il, "\n")
+print("Print test_stream_class_il:\n", test_stream_class_il, "\n")
+print("Print type(train_stream_class_il):\n", type(train_stream_class_il), "\n")
+print("Print type(val_stream_class_il):\n", type(val_stream_class_il), "\n")
+print("Print type(test_stream_class_il):\n", type(test_stream_class_il), "\n")
 
 # Train subsets for each specialised model AFTER train-val split
 outdoors_specialised_models_train_subset = train_stream_class_il[0]
