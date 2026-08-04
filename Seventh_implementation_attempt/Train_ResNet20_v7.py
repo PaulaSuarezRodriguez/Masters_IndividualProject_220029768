@@ -214,7 +214,32 @@ for experience in outdoors_specialised_models_train_stream_class_il :#and val_ex
     # AND print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable)) True , wrap either one of these into a list and they will be Sequence[Iterable[TDatasetExperience]]
     # HOWEVER, THIS WILL RESULT ON EACH EXPERIENCE BEING VALIDATED ON THE ENTIRE .streams["valid"] !!! because if a Sequence[Iterable[TDatasetExperience] instead of Sequence[TDatasetExperience] is passed,
     # and at the same time experiences is TDatasetExperience and NOT Iterable[TDatasetExperience], the source code does not seem to handle eval_streams any different and so, after every experience / after
-    # the model has learned any one of the experiences, it will be evaluated on the val stream for all experiences, i.e. even those it has not seen
+    # the model has learned any one of the experiences, it will be evaluated on the val stream for all experiences, i.e. even those it has not yet seen as they belong to experiences that have not yet been
+    # iterated through and hence that the model has not yet been trained on. I could probably write an if statement so that the model is evaluated on the .streams["valid"] DataExperiences for evaluation
+    # for the experiences it has already been trained on, but I think this defeats the purpose of evaluating during class-IL training. If evaluating on the entire set of experiences the model has already
+    # been trained on everytime it is trained on a new experience then a) we will never know how well it learned that particular experience, including if it is overfitting for it and etc, b) we can test
+    # how well the model performs in the entire set of classes learned incrementally after the model is done training and has been saved. On the other hand, fine-tuning or applying stretegies (whether to
+    # the entire model or to the model only whilst learning on a particular experience/set of classes) in order to improve its performance on a particular experience/set of classes will be impossible unless
+    # we evaluate the model exclusively on this particular experience/set of classes after it is done training on that increment of the train dataset/train specialised model's subset c) if the model is
+    # performing poorly overall and failing to learn incrementally and classify classes it was trained on in subsequent incremental training rounds, unless we evaluate the model exclusively on particular
+    # experiences/set of classes after it is done training on that increment of the train dataset/train specialised model's subset, how would we be able to spot which classes it is forgettig the most or
+    # struggling to learn the most and hence for which we should place optimization strategies or if optimization strategies are implemented for the entire model, how would we decide which to implement if
+    # we don't know which set of classes/experiences the model is failing to learn. HENCE, I WILL BE EVALUATING THE MODEL USING THE VAL DataExperience CORRESPONDING TO THE TRAIN DataExperiences THE MODEL
+    # HAS LEARNED IN THE INCREMENTAL TRAINING ROUND!!!!! If there is functionality for the following, I could also evaluate the model not only on the VAL DataExperience corresponding to the Train
+    # DataExperience the model has learned in that incremental training round, but additionally, evaluate the model's performance on the VAL DataExperience the model has learned in that incremental training
+    # round and those from previous incremental training rounds (still avoiding evaliuating the model on experiences it has not been trained on yet, only on the ones of the current training round and the ones
+    # of the current training round and previous training rounds).
+    # Additionally, I believe (but I must verify) that eval_streams accepts more than one Sequence, whether those Sequences are DataExperience objects or streams, allowing evaluation to occur on, for example,
+    # the DataExperience or Streams of both the train subset and the val subset IN THIS WAY ALLOWING US TO CHECK FOR OVERFITTING AT THE INCREMENTAL TRAINING ROUND/EXPERIENCE LEVEL!!!!!!!
+    # IMPLEMENT TOMORROW ---- the idea would be to pass [outdoors_specialised_models_val_stream_class_il[i]] as one iterable and [outdoors_specialised_models_train_stream_class_il[experience]] as the other iterable!!!!!!
+    # where we are iterating over the DataExperience objects within both of these for the reasons explained above (the entire stream can be passed, but this is not what we want and in order to ensure the model is only
+    # validated on the classes of the current training round (and/or on the current training round and on the classes of training rounds it has already been trained on, as something to look into later on to see if it
+    # would be possible). For this, another for loop to iterate through the samples of outdoors_specialised_models_val_stream_class_il is going to be needed.
+    # WILL ALL OF THIS BE POSSIBLE? Can eval_streams accepts more than one Sequence REGARDLESS OF whether those Sequences are DataExperience objects or streams???
+    # FIND OUT AND TRY TO IMPLEMENT TOMORROW!!!!!
+
+
+
                                     #,[outdoors_specialised_models_val_stream_class_il[0],
                                   #outdoors_specialised_models_val_stream_class_il[1],
                                   #outdoors_specialised_models_val_stream_class_il[2],
