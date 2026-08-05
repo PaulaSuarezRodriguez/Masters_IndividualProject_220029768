@@ -1,3 +1,7 @@
+from typing import Sequence
+
+from avalanche.training.plugins.evaluation import default_loggers, default_evaluator
+
 from Seventh_implementation_attempt.Config_v7 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
 from Seventh_implementation_attempt.ResNet20_v7 import ResNet20
@@ -20,7 +24,8 @@ from avalanche.training.losses import MaskedCrossEntropy
 from avalanche.training.storage_policy import ExemplarsSelectionStrategy
 from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
-from avalanche.evaluation.metrics.accuracy import accuracy_metrics
+from avalanche.evaluation.metrics.accuracy import accuracy_metrics, EpochAccuracy, ExperienceAccuracy, StreamAccuracy, \
+    TrainedExperienceAccuracy
 
 # NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
 # Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
@@ -288,12 +293,23 @@ for experience in outdoors_specialised_models_train_stream_class_il: # DO NOT DO
 print("\n\n\n################################ EXACT SAME CODE AND IMPLEMENTATION AS ABOVE, BUT WITHOUT EXPLANATORY COMMENTS AND PRINT STATEMENTS FOR INSPECTING DATA STRUCTURES !!!!!!!!!!!!!! ################################ \n\n\n")
 
 criterion_masked = MaskedCrossEntropy(mask="seen")
-
+#print(accuracy_metrics(epoch=True, experience=True, stream=True, trained_experience=True))
+#[<avalanche.evaluation.metrics.accuracy.EpochAccuracy object at 0x0000022021232550>, <avalanche.evaluation.metrics.accuracy.ExperienceAccuracy object at 0x0000022020FEBA90>, <avalanche.evaluation.metrics.accuracy.StreamAccuracy object at 0x0000022022A34C50>, <avalanche.evaluation.metrics.accuracy.TrainedExperienceAccuracy object at 0x00000220226C2150>]
+e=EpochAccuracy()
+expacc=ExperienceAccuracy()
+str=StreamAccuracy()
+tra=TrainedExperienceAccuracy()
 # TRAINING LOOP
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
-                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='val')], evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True)), eval_every=1) # eval_every=0and eval_every= more than 1 later on
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid'), EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True), loggers=default_loggers())], eval_every=1)
+                    ###evaluator=default_evaluator(), eval_every=1) # eval_every=0and eval_every= more than 1 later on
 
+
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='val')], evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True)), eval_every=1)''' # eval_every=0and eval_every= more than 1 later on
+
+#plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='val')], evaluator=EvaluationPlugin([accuracy_metrics(epoch=True, experience=True, stream=True)]), eval_every=1) INCORRECT BECAUSE accuracy_metrics IS OF TYPE
 #,), loggers=[...])]) # EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True,experience_metrics=True, stream_metrics=True, class_metrics=True), loggers=[...])
 
 print('Starting experiment WITH LOOP...')
@@ -316,6 +332,9 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print("print(experience.origin_stream.name)", experience.origin_stream.name)
     print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
     #cl_strategy.train(experience, [[experience], [outdoors_specialised_models_val_stream_class_il.exps_iter[i]]])
+    #cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
+    #cl_strategy.train(experience, [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il])
+    #########print("WHERE cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])")
     cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
     print('Training completed WITH LOOP')
 
