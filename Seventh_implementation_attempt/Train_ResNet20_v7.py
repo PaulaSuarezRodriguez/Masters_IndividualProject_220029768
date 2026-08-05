@@ -18,8 +18,9 @@ from torch.nn import CrossEntropyLoss
 from avalanche.training.supervised import Naive, CWRStar, Replay, GDumb, Cumulative, LwF, GEM, AGEM, EWC  # and many more!
 from avalanche.training.losses import MaskedCrossEntropy
 from avalanche.training.storage_policy import ExemplarsSelectionStrategy
-from avalanche.training.plugins import EarlyStoppingPlugin
+from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
+from avalanche.evaluation.metrics.accuracy import accuracy_metrics
 
 # NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
 # Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
@@ -188,18 +189,20 @@ print("print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_ite
 # experience-by-experience, given that the function supports both options).
 print('Starting experiment WITH LOOP...')
 results = []
-
-
-# type(outdoors_specialised_models_train_stream_class_il) <class 'avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream'>
-# .streams["train"]
-#for experience in outdoors_specialised_models_benchmark.train_stream:
-for experience in outdoors_specialised_models_train_stream_class_il :#and val_exp in outdoors_specialised_models_val_stream_class_il:
-    print("Start of experience WITH LOOP: ", experience.current_experience)
-    print("Current Classes WITH LOOP: ", experience.classes_in_this_experience)
-    #print("experience.dataset WITH LOOP", experience.dataset)
+for experience in outdoors_specialised_models_train_stream_class_il: # DO NOT DO THE FOLLOWING, it results in the loop only iterating through the item behind the and operator since for loops are not supposed to have and operators in python causing the for loop logic to fail ---- for experience in outdoors_specialised_models_train_stream_class_il and outdoors_specialised_models_val_stream_class_il: # DO NOT DO THE FOLLOWING, it performed validation on every DataExperience object of the val subset per DataExperience object of the train subset being iterated over ---- for val_experience in outdoors_specialised_models_val_stream_class_il:
+    i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+    print("Start of experience -- current TRAIN experience: ", experience.current_experience)
+    print("Start of experience -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
+    print("Current Classes -- current TRAIN experience: ", experience.classes_in_this_experience)
+    print("Current Classes -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
+    #print("experience.dataset (of TRAIN)", experience.dataset)
+    #print(".exps_iter[i].dataset (of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset)
     print("type(experience) WITH LOOP for experience in outdoors_specialised_models_train_stream_class_il", type(experience))
-    print("experience.dataset.targets WITH LOOP", experience.dataset.targets.uniques)
-    print("experience.dataset.coarse_label.uniques", experience.dataset.coarse_label.uniques)
+    print("type(outdoors_specialised_models_val_stream_class_il.exps_iter[i])",type(outdoors_specialised_models_val_stream_class_il.exps_iter[i]))
+    print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)", experience.dataset.coarse_label.uniques)
+    print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
+    print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
+    print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
     #print("experience", experience)
     #x, y, z = experience.dataset[0] # returns images, targets, coarse_labels
     #print("x", x, "\ny", y, "\nz", z)
@@ -209,7 +212,7 @@ for experience in outdoors_specialised_models_train_stream_class_il :#and val_ex
     print("print(isinstance(outdoors_specialised_models_val_stream_class_il, Iterable))", isinstance(outdoors_specialised_models_val_stream_class_il, Iterable))
     print("print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable))", isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable))
 
-    cl_strategy.train(experience, [outdoors_specialised_models_val_stream_class_il])
+    cl_strategy.train(experience, [[experience], [outdoors_specialised_models_val_stream_class_il.exps_iter[i]]])
     # since print(isinstance(outdoors_specialised_models_val_stream_class_il, Iterable)) True
     # AND print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable)) True , wrap either one of these into a list and they will be Sequence[Iterable[TDatasetExperience]]
     # HOWEVER, THIS WILL RESULT ON EACH EXPERIENCE BEING VALIDATED ON THE ENTIRE .streams["valid"] !!! because if a Sequence[Iterable[TDatasetExperience] instead of Sequence[TDatasetExperience] is passed,
@@ -238,8 +241,6 @@ for experience in outdoors_specialised_models_train_stream_class_il :#and val_ex
     # WILL ALL OF THIS BE POSSIBLE? Can eval_streams accepts more than one Sequence REGARDLESS OF whether those Sequences are DataExperience objects or streams???
     # FIND OUT AND TRY TO IMPLEMENT TOMORROW!!!!!
 
-
-
                                     #,[outdoors_specialised_models_val_stream_class_il[0],
                                   #outdoors_specialised_models_val_stream_class_il[1],
                                   #outdoors_specialised_models_val_stream_class_il[2],
@@ -250,6 +251,85 @@ for experience in outdoors_specialised_models_train_stream_class_il :#and val_ex
     print('Computing accuracy on the whole test set WITH LOOP')
     results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
     print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################################################################################################################################################################################
+################################################################################################################################################################################################################################################
+############### EXACT SAME CODE AND IMPLEMENTATION AS ABOVE, BUT WITHOUT EXPLANATORY COMMENTS AND PRINT STATEMENTS FOR INSPECTING DATA STRUCTURES !!!!!!!!!!!!!! ###############
+print("\n\n\n################################ EXACT SAME CODE AND IMPLEMENTATION AS ABOVE, BUT WITHOUT EXPLANATORY COMMENTS AND PRINT STATEMENTS FOR INSPECTING DATA STRUCTURES !!!!!!!!!!!!!! ################################ \n\n\n")
+
+criterion_masked = MaskedCrossEntropy(mask="seen")
+
+# TRAINING LOOP
+optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
+cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='val')], evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True)), eval_every=1) # eval_every=0and eval_every= more than 1 later on
+
+#,), loggers=[...])]) # EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True,experience_metrics=True, stream_metrics=True, class_metrics=True), loggers=[...])
+
+print('Starting experiment WITH LOOP...')
+results = []
+for experience in outdoors_specialised_models_train_stream_class_il:
+    i = experience.current_experience
+    print("Start of experience -- current TRAIN experience: ", experience.current_experience)
+    print("Start of experience -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
+    print("Current Classes -- current TRAIN experience: ", experience.classes_in_this_experience)
+    print("Current Classes -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
+    #print("experience.dataset (of TRAIN)", experience.dataset)
+    #print(".exps_iter[i].dataset (of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset)
+    print("type(experience) WITH LOOP for experience in outdoors_specialised_models_train_stream_class_il", type(experience))
+    print("type(outdoors_specialised_models_val_stream_class_il.exps_iter[i])", type(outdoors_specialised_models_val_stream_class_il.exps_iter[i]))
+    print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)", experience.dataset.coarse_label.uniques)
+    print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
+    print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
+    print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
+
+    print("print(experience.origin_stream.name)", experience.origin_stream.name)
+    print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
+    #cl_strategy.train(experience, [[experience], [outdoors_specialised_models_val_stream_class_il.exps_iter[i]]])
+    cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
+    print('Training completed WITH LOOP')
+
+    print('Computing accuracy on the whole test set WITH LOOP')
+    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
+################################################################################################################################################################################################################################################
+################################################################################################################################################################################################################################################
+################################################################################################################################################################################################################################################
+
+
+
+
+
 
 
 
