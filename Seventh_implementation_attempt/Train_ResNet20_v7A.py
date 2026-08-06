@@ -288,6 +288,7 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print("print(criterion_reduction) BEFORE CALL TO cl_strategy.train", criterion_masked.reduction)
     print("type(criterion_masked)", type(criterion_masked))
     print("isinstance(criterion_masked, BasePlugin)", isinstance(criterion_masked, BasePlugin))
+    # TEST OF REMOVING criterion_masked.pre_adapt(cl_strategy, experience) TO SEE IF IT IS STILL NEEDED EVEN WITH UPDATED CODE/cl_strategy INITIALISATION FAILED !!!! criterion_masked.pre_adapt(cl_strategy, experience) is most definitely needed
     criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
     #criterion_masked.pre_adapt(criterion_masked, experience)  #### .pre_adapt TEST --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
     #criterion_masked.pre_adapt(experience)  #### .pre_adapt TEST 2 causes ERROR THAT HALTS EXECUTION --> TypeError: MaskedCrossEntropy.pre_adapt() missing 1 required positional argument: 'exp'
