@@ -237,7 +237,10 @@ print("\n\n\n################################ CLEANED CODE (no comments for easi
 # TRAINING LOOP
 criterion_masked = MaskedCrossEntropy(mask="seen")
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
-print("WHERE metric_name=RunningEpochAccuracy")
+#FAIL print("WHERE metric_name=RunningEpochAccuracy AND WHERE val_stream_name='valid_stream' as opposed to 'valid' ----- will the latter fix the fact that RunningEpochAccuracy is not registered in EarlyStoppingPlugin or do I have to change metric_name to one of the ones that does appear in the debugger?")
+#FAIL AS IT LEADS TO UserWarning: Metric Top1_Acc_Exp used by the EarlyStopping plugin is not computed yet. EarlyStopping will not be triggered. print("WHERE metric_name=Top1_Acc_Exp AND WHERE val_stream_name='valid_stream' as opposed to 'valid'")
+print("WHERE metric_name=EpochAccuracy AND WHERE val_stream_name='valid_stream' as opposed to 'valid'")
+#METRIC THAT I KNOW EXISTED IN FAIL CAUSE I SAW IT WHEN DEBUGGING CODE WITH FAIL PARAMETERS 'Top1_Acc_Exp/eval_phase/valid_stream/Exp000'
 '''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid', metric_name="EpochAccuracy" , peval_mode="epoch", verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
@@ -248,8 +251,9 @@ print("WHERE metric_name=RunningEpochAccuracy")
                     evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, trained_experience=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1, peval_mode="experience")'''
 
+# the cl_strategy with loss_metrics, unlike the versions above
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
-                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid', metric_name="RunningEpochAccuracy", mode="max", peval_mode="epoch", verbose=True)],
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="EpochAccuracy", mode="max", peval_mode="epoch", verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1, peval_mode="experience")
 
@@ -298,12 +302,12 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print("type(cl_strategy)", type(cl_strategy))
     print("print(cl_strategy.experience)", cl_strategy.experience)
     print("print(cl_strategy.loss)", cl_strategy.loss)
-    #cl_strategy.train(experience, [[experience], [outdoors_specialised_models_val_stream_class_il.exps_iter[i]]])
-                                                # ,[outdoors_specialised_models_val_stream_class_il[0],
-                                                # outdoors_specialised_models_val_stream_class_il[1],
-                                                # outdoors_specialised_models_val_stream_class_il[2],
-                                                # outdoors_specialised_models_val_stream_class_il[3],
-                                                # outdoors_specialised_models_val_stream_class_il[4]])
+    #cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i],
+                                               # outdoors_specialised_models_val_stream_class_il[0],
+                                               # outdoors_specialised_models_val_stream_class_il[1],
+                                               # outdoors_specialised_models_val_stream_class_il[2],
+                                               # outdoors_specialised_models_val_stream_class_il[3],
+                                               # outdoors_specialised_models_val_stream_class_il[4]])
     print("print(cl_strategy.plugins)", cl_strategy.plugins)
     print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
     print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
