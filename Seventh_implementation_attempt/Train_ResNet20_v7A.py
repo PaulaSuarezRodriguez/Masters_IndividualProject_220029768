@@ -287,8 +287,17 @@ print("WHERE metric_name=EpochAccuracy AND WHERE val_stream_name='valid_stream' 
                     evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=3)'''
 
-cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name=f"valid_stream/Exp00{i}", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
+
+cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Loss_Acc_Exp", mode="min", peval_mode="epoch", verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1)
 
@@ -352,7 +361,7 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print('Training completed WITH LOOP')
 
     print('Computing accuracy on the whole test set WITH LOOP')
-    ##########results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
     print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
 ################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################
