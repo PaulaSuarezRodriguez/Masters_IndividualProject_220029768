@@ -256,6 +256,7 @@ cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, crite
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="EpochAccuracy", mode="max", peval_mode="epoch", verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1, peval_mode="experience")
+# cl_strategy with loss_metrics BUT NO val_stream_name='valid_stream' ---- leads to TypeError: EarlyStoppingPlugin.__init__() missing 1 required positional argument: 'val_stream_name'
 
 print("type(cl_strategy)",type(cl_strategy))
 print("print(cl_strategy.loss)", cl_strategy.loss)
