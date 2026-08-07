@@ -26,6 +26,7 @@ from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
 from avalanche.evaluation.metrics.accuracy import accuracy_metrics, EpochAccuracy, ExperienceAccuracy, StreamAccuracy, TrainedExperienceAccuracy
 from avalanche.training.templates.base_sgd import PeriodicEval
+from avalanche.logging.base_logger import BaseLogger
 
 # NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
 # Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
@@ -252,11 +253,44 @@ print("WHERE metric_name=EpochAccuracy AND WHERE val_stream_name='valid_stream' 
                     eval_every=1, peval_mode="experience")'''
 
 # the cl_strategy with loss_metrics, unlike the versions above
-cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
-                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="EpochAccuracy", mode="max", peval_mode="epoch", verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
-                    eval_every=1, peval_mode="experience")
+#TODO: UserWarning: Metric Top1_Acc_Stream used by the EarlyStopping plugin is not computed yet. EarlyStopping will not be triggered.
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''#, peval_mode="experience") #EARLY STOPPING AUTOMATICALLY EVALUATED ON EVAL_PHASE, EXPECTING valid_stream
 # cl_strategy with loss_metrics BUT NO val_stream_name='valid_stream' ---- leads to TypeError: EarlyStoppingPlugin.__init__() missing 1 required positional argument: 'val_stream_name'
+
+#TODO: UserWarning: Metric Top1_Acc_Exp used by the EarlyStopping plugin is not computed yet. EarlyStopping will not be triggered.
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
+#TODO: UserWarning: Metric Top1_Acc_Exp used by the EarlyStopping plugin is not computed yet. EarlyStopping will not be triggered EVEN WITH peval_mode="iteration".
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="Top1_Acc_Exp", mode="max", peval_mode="iteration", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
+
+#TODO: NO ENTIENDO NADA
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=0)'''
+#TODO only epoch 0 ever executed
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="Top1_Acc_Exp", mode="max", peval_mode="iteration", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=3)'''
+# TODO: No more that 3 epochs execute, I suspect because the EarlyStopping evaluation metric is based on performance across experience so how is it ever going to improve per epoc?
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name='valid_stream', metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=3)'''
+
+cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name=f"valid_stream/Exp00{i}", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(epoch=True, epoch_running=True, experience=True, stream=True, trained_experience=True), loss_metrics(minibatch=False, epoch=True, experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)
 
 print("type(cl_strategy)",type(cl_strategy))
 print("print(cl_strategy.loss)", cl_strategy.loss)
@@ -300,6 +334,7 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print("type(cl_strategy)", type(cl_strategy))
     print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
     cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
+    print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
     print("type(cl_strategy)", type(cl_strategy))
     print("print(cl_strategy.experience)", cl_strategy.experience)
     print("print(cl_strategy.loss)", cl_strategy.loss)
@@ -317,7 +352,7 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print('Training completed WITH LOOP')
 
     print('Computing accuracy on the whole test set WITH LOOP')
-    #############results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    ##########results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
     print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
 ################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################
