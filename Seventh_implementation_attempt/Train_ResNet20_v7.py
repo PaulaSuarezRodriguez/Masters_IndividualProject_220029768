@@ -1,30 +1,23 @@
 from avalanche.core import BasePlugin
-from avalanche.training.plugins.evaluation import default_loggers, default_evaluator
+from avalanche.training.plugins.evaluation import default_loggers
 
-from Seventh_implementation_attempt.Config_v7 import set_seed
+from Sixth_implementation_attempt.Config_v6 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Seventh_implementation_attempt.ResNet20_v7 import ResNet20
-from Seventh_implementation_attempt.Load_cifar100_v7 import (outdoors_specialised_models_train_subset, nature_specialised_models_train_subset,
-                                                            people_specialised_models_train_subset, animals_specialised_models_train_subset, objects_and_vehicles_specialised_models_train_subset)
-from Seventh_implementation_attempt.Load_cifar100_v7 import (outdoors_specialised_models_val_subset, nature_specialised_models_val_subset,
-                                                            people_specialised_models_val_subset, animals_specialised_models_val_subset, objects_and_vehicles_specialised_models_val_subset)
-from Seventh_implementation_attempt.Load_cifar100_v7 import (outdoors_specialised_models_test_subset, nature_specialised_models_test_subset,
-                                                            people_specialised_models_test_subset, animals_specialised_models_test_subset, objects_and_vehicles_specialised_models_test_subset)
+from Sixth_implementation_attempt.ResNet20_v6 import ResNet20
+from Sixth_implementation_attempt.Load_cifar100_v6 import (outdoors_specialised_models_train_subset)
+from Sixth_implementation_attempt.Load_cifar100_v6 import (outdoors_specialised_models_val_subset)
+from Sixth_implementation_attempt.Load_cifar100_v6 import (outdoors_specialised_models_test_subset)
 #from avalanche.benchmarks import class_incremental_benchmark
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
-from avalanche.benchmarks import benchmark_with_validation_stream
 from torch.optim import SGD
-from torch.nn import CrossEntropyLoss
-from avalanche.training.supervised import Naive, CWRStar, Replay, GDumb, Cumulative, LwF, GEM, AGEM, EWC  # and many more!
+from avalanche.training.supervised import Naive  # and many more!
 from avalanche.training.losses import MaskedCrossEntropy
-from avalanche.training.storage_policy import ExemplarsSelectionStrategy
 from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
-from avalanche.evaluation.metrics.accuracy import accuracy_metrics, EpochAccuracy, ExperienceAccuracy, StreamAccuracy, TrainedExperienceAccuracy
-from avalanche.training.templates.base_sgd import PeriodicEval
+from avalanche.evaluation.metrics.accuracy import accuracy_metrics
 
 # NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
 # Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
