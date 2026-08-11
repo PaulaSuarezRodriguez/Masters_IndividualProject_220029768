@@ -303,11 +303,23 @@ print("WHERE metric_name=EpochAccuracy AND WHERE val_stream_name='valid_stream' 
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1)'''
-
+# Working version with working EarlyStopping that I had been debugging for understanding how the metrics in EvaluationPlugin are calculatetd in .eval(), and where train_mb_size and
+# eval_mb_size are set to this values to see if they improve the mean accuracy by having more samples in the eval_mb_size be predicted correctly (if only 1 sample, as in cl_strategy
+# below this one and prediction is wrong, then because of the means, it may be harder to get a decent accuracy, giving misleading impression of the model ability to predict.
+# ALTHOUGH, AT THIS POINT, IT IS MOST LIKELY THAT EVERYTHING WILL GIVE WRONG PREDICTION SINCE NO TRAINING HAS YET TAKING PLACE AND I AM DEBUGGING THE after_eval_iteration of the
+# .eval() called by .train() before any training of any epoch takes place for the first experience !!!
+# ---- TRY NEXT: train_mb_size=1, train_epochs=20, eval_mb_size=100,)
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=20, eval_mb_size=100,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1)
+
+# Same as the above, which is the working version with working EarlyStopping that I had been debugging for understanding how the metrics in EvaluationPlugin are calculatetd in .eval(),
+# but where I removed train_mb_size and eval_mb_size once I realised what they were doing (11/08/2026)
+'''cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_epochs=20,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
 
 print("type(cl_strategy)",type(cl_strategy))
 print("print(cl_strategy.loss)", cl_strategy.loss)
