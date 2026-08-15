@@ -84,7 +84,7 @@ outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": av
 
 print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
 for i, exp in enumerate(outdoors_specialised_models_benchmark.train_stream):
-    print("print(i, exp.classes_in_this_experience)", i, exp.classes_in_this_experience)
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_benchmark)", i, exp.classes_in_this_experience)
 
 print("Print outdoors_specialised_models_benchmark:", outdoors_specialised_models_benchmark)
 print("Print outdoors_specialised_models_benchmark.train_stream:", outdoors_specialised_models_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(outdoors_specialised_models_benchmark.train_stream) and print(outdoors_specialised_models_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
@@ -154,6 +154,12 @@ type(experience) WITH LOOP for experience in outdoors_specialised_models_train_s
 outdoors_specialised_models_train_stream_class_il = outdoors_specialised_models_benchmark.streams["train"]
 outdoors_specialised_models_val_stream_class_il = outdoors_specialised_models_benchmark.streams["valid"]
 outdoors_specialised_models_test_stream_class_il = outdoors_specialised_models_benchmark.streams["test"]
+
+for i, exp in enumerate(outdoors_specialised_models_train_stream_class_il):
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_train_stream_class_il)", i, exp.classes_in_this_experience)
+
+for i, exp in enumerate(outdoors_specialised_models_val_stream_class_il):
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_val_stream_class_il)", i, exp.classes_in_this_experience)
 
 print("type(outdoors_specialised_models_train_stream_class_il -- OBJECT THROUGH WHICH TRAINING LOOP IS CURRENTLY ITERATING)", type(outdoors_specialised_models_train_stream_class_il))
 print("type(outdoors_specialised_models_train_stream_class_il.exps_iter -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS)", type(outdoors_specialised_models_train_stream_class_il.exps_iter))
@@ -380,13 +386,13 @@ for experience in outdoors_specialised_models_train_stream_class_il:
     print("print(criterion_reduction) AFTER CALL TO cl_strategy.train", criterion_masked.reduction)
     print('Training completed WITH LOOP')
 
-    print('Computing accuracy on the whole test set WITH LOOP')
-    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-    print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
+    ############print('Computing accuracy on the whole test set WITH LOOP')
+    ############results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    ############print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
 
-print('Computing accuracy on the whole test set OUTSIDE LOOP')
+print('Computing accuracy on the whole val set OUTSIDE training LOOP')
 results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-print("Computing accuracy on the whole test set OUTSIDE LOOP (i.e. print(results)):", results)
+print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
 ################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################
 
