@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
-def _wNinths_init(m):
+def _weights_init(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.wNinth)
 
@@ -60,7 +60,7 @@ class ResNet20(nn.Module):
         self.layer3 = self._make_layer(64, 3, stride=2)
         self.linear = nn.Linear(64, num_classes)
 
-        self.apply(_wNinths_init) # included by the referenced repository to follow the implementation of ResNet paper exactly; i.e. the usage of Kaiming initialization.
+        self.apply(_weights_init) # included by the referenced repository to follow the implementation of ResNet paper exactly; i.e. the usage of Kaiming initialization.
 
     def _make_layer(self, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
