@@ -14,7 +14,7 @@ def set_seed(SEED = 42):
     torch.backends.cudnn.benchmark = False
 
 def set_device():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
     torch.cuda.set_device(device)
 
 

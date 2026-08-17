@@ -50,8 +50,16 @@ type(experience) WITH LOOP for experience in outdoors_specialised_models_train_s
     This is also part of avalanche/avalanche/benchmarks/scenarios/deprecated/dataset_scenario.py, but as can be seen from the directory name, it is deprecated. Regardless,
     TDatasetExperience = TypeVar("TDatasetExperience", bound=DatasetExperience) appears in both so there is no doubt that DatasetExperience object is what is meant by TDatasetExperience.
 """
+from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
+from avalanche.training.plugins.checkpoint import CheckpointPlugin
+from avalanche.training.templates import SupervisedTemplate
+
 from Ninth_implementation_attempt.Config_v9 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
+from Ninth_implementation_attempt.Config_v9 import set_device
+DEVICE=set_device()
+from avalanche.training.determinism.rng_manager import RNGManager
+##RNGManager.set_random_seeds(1234)
 from Ninth_implementation_attempt.ResNet20_v9 import ResNet20
 from Ninth_implementation_attempt.Load_cifar100_v9 import (outdoors_specialised_models_train_subset)
 from Ninth_implementation_attempt.Load_cifar100_v9 import (outdoors_specialised_models_val_subset)
@@ -61,26 +69,38 @@ from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from torch.optim import SGD
-from avalanche.training.supervised import Naive  # and many more!
+from avalanche.training.supervised import Naive, EWC  # and many more!
 from avalanche.training.losses import MaskedCrossEntropy
-from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin
+from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin, EWCPlugin
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
 from avalanche.evaluation.metrics.accuracy import accuracy_metrics
 from avalanche.core import BasePlugin
 from avalanche.evaluation.metrics import loss_metrics
 from avalanche.training.plugins.evaluation import default_loggers
+import sys
+sys.path.append('/home/lorenzo/Desktop/ProjectsVCS/avalanche/')
+
+import os
+from typing import Sequence
+
+import torch
+from torch.nn import CrossEntropyLoss
+from torch.optim import SGD
+
+from avalanche.benchmarks import CLExperience, SplitMNIST
+from avalanche.evaluation.metrics import accuracy_metrics, loss_metrics, \
+    class_accuracy_metrics
+from avalanche.logging import InteractiveLogger, TensorboardLogger, \
+    WandBLogger, TextLogger
+from avalanche.models import SimpleMLP, as_multitask
+from avalanche.training.determinism.rng_manager import RNGManager
+from avalanche.training.plugins import EvaluationPlugin, ReplayPlugin
+from avalanche.training.plugins.checkpoint import CheckpointPlugin
+from avalanche.training.supervised import Naive
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 
-# NAIVE / BASELINE IMPLEMENTATION OF MY STRATEGY --> train each specialised model in a Class-IL manner without attempting to mitigate CF.
-# Additionally, pre-train the global model on the EXPERIENCE 1 TRAIN SUBSETS and attempt to naively update it (using a hard-coded version of FedAvg
-# and no techniques to mitigate ST-CF):
-
-# class Naive(SupervisedTemplate) DESCRIPTION PROVIDED IN LIBRARY SOURCE CODE: "Naive finetuning.The simplest (and least effective) Continual Learning strategy. Naive just incrementally
-# fine tunes a single model WITHOUT EMPLOYING ANY METHOD to contrast the catastrophic forgetting of previous knowledge. This strategy does not use task identities. Naive is easy to set up
-# and its results are COMMONLY USED TO SHOW THE WORST PERFORMING BASELINE."
-
-print("\n\n\n################################ HERE BEGINS Train_ResNet20_v9.py ################################ \n\n\n")
+print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v9.py ################################ \n\n\n")
 
 resnet20_global_model = ResNet20(num_classes=100)
 outdoors_specialised_model = ResNet20(num_classes=100) #No need for num_classes=10 anymore despite 10 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
@@ -136,15 +156,16 @@ print("IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OB
 outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
                                                                     class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 2, 2, 69]) # which is equivalent to num_experiences=5 due to the reasons explained in previous version)
 
-print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
-for i, exp in enumerate(outdoors_specialised_models_benchmark.train_stream):
-    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_benchmark)", i, exp.classes_in_this_experience)
+if DEBUG:
+    print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
+    for i, exp in enumerate(outdoors_specialised_models_benchmark.train_stream):
+        print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_benchmark)", i, exp.classes_in_this_experience)
 
-print("Print outdoors_specialised_models_benchmark:", outdoors_specialised_models_benchmark)
-#print("Print outdoors_specialised_models_benchmark.train_stream:", outdoors_specialised_models_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(outdoors_specialised_models_benchmark.train_stream) and print(outdoors_specialised_models_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
-print('Print outdoors_specialised_models_benchmark.streams["train"]',outdoors_specialised_models_benchmark.streams["train"])
-print('Print outdoors_specialised_models_benchmark.streams["test"]', outdoors_specialised_models_benchmark.streams["test"])
-print('Print outdoors_specialised_models_benchmark.streams["valid"]', outdoors_specialised_models_benchmark.streams["valid"])
+    print("Print outdoors_specialised_models_benchmark:", outdoors_specialised_models_benchmark)
+    #print("Print outdoors_specialised_models_benchmark.train_stream:", outdoors_specialised_models_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(outdoors_specialised_models_benchmark.train_stream) and print(outdoors_specialised_models_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
+    print('Print outdoors_specialised_models_benchmark.streams["train"]',outdoors_specialised_models_benchmark.streams["train"])
+    print('Print outdoors_specialised_models_benchmark.streams["test"]', outdoors_specialised_models_benchmark.streams["test"])
+    print('Print outdoors_specialised_models_benchmark.streams["valid"]', outdoors_specialised_models_benchmark.streams["valid"])
 
 # IMPORTANT!!!!! This time, we do want to keep these as streams and NOT to further divide each stream into its composing experiences. This time,
 # since class_incremental_benchmark is actually being used to create a CLScenario for use in training in a class-IL manner, and NOT as functionality
@@ -156,35 +177,55 @@ outdoors_specialised_models_train_stream_class_il = outdoors_specialised_models_
 outdoors_specialised_models_val_stream_class_il = outdoors_specialised_models_benchmark.streams["valid"]
 outdoors_specialised_models_test_stream_class_il = outdoors_specialised_models_benchmark.streams["test"]
 
-for i, exp in enumerate(outdoors_specialised_models_train_stream_class_il):
-    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_train_stream_class_il)", i, exp.classes_in_this_experience)
+if DEBUG:
+    for i, exp in enumerate(outdoors_specialised_models_train_stream_class_il):
+        print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_train_stream_class_il)", i, exp.classes_in_this_experience)
 
-for i, exp in enumerate(outdoors_specialised_models_val_stream_class_il):
-    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_val_stream_class_il)", i, exp.classes_in_this_experience)
+    for i, exp in enumerate(outdoors_specialised_models_val_stream_class_il):
+        print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_val_stream_class_il)", i, exp.classes_in_this_experience)
 
-for i, exp in enumerate(outdoors_specialised_models_test_stream_class_il):
-    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_test_stream_class_il)", i,
-          exp.classes_in_this_experience)
+    for i, exp in enumerate(outdoors_specialised_models_test_stream_class_il):
+        print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_test_stream_class_il)", i,
+              exp.classes_in_this_experience)
 
-print("type(outdoors_specialised_models_train_stream_class_il -- OBJECT THROUGH WHICH TRAINING LOOP IS CURRENTLY ITERATING)", type(outdoors_specialised_models_train_stream_class_il))
-print("type(outdoors_specialised_models_train_stream_class_il.exps_iter -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS)", type(outdoors_specialised_models_train_stream_class_il.exps_iter))
-print('type(outdoors_specialised_models_benchmark.train_stream -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS', type(outdoors_specialised_models_benchmark.train_stream), 'ALSOOOOOO, benchmark.train_stream KNOWN TO BE EQUAL TO benchmark.streams["train"]); CHECK TO VERIFY')
-print("type(outdoors_specialised_models_train_stream_class_il.exps_iter[0])", type(outdoors_specialised_models_train_stream_class_il.exps_iter[0]))
+    print("type(outdoors_specialised_models_train_stream_class_il -- OBJECT THROUGH WHICH TRAINING LOOP IS CURRENTLY ITERATING)", type(outdoors_specialised_models_train_stream_class_il))
+    print("type(outdoors_specialised_models_train_stream_class_il.exps_iter -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS)", type(outdoors_specialised_models_train_stream_class_il.exps_iter))
+    print('type(outdoors_specialised_models_benchmark.train_stream -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS', type(outdoors_specialised_models_benchmark.train_stream), 'ALSOOOOOO, benchmark.train_stream KNOWN TO BE EQUAL TO benchmark.streams["train"]); CHECK TO VERIFY')
+    print("type(outdoors_specialised_models_train_stream_class_il.exps_iter[0])", type(outdoors_specialised_models_train_stream_class_il.exps_iter[0]))
 
 #####################################################################################################################################################################################################################
 # TRAINING LOOP
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
 criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
-cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=20, eval_mb_size=100,
+'''print('WHERE ewc_lambda=1, mode="separate", train_mb_size=100, train_epochs=20, eval_mb_size=100')
+cl_strategy = EWC(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, ewc_lambda=1, mode="separate", train_mb_size=100, train_epochs=20, eval_mb_size=100, device=DEVICE,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
-                    eval_every=1) # ---- TRY NEXT if results suggest it could help improve accuracy on individual experiences: train_mb_size=1, train_epochs=20, eval_mb_size=100,)
+                    eval_every=1)''' # Loss_Stream/eval_phase/valid_stream = 6.4713 # Top1_Acc_Stream/eval_phase/valid_stream = 0.1820
 
-print("WHICH OF THE FOLLOWING WOULD BE ADEQUATE FOR eval_streams PARAMETER OF .train() METHOD OF avalanche.training.templates.base_sgd.BaseSGDTemplate?\nExpected type: Sequence[TDatasetExperience | Iterable[TDatasetExperience]], WICH MEANS Sequence[TDatasetExperience] OR Sequence[Iterable[TDatasetExperience]]")
-print("type([outdoors_specialised_models_val_stream_class_il])", type([outdoors_specialised_models_val_stream_class_il]))
-print("type([outdoors_specialised_models_val_stream_class_il.exps_iter])", type([outdoors_specialised_models_val_stream_class_il.exps_iter]))
-print("print(isinstance(outdoors_specialised_models_val_stream_class_il, Iterable))", isinstance(outdoors_specialised_models_val_stream_class_il, Iterable))
-print("print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable))", isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable))
+'''print('WHERE ewc_lambda=1, mode="separate", keep_importance_data=True, train_mb_size=100, train_epochs=100, eval_mb_size=100, AND EWCPlugin(ewc_lambda=1, mode="separate", keep_importance_data=True)')
+cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=100, eval_mb_size=100, device=DEVICE,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False), EWCPlugin(ewc_lambda=1, mode="separate", keep_importance_data=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)''' # Loss_Stream/eval_phase/valid_stream = 6.5255 # Top1_Acc_Stream/eval_phase/valid_stream = 0.1860
+
+'''print('WHERE ewc_lambda=1, mode="separate", keep_importance_data=True, train_mb_size=100, train_epochs=100, eval_mb_size=100,')
+cl_strategy = EWC(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, ewc_lambda=1, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False), EWCPlugin(ewc_lambda=1, mode="separate", keep_importance_data=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
+
+print('WHERE SupervisedTemplate')
+cl_strategy = SupervisedTemplate(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False), EWCPlugin(ewc_lambda=1, mode="separate", keep_importance_data=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)
+
+'''print('WHERE ewc_lambda=1, mode="separate", keep_importance_data=True, train_mb_size=1, train_epochs=100, eval_mb_size=1,')
+cl_strategy = EWC(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, ewc_lambda=1, mode="separate", keep_importance_data=True, train_mb_size=1, train_epochs=100, eval_mb_size=1, device=DEVICE,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)'''
 
 # This code that I took from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
 # is not the one and only way to build a training loop -- IT IS THE WAY TO BUILD A TRAINING LOOP IF optimizer = SGD !!!  When optimizer = SGD, .train
@@ -195,36 +236,35 @@ print("print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_ite
 # by .train of class BaseSGDTemplate (more info on the comments in CLStream and EagerCLStream above).
 print('Starting experiment WITH LOOP...')
 results = []
-for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
+fname = "./checkpoint.pkl"  # name of the checkpoint file
+fname0 = "./checkpoint0.pkl"
+fname1 = "./checkpoint1.pkl"
+fname2 = "./checkpoint2.pkl"
+fname3 = "./checkpoint3.pkl"
+fname4 = "./checkpoint4.pkl"
+
+#cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, fname, map_location=DEVICE)
+
+'''for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
+    cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, fname) #, map_location=DEVICE)
+    print("outdoors_specialised_models_benchmark.train_stream[initial_exp:]", outdoors_specialised_models_benchmark.train_stream[initial_exp:])'''
+#for experience in outdoors_specialised_models_benchmark.train_stream[initial_exp:]:
+    #for experience in outdoors_specialised_models_train_stream_class_il[initial_exp:]:
+for experience in outdoors_specialised_models_train_stream_class_il:
     i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+    fname = f"./checkpoint_{i}.pkl"
     print("Start of experience -- current TRAIN experience: ", experience.current_experience)
     print("Start of experience -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
     print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
     print("Current Classes -- current VAL .classes_in_this_experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
-    #print("experience.dataset (of TRAIN)", experience.dataset)
-    #print(".exps_iter[i].dataset (of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset)
-    print("type(experience) WITH LOOP for experience in outdoors_specialised_models_train_stream_class_il", type(experience))
-    print("type(outdoors_specialised_models_val_stream_class_il.exps_iter[i])",type(outdoors_specialised_models_val_stream_class_il.exps_iter[i]))
     print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)", experience.dataset.coarse_label.uniques)
     print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
     print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
     print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
-    # print("experience", experience)
-    # x, y, z = experience.dataset[0] # returns images, targets, coarse_labels
-    # print(f"x: {x}, \ny: {y}, \nz: {z}")
-    #print("WHICH OF THE FOLLOWING WOULD BE ADEQUATE FOR eval_streams PARAMETER OF .train() METHOD OF avalanche.training.templates.base_sgd.BaseSGDTemplate?\nExpected type: Sequence[TDatasetExperience | Iterable[TDatasetExperience]], WHICH MEANS Sequence[TDatasetExperience] OR Sequence[Iterable[TDatasetExperience]]")
-    #print("type([outdoors_specialised_models_val_stream_class_il])", type([outdoors_specialised_models_val_stream_class_il]))
-    #print("type([outdoors_specialised_models_val_stream_class_il.exps_iter])", type([outdoors_specialised_models_val_stream_class_il.exps_iter]))
-    #print("print(isinstance(outdoors_specialised_models_val_stream_class_il, Iterable))", isinstance(outdoors_specialised_models_val_stream_class_il, Iterable))
-    #print("print(isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable))", isinstance(outdoors_specialised_models_val_stream_class_il.exps_iter, Iterable))
     print("print(experience.origin_stream.name)", experience.origin_stream.name)
     print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
     print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
     print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
-    print("print(criterion_masked.mask) BEFORE CALL TO cl_strategy.train", criterion_masked.mask)
-    print("print(criterion_reduction) BEFORE CALL TO cl_strategy.train", criterion_masked.reduction)
-    print("type(criterion_masked)", type(criterion_masked))
-    print("isinstance(criterion_masked, BasePlugin)", isinstance(criterion_masked, BasePlugin))
     criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
     print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
     cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
@@ -233,12 +273,10 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     print("print(cl_strategy.plugins)", cl_strategy.plugins)
     print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
     print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
-    print("print(criterion_masked.mask) AFTER CALL TO cl_strategy.train", criterion_masked.mask)
-    print("print(criterion_reduction) AFTER CALL TO cl_strategy.train", criterion_masked.reduction)
+    save_checkpoint(cl_strategy, fname)
+    print("save_checkpoint(strategy, fname)")
     print('Training completed WITH LOOP')
 
-print("print(cl_strategy.loss)", cl_strategy.loss)
-print("print(cl_strategy.loss)", cl_strategy.loss.data)
 print('Computing accuracy on the whole val set OUTSIDE training LOOP')
 results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
 print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
@@ -271,38 +309,3 @@ print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print
 
 
 
-
-if __name__ == "__main__":
-    #print("results", results)
-
-    # Print outdoors_specialised_models_train_subset: <avalanche.benchmarks.scenarios.dataset_scenario.DatasetExperience object at 0x000001CA7B613150>
-    # type outdoors_specialised_models_train_subset: <class 'avalanche.benchmarks.scenarios.dataset_scenario.DatasetExperience'>
-    '''print("outdoors_specialised_models_train_subset.dataset", outdoors_specialised_models_train_subset.dataset)
-    print("type(outdoors_specialised_models_train_subset.dataset)",type(outdoors_specialised_models_train_subset.dataset))
-    print("outdoors_specialised_models_train_subset.dataset.targets",outdoors_specialised_models_train_subset.dataset.targets)
-    print("type(outdoors_specialised_models_train_subset.dataset.targets)",type(outdoors_specialised_models_train_subset.dataset.targets))
-    print("outdoors_specialised_models_train_subset.dataset.coarse_label)",outdoors_specialised_models_train_subset.dataset.coarse_label)
-    print("type(outdoors_specialised_models_train_subset.dataset.coarse_label))",type(outdoors_specialised_models_train_subset.dataset.coarse_label))
-
-    print("outdoors_specialised_models_val_subset.dataset", outdoors_specialised_models_val_subset.dataset)
-    print("type(outdoors_specialised_models_val_subset.dataset)", type(outdoors_specialised_models_val_subset.dataset))
-    print("outdoors_specialised_models_val_subset.dataset.targets",outdoors_specialised_models_val_subset.dataset.targets)
-    print("type(outdoors_specialised_models_val_subset.dataset.targets)",type(outdoors_specialised_models_val_subset.dataset.targets))
-    print("outdoors_specialised_models_val_subset.dataset.coarse_label)",outdoors_specialised_models_val_subset.dataset.coarse_label)
-    print("type(outdoors_specialised_models_val_subset.dataset.coarse_label))",type(outdoors_specialised_models_val_subset.dataset.coarse_label))'''
-
-    # x, y, t = outdoors_specialised_models_val_subset.dataset[0] # returns images, targets, coarse_labels
-    # print("x", x, "\ny", y, "\nt", t) # returns images, targets, coarse_labels
-
-    # NOTE: .name for the DataAttribute objects (.coarse_label and .targets) of either subset/ClassificationDataset (.dataset) within the DataExperience
-    # object (e.g. outdoors_specialised_models_train_subset) LITERALLY RETURNS THE VARIABLE NAME OF THE DataAttribute. That is, .dataset.coarse_label.name
-    # returns "coarse_label" and .dataset.targets.name returns "targets". The class type for .name is "string". Since neither of these things provide any
-    # useful information, nor can be used in any useful manner in the current implementation, the code for inspecting .name below has been commented out.
-    '''print("outdoors_specialised_models_train_subset.dataset.coarse_label.name", outdoors_specialised_models_train_subset.dataset.coarse_label.name)
-    print("outdoors_specialised_models_train_subset.dataset.targets.name", outdoors_specialised_models_train_subset.dataset.targets.name)
-    print("outdoors_specialised_models_val_subset.dataset.coarse_label.name", outdoors_specialised_models_val_subset.dataset.coarse_label.name)
-    print("outdoors_specialised_models_val_subset.dataset.targets.name", outdoors_specialised_models_val_subset.dataset.targets.name)
-    print("type(outdoors_specialised_models_train_subset.dataset.coarse_label.name)", type(outdoors_specialised_models_train_subset.dataset.coarse_label.name))
-    print("type(outdoors_specialised_models_train_subset.dataset.targets.name)", type(outdoors_specialised_models_train_subset.dataset.targets.name))
-    print("type(outdoors_specialised_models_val_subset.dataset.coarse_label.name)", type(outdoors_specialised_models_val_subset.dataset.coarse_label.name))
-    print("type(outdoors_specialised_models_val_subset.dataset.targets.name)", type(outdoors_specialised_models_val_subset.dataset.targets.name))'''
