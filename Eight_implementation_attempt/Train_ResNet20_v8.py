@@ -138,7 +138,7 @@ outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": av
 
 print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
 for i, exp in enumerate(outdoors_specialised_models_benchmark.train_stream):
-    print("print(i, exp.classes_in_this_experience)", i, exp.classes_in_this_experience)
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_benchmark)", i, exp.classes_in_this_experience)
 
 print("Print outdoors_specialised_models_benchmark:", outdoors_specialised_models_benchmark)
 #print("Print outdoors_specialised_models_benchmark.train_stream:", outdoors_specialised_models_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(outdoors_specialised_models_benchmark.train_stream) and print(outdoors_specialised_models_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
@@ -156,6 +156,16 @@ outdoors_specialised_models_train_stream_class_il = outdoors_specialised_models_
 outdoors_specialised_models_val_stream_class_il = outdoors_specialised_models_benchmark.streams["valid"]
 outdoors_specialised_models_test_stream_class_il = outdoors_specialised_models_benchmark.streams["test"]
 
+for i, exp in enumerate(outdoors_specialised_models_train_stream_class_il):
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_train_stream_class_il)", i, exp.classes_in_this_experience)
+
+for i, exp in enumerate(outdoors_specialised_models_val_stream_class_il):
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_val_stream_class_il)", i, exp.classes_in_this_experience)
+
+for i, exp in enumerate(outdoors_specialised_models_test_stream_class_il):
+    print("print(i, exp.classes_in_this_experience -- outdoors_specialised_models_test_stream_class_il)", i,
+          exp.classes_in_this_experience)
+
 print("type(outdoors_specialised_models_train_stream_class_il -- OBJECT THROUGH WHICH TRAINING LOOP IS CURRENTLY ITERATING)", type(outdoors_specialised_models_train_stream_class_il))
 print("type(outdoors_specialised_models_train_stream_class_il.exps_iter -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS)", type(outdoors_specialised_models_train_stream_class_il.exps_iter))
 print('type(outdoors_specialised_models_benchmark.train_stream -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS', type(outdoors_specialised_models_benchmark.train_stream), 'ALSOOOOOO, benchmark.train_stream KNOWN TO BE EQUAL TO benchmark.streams["train"]); CHECK TO VERIFY')
@@ -165,9 +175,10 @@ print("type(outdoors_specialised_models_train_stream_class_il.exps_iter[0])", ty
 # TRAINING LOOP
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
 criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
-cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=8, eval_mb_size=100,
-                evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
-                eval_every=0)
+cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, train_mb_size=100, train_epochs=20, eval_mb_size=100,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True, trained_experience=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1) # ---- TRY NEXT if results suggest it could help improve accuracy on individual experiences: train_mb_size=1, train_epochs=20, eval_mb_size=100,)
 
 print("WHICH OF THE FOLLOWING WOULD BE ADEQUATE FOR eval_streams PARAMETER OF .train() METHOD OF avalanche.training.templates.base_sgd.BaseSGDTemplate?\nExpected type: Sequence[TDatasetExperience | Iterable[TDatasetExperience]], WICH MEANS Sequence[TDatasetExperience] OR Sequence[Iterable[TDatasetExperience]]")
 print("type([outdoors_specialised_models_val_stream_class_il])", type([outdoors_specialised_models_val_stream_class_il]))
@@ -226,9 +237,11 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     print("print(criterion_reduction) AFTER CALL TO cl_strategy.train", criterion_masked.reduction)
     print('Training completed WITH LOOP')
 
-    print('Computing accuracy on the whole test set WITH LOOP')
-    results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-    print("Computing accuracy on the whole test set WITH LOOP (i.e. print(results)):", results)
+print("print(cl_strategy.loss)", cl_strategy.loss)
+print("print(cl_strategy.loss)", cl_strategy.loss.data)
+print('Computing accuracy on the whole val set OUTSIDE training LOOP')
+results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
 
 
 
