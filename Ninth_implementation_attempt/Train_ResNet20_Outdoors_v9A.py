@@ -55,8 +55,6 @@ from avalanche.training.plugins.checkpoint import CheckpointPlugin
 from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 
 from Ninth_implementation_attempt.Config_v9 import set_seed
-
-
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
 from Ninth_implementation_attempt.Config_v9 import set_device
 DEVICE=set_device()
@@ -388,305 +386,12 @@ class TestEWCStrategy(SupervisedTemplate):
 
         return fisher
 
-    def _after_training_exp(self, **kwargs):
-        """
-        Called after all epochs of the current experience have completed.
 
-        At this point:
 
-            1. The current experience has been trained.
-            2. self.model contains the trained parameters theta*.
-            3. We calculate Fisher using the current experience.
-            4. We save theta*.
-            5. Future experiences can use these values for EWC.
-        """
-
-        if self.experience is None:
-            raise RuntimeError(
-                "[EWC] self.experience is None in _after_training_exp."
-            )
-
-        experience_id = self.experience.current_experience
-
-        print(
-            f"[EWC] ===== End of experience {experience_id} ====="
-        )
-
-        # ---------------------------------------------------------
-        # IMPORTANT ORDER:
-        #
-        # The model is currently at theta*.
-        #
-        # Calculate Fisher around this trained model and then save
-        # theta*.
-        # ---------------------------------------------------------
-
-        self._calculate_fisher()
-
-        self._save_parameters()
-
-        print(
-            f"[EWC] saved_params experiences: "
-            f"{list(self.saved_params.keys())}"
-        )
-
-        print(
-            f"[EWC] importances experiences: "
-            f"{list(self.importances.keys())}"
-        )
-
-        # ---------------------------------------------------------
-        # Allow Avalanche's normal after_training_exp processing
-        # to happen.
-        # ---------------------------------------------------------
-
-        super()._after_training_exp(**kwargs)
-
-    def _save_parameters(self):
-        """
-        Save the model parameters at the end of the current experience.
-
-        These parameters represent theta* in the EWC objective:
-
-            sum_i F_i * (theta_i - theta_i*)^2
-        """
-
-        experience_id = self.experience.current_experience
-
-        self.saved_params[experience_id] = {
-            name: parameter.detach().clone()
-            for name, parameter in self.model.named_parameters()
-            if parameter.requires_grad
-        }
-
-        print(
-            f"[EWC] Saved parameters for experience {experience_id}: "
-            f"{len(self.saved_params[experience_id])} tensors"
-        )
-
-
-
-
-
-
-
-
-
-
-
-from collections import defaultdict
-from typing import Callable, Dict, List, Optional, Union
-
-import torch
-from torch.nn import Module
-from torch.optim import Optimizer
-
-from avalanche.training.templates import SupervisedTemplate
-from avalanche.training.plugins import SupervisedPlugin, EvaluationPlugin
-from avalanche.training.plugins.evaluation import default_evaluator
-from avalanche.training.templates.strategy_mixin_protocol import CriterionType
-
-
-'''class EWCStrategy(SupervisedTemplate):
-    """
-    EWC implemented as a Strategy rather than a Plugin.
-
-    The penalty is added to self.loss inside training_epoch, BEFORE
-    _before_backward(**kwargs) is dispatched to plugins. This guarantees
-    the penalty always survives into the backward pass regardless of what
-    other plugins (e.g. EarlyStoppingPlugin) do in their own callbacks —
-    which was the failure mode with EWCPlugin.
-    """
-
-    def __init__(
-        self,
-        *,
-        model: Module,
-        optimizer: Optimizer,
-        criterion: CriterionType,
-        ewc_lambda: float,
-        mode: str = "separate",
-        decay_factor: Optional[float] = None,
-        keep_importance_data: bool = False,
-        train_mb_size: int = 1,
-        train_epochs: int = 1,
-        eval_mb_size: Optional[int] = None,
-        device: Union[str, torch.device] = "cpu",
-        plugins: Optional[List[SupervisedPlugin]] = None,
-        evaluator: Union[EvaluationPlugin, Callable[[], EvaluationPlugin]] = default_evaluator,
-        eval_every=-1,
-        **base_kwargs,
-    ):
-        super().__init__(
-            model=model,
-            optimizer=optimizer,
-            criterion=criterion,
-            train_mb_size=train_mb_size,
-            train_epochs=train_epochs,
-            eval_mb_size=eval_mb_size,
-            device=device,
-            plugins=plugins,
-            evaluator=evaluator,
-            eval_every=eval_every,
-            **base_kwargs,
-        )
-
-        assert mode in ("separate", "online"), "mode must be 'separate' or 'online'"
-        if mode == "online":
-            assert decay_factor is not None, "decay_factor is required in 'online' mode"
-
-        self.ewc_lambda = ewc_lambda
-        self.mode = mode
-        self.decay_factor = decay_factor
-        self.keep_importance_data = True if mode == "separate" else keep_importance_data
-
-        self.saved_params: Dict[int, Dict[str, torch.Tensor]] = defaultdict(dict)
-        self.importances: Dict[int, Dict[str, torch.Tensor]] = defaultdict(dict)
-
-    # ------------------------------------------------------------------ #
-    # Training loop
-    # ------------------------------------------------------------------ #
-    def training_epoch(self, **kwargs):
-        for self.mbatch in self.dataloader:
-            if self._stop_training:
-                break
-
-            self._unpack_minibatch()
-            self._before_training_iteration(**kwargs)
-
-            self.optimizer.zero_grad()
-            self.loss = self._make_empty_loss()
-
-            self._before_forward(**kwargs)
-            self.mb_output = self.forward()
-            self._after_forward(**kwargs)
-
-            self.loss += self.criterion()
-
-            # Added BEFORE any plugin callback touches self.loss.
-            if len(self.saved_params) > 0:
-                self.loss = self.loss + self.ewc_lambda * self.ewc_penalty()
-
-            self._before_backward(**kwargs)
-            self.backward()
-            self._after_backward(**kwargs)
-
-            self._before_update(**kwargs)
-            self.optimizer_step()
-            self._after_update(**kwargs)
-
-            self._after_training_iteration(**kwargs)
-
-    def ewc_penalty(self) -> torch.Tensor:
-        penalty = self._make_empty_loss()
-
-        for exp_id, params in self.saved_params.items():
-            for name, parameter in self.model.named_parameters():
-                if name not in params:
-                    continue
-                saved_parameter = params[name]
-                importance = self.importances[exp_id][name]
-
-                # Handles a classifier head that grew between experiences.
-                if importance.shape != parameter.shape:
-                    importance = self._expand(importance, parameter.shape)
-                    saved_parameter = self._expand(saved_parameter, parameter.shape)
-
-                penalty = penalty + (
-                    importance * (parameter - saved_parameter).pow(2)
-                ).sum()
-
-        return penalty
-
-    # ------------------------------------------------------------------ #
-    # Fisher / importance computation — runs once per experience
-    # ------------------------------------------------------------------ #
-    def _after_training_exp(self, **kwargs):
-        # Read the counter BEFORE calling super(): the Clock plugin
-        # (which increments train_exp_counter) only fires once we call
-        # super()._after_training_exp(), so right now this value still
-        # refers to the experience we just finished training on.
-        exp_id = self.clock.train_exp_counter
-
-        fisher = self._calculate_fisher()
-        self._update_importances(fisher, exp_id)
-
-        with torch.no_grad():
-            self.saved_params[exp_id] = {
-                name: parameter.detach().clone()
-                for name, parameter in self.model.named_parameters()
-            }
-
-        if exp_id > 0 and not self.keep_importance_data:
-            del self.saved_params[exp_id - 1]
-            del self.importances[exp_id - 1]
-
-        super()._after_training_exp(**kwargs)
-
-    def _calculate_fisher(self) -> Dict[str, torch.Tensor]:
-        fisher = {
-            name: torch.zeros_like(parameter)
-            for name, parameter in self.model.named_parameters()
-            if parameter.requires_grad
-        }
-
-        was_training = self.model.training
-        self.model.eval()
-
-        num_batches = 0
-        for mbatch in self.dataloader:
-            self.mbatch = mbatch
-            self._unpack_minibatch()
-
-            self.optimizer.zero_grad()
-            self.mb_output = self.forward()
-            loss = self.criterion()
-            loss.backward()
-
-            for name, parameter in self.model.named_parameters():
-                if parameter.grad is not None:
-                    fisher[name] += parameter.grad.detach().pow(2)
-
-            num_batches += 1
-
-        if num_batches > 0:
-            for name in fisher:
-                fisher[name] /= num_batches
-
-        self.optimizer.zero_grad()
-        self.model.train(was_training)
-        return fisher
-
-    def _update_importances(self, fisher: Dict[str, torch.Tensor], exp_id: int):
-        if self.mode == "separate" or exp_id == 0:
-            self.importances[exp_id] = fisher
-            return
-
-        prev = self.importances[exp_id - 1]
-        merged = {}
-        for name, curr_imp in fisher.items():
-            if name in prev:
-                old_imp = prev[name]
-                if old_imp.shape != curr_imp.shape:
-                    old_imp = self._expand(old_imp, curr_imp.shape)
-                merged[name] = self.decay_factor * old_imp + curr_imp
-            else:
-                merged[name] = curr_imp
-        self.importances[exp_id] = merged
-
-    @staticmethod
-    def _expand(tensor: torch.Tensor, new_shape: torch.Size) -> torch.Tensor:
-        """Zero-pad tensor up to new_shape. Mirrors what ParamData.expand
-        does, without depending on that class."""
-        if tensor.shape == new_shape:
-            return tensor
-        expanded = torch.zeros(new_shape, device=tensor.device, dtype=tensor.dtype)
-        expanded[tuple(slice(0, s) for s in tensor.shape)] = tensor
-        return expanded'''
 
 # TRAINING LOOP
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
-criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
+#######criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
 
 '''print('WHERE Naive as strategy AND criterion=CrossEntropyLoss() AND loggers=InteractiveLogger() AND NOOOO trained_experience=True AND ewc_lambda=0.9 AND EWCPlugin(ewc_lambda=0.9, mode="separate", keep_importance_data=True)')
 cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
@@ -695,15 +400,10 @@ cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, crite
                     eval_every=1)# Yes callbaks!!! # FAIL --> EWCPlugin(ewc_lambda=0.9, mode="online", decay_factor=1, keep_importance_data=False)
 '''
 #TODO: Change train_epochs back to 100
-cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=1, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)], # EWCPlugin(ewc_lambda=0.9, mode="separate")],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)
-
-'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100,
-                          plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
-                          evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                          eval_every=1)'''
 # This code that I took from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
 # is not the one and only way to build a training loop -- IT IS THE WAY TO BUILD A TRAINING LOOP IF optimizer = SGD !!!  When optimizer = SGD, .train
 # is the .train of class BaseSGDTemplate, where the training loop IS DESIGNED TO BE EXECUTED ONCE PER EXPERIENCE, and regardless of what the comments
@@ -730,16 +430,16 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
     print("print(experience.origin_stream.name)", experience.origin_stream.name)
     print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
-    print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
-    criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-    print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+    #######print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+    #######print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
+    #######criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
+    #######print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
     cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
     print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
     print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
     print("print(cl_strategy.plugins)", cl_strategy.plugins)
-    print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
-    print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
+    #######print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
+    #######print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
     save_checkpoint(cl_strategy, fname)
     print("save_checkpoint(strategy, fname)")
     print('Training completed WITH LOOP')
