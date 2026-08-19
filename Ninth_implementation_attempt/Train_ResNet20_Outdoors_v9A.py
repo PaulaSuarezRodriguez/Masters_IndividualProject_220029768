@@ -255,9 +255,7 @@ class TestEWCStrategy(SupervisedTemplate):
         self.importances = {}
 
     def training_epoch(self, **kwargs):
-
         print("***** MY training_epoch() WAS CALLED *****")
-
         for self.mbatch in self.dataloader:
 
             if self._stop_training:
@@ -285,14 +283,11 @@ class TestEWCStrategy(SupervisedTemplate):
 
             if len(self.saved_params) > 0:
                 penalty = self.ewc_penalty()
-
                 self.loss += self.ewc_lambda * penalty
 
             # Plugins
             self._before_backward(**kwargs)
-
             self.backward()
-
             self._after_backward(**kwargs)
 
             # Optimization
@@ -303,87 +298,55 @@ class TestEWCStrategy(SupervisedTemplate):
             self._after_training_iteration(**kwargs)
 
     def ewc_penalty(self):
-
         penalty = self._make_empty_loss()
-
         for experience in self.saved_params:
-
             for name, parameter in self.model.named_parameters():
-
                 if name not in self.saved_params[experience]:
                     continue
-
                 saved_parameter = self.saved_params[experience][name]
                 importance = self.importances[experience][name]
 
-                penalty += (
-                        importance *
-                        (
-                                parameter -
-                                saved_parameter
-                        ).pow(2)
-                ).sum()
-
+                penalty += (importance * (parameter - saved_parameter).pow(2)).sum()
         return penalty
 
     def _calculate_fisher(self):
-
         fisher = {}
-
         # Initialize Fisher tensors
         for name, parameter in self.model.named_parameters():
-
             if parameter.requires_grad:
                 fisher[name] = torch.zeros_like(parameter)
-
         # Save current training mode
         was_training = self.model.training
-
         self.model.eval()
 
         # ---------------------------------------------------------
         # Iterate over the data from the current experience
         # ---------------------------------------------------------
-
         for mbatch in self.dataloader:
-
             self.mbatch = mbatch
-
             self._unpack_minibatch()
-
             self.optimizer.zero_grad()
-
             # Forward
             self.mb_output = self.forward()
-
             # Compute loss
             loss = self.criterion()
-
             # Compute gradients
             loss.backward()
-
             # Accumulate squared gradients
             for name, parameter in self.model.named_parameters():
-
                 if parameter.grad is None:
                     continue
-
                 fisher[name] += parameter.grad.detach().pow(2)
 
         # ---------------------------------------------------------
         # Average over minibatches
         # ---------------------------------------------------------
-
         num_batches = len(self.dataloader)
-
         if num_batches > 0:
-
             for name in fisher:
                 fisher[name] /= num_batches
-
         # Restore original training mode
         self.model.train(was_training)
-
         return fisher
 
 
@@ -400,8 +363,10 @@ cl_strategy = Naive(model=outdoors_specialised_model, optimizer=optimizer, crite
                     eval_every=1)# Yes callbaks!!! # FAIL --> EWCPlugin(ewc_lambda=0.9, mode="online", decay_factor=1, keep_importance_data=False)
 '''
 #TODO: Change train_epochs back to 100
-cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=1, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)], # EWCPlugin(ewc_lambda=0.9, mode="separate")],
+# !!!!!!! DIFFERENCE FROM ONE SAVED TO GitHub: I changed train_epochs back to 100
+# REMOVED # EWCPlugin(ewc_lambda=0.9, mode="separate")],
+cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)
 # This code that I took from https://avalanche.continualai.org/avalanche/from-zero-to-hero-tutorial/04_training#training-and-evaluation
