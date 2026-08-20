@@ -214,7 +214,8 @@ from avalanche.training.templates.strategy_mixin_protocol import (
     TMBInput,
 )
 from avalanche.training.utils import copy_params_dict, zerolike_params_dict, ParamData
-
+import warnings
+import itertools
 
 class TestEWCStrategy(SupervisedTemplate):
     def __init__(
@@ -560,7 +561,475 @@ class TestEWCStrategy(SupervisedTemplate):
             total_drift += (parameter - saved).pow(2).sum().item()
         print(f"Total squared drift from exp {anchor_exp_id} anchor: {total_drift:.4f}")'''
 
+class TestEWCStrategy_2(SupervisedTemplate):
+    def __init__(
+        self,
+        *,
+        model: Module,
+        optimizer: Optimizer,
+        criterion: CriterionType,
+        ewc_lambda: float,
+        mode: str = "separate",
+        decay_factor: Optional[float] = None,
+        keep_importance_data: bool = False,
+        train_mb_size: int = 1,
+        train_epochs: int = 1,
+        eval_mb_size: Optional[int] = None,
+        device: Union[str, torch.device] = "cpu",
+        plugins: Optional[List[SupervisedPlugin]] = None,
+        evaluator: Union[
+            EvaluationPlugin, Callable[[], EvaluationPlugin]
+        ] = default_evaluator,
+        eval_every=-1,
+        **base_kwargs
+    ):
 
+        super().__init__(
+            model=model,
+            optimizer=optimizer,
+            criterion=criterion,
+            train_mb_size=train_mb_size,
+            train_epochs=train_epochs,
+            eval_mb_size=eval_mb_size,
+            device=device,
+            plugins=plugins,
+            evaluator=evaluator,
+            eval_every=eval_every,
+            **base_kwargs
+        )
+
+        if mode not in ("separate", "online"):
+            raise ValueError(
+                "mode must be either 'separate' or 'online'."
+            )
+
+        if mode == "online" and decay_factor is None:
+            raise ValueError(
+                "decay_factor must be specified when mode='online'."
+            )
+
+        if mode != "online" and decay_factor is not None:
+            raise ValueError(
+                "decay_factor is only used when mode='online'."
+            )
+
+        self.ewc_lambda = ewc_lambda
+        self.mode = mode
+        self.decay_factor = decay_factor
+        penalty= self._make_empty_loss()
+
+        if self.mode == "separate":
+            self.keep_importance_data = True
+        else:
+            self.keep_importance_data = keep_importance_data
+
+        '''self.saved_params = {}
+        self.importances = {}'''
+
+        '''self.saved_params = defaultdict(dict)
+        self.importances = defaultdict(dict)'''
+
+        self.saved_params: Dict[int, Dict[str, ParamData]] = defaultdict(dict)
+        self.importances: Dict[int, Dict[str, ParamData]] = defaultdict(dict)
+
+    def training_epoch(self, **kwargs):
+        print("***** MY training_epoch() WAS CALLED *****")
+
+        for self.mbatch in self.dataloader:
+            if self._stop_training:
+                break
+
+            self._unpack_minibatch()
+            self._before_training_iteration(**kwargs)
+
+            self.optimizer.zero_grad()
+            self.loss = self._make_empty_loss()
+
+            # Forward
+            self._before_forward(**kwargs)
+            self.mb_output = self.forward()
+            self._after_forward(**kwargs)
+
+            # Ordinary loss
+            self.loss += self.criterion()
+            ce_loss = self.loss.detach().item() #ce_loss = self.loss
+
+            #print("CrossEntropyLoss (i.e. normal loss before EWC loss):", ce_loss.item())
+
+            exp_counter = self.clock.train_exp_counter
+            if exp_counter == 0:
+                return
+
+            penalty = torch.tensor(0).float().to(self.device)
+
+            if self.mode == "separate":
+                for experience in range(exp_counter):
+                    for k, cur_param in self.model.named_parameters():
+                        # new parameters do not count
+                        if k not in self.saved_params[experience]:
+                            continue
+                        saved_param = self.saved_params[experience][k]
+                        imp = self.importances[experience][k]
+                        new_shape = cur_param.shape
+                        penalty += (
+                                imp.expand(new_shape)
+                                * (cur_param - saved_param.expand(new_shape)).pow(2)
+                        ).sum()
+            elif self.mode == "online":  # may need importance and param expansion
+                prev_exp = exp_counter - 1
+                for k, cur_param in self.model.named_parameters():
+                    # new parameters do not count
+                    if k not in self.saved_params[prev_exp]:
+                        continue
+                    saved_param = self.saved_params[prev_exp][k]
+                    imp = self.importances[prev_exp][k]
+                    new_shape = cur_param.shape
+                    penalty += (
+                            imp.expand(new_shape)
+                            * (cur_param - saved_param.expand(new_shape)).pow(2)
+                    ).sum()
+            else:
+                raise ValueError("Wrong EWC mode.")
+
+            self.loss += self.ewc_lambda * penalty
+
+            # Plugins
+            self._before_backward(**kwargs)
+            self.backward()
+            self._after_backward(**kwargs)
+
+            # Optimization
+            self._before_update(**kwargs)
+            self.optimizer_step()
+            self._after_update(**kwargs)
+
+            self._after_training_iteration(**kwargs)
+
+    '''def ewc_penalty(self):
+        penalty = self._make_empty_loss()
+        for experience_id in self.saved_params:
+            for name, parameter in self.model.named_parameters():
+                if name not in self.saved_params[experience_id]:
+                    continue
+                saved_parameter = self.saved_params[experience_id][name]
+                importance = self.importances[experience_id][name]
+
+                penalty += (importance.data * (parameter - saved_parameter.data).pow(2)).sum()
+        return penalty'''
+
+
+    def _train_exp(self, experience: CLExperience, eval_streams=None, **kwargs):
+        if eval_streams is None:
+            eval_streams = [experience]
+        for i, exp in enumerate(eval_streams):
+            if not isinstance(exp, Iterable):
+                eval_streams[i] = [exp]
+        for _ in range(self.train_epochs):
+            self._before_training_epoch(**kwargs)
+
+            if self._stop_training:  # Early stopping
+                self._stop_training = False
+                break
+
+            self.training_epoch(**kwargs)
+            self._after_training_epoch(**kwargs)
+
+        exp_counter = self.clock.train_exp_counter
+        importances = self.compute_importances(
+            self.model,
+            self._criterion,
+            self.optimizer,
+            self.experience.dataset,
+            self.device,
+            self.train_mb_size,
+            num_workers=kwargs.get("num_workers", 0),
+        )
+        self.update_importances(importances, exp_counter)
+        self.saved_params[exp_counter] = copy_params_dict(self.model)
+        # clear previous parameter values
+        if exp_counter > 0 and (not self.keep_importance_data):
+            del self.saved_params[exp_counter - 1]
+
+        '''experience_id = experience.current_experience
+        print(
+            f"***** Calculating Fisher for experience "
+            f"{experience_id} *****"
+        )
+
+        fisher = self._calculate_fisher()
+        self.importances[experience_id] = fisher
+
+        #added, ModifyEWC
+        total_fisher = sum(f.sum().item() for f in fisher.values())
+        print(f"Experience {experience_id}: total Fisher magnitude = {total_fisher:.6f}")
+        # Save the parameters AFTER completing training on this
+        # experience.
+        self.saved_params[experience_id] = copy_params_dict(
+            self.model
+        )
+        print(
+            f"***** Saved EWC parameters and Fisher for "
+            f"experience {experience_id} *****"
+        )
+        # --- DIAGNOSTIC: confirm what's actually in saved_params ---
+        print(f"\n=== After experience {experience_id} ===")
+        print(f"saved_params keys: {list(self.saved_params.keys())}")
+        for eid, params in self.saved_params.items():
+            sample_name = next(iter(params))
+            sample_val = params[sample_name].data if hasattr(params[sample_name], "data") else params[sample_name]
+            print(f"  exp {eid} anchor[{sample_name}] mean={sample_val.mean().item():.6f} "
+                  f"std={sample_val.std().item():.6f}")
+        if self.mode == "separate":
+            pass  # Nothing needs deleting.
+
+            # ------------------------------------------------------------
+            # Online mode:
+            #
+            # Keep only the consolidated previous importance and
+            # parameter values.
+            # ------------------------------------------------------------
+        elif self.mode == "online":
+            if experience_id > 0:
+                previous_id = experience_id - 1
+                if not self.keep_importance_data:
+                    if previous_id in self.saved_params:
+                        del self.saved_params[previous_id]
+                    if previous_id in self.importances:
+                        del self.importances[previous_id]
+
+        #self.report_drift_from_anchor()'''
+
+    def compute_importances(
+        self, model, criterion, optimizer, dataset, device, batch_size, num_workers=0
+    ) -> Dict[str, ParamData]:
+        """
+        Compute EWC importance matrix for each parameter
+        """
+
+        model.eval()
+
+        # Set RNN-like modules on GPU to training mode to avoid CUDA error
+        if device == "cuda":
+            for module in model.modules():
+                if isinstance(module, torch.nn.RNNBase):
+                    warnings.warn(
+                        "RNN-like modules do not support "
+                        "backward calls while in `eval` mode on CUDA "
+                        "devices. Setting all `RNNBase` modules to "
+                        "`train` mode. May produce inconsistent "
+                        "output if such modules have `dropout` > 0."
+                    )
+                    module.train()
+
+        # list of list
+        importances = zerolike_params_dict(model)
+        collate_fn = dataset.collate_fn if hasattr(dataset, "collate_fn") else None
+        dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            collate_fn=collate_fn,
+            num_workers=num_workers,
+        )
+        for i, batch in enumerate(dataloader):
+            # get only input, target and task_id from the batch
+            x, y, task_labels = batch[0], batch[1], batch[-1]
+            x, y = x.to(device), y.to(device)
+
+            optimizer.zero_grad()
+            out = avalanche_forward(model, x, task_labels)
+            loss = criterion(out, y)
+            loss.backward()
+
+            for (k1, p), (k2, imp) in zip(
+                model.named_parameters(), importances.items()
+            ):
+                assert k1 == k2
+                if p.grad is not None:
+                    imp.data += p.grad.data.clone().pow(2)
+
+        # average over mini batch length
+        for _, imp in importances.items():
+            imp.data /= float(len(dataloader))
+
+        model.train()
+
+        return importances
+
+    @torch.no_grad()
+    def update_importances(self, importances, t: int):
+        """
+        Update importance for each parameter based on the currently computed
+        importances.
+        """
+
+        if self.mode == "separate" or t == 0:
+            self.importances[t] = importances
+        elif self.mode == "online":
+            for (k1, old_imp), (k2, curr_imp) in itertools.zip_longest(
+                self.importances[t - 1].items(),
+                importances.items(),
+                fillvalue=(None, None),
+            ):
+                # Add new module importances to the importances value (New head)
+                if k1 is None:
+                    assert k2 is not None
+                    assert curr_imp is not None
+                    self.importances[t][k2] = curr_imp
+                    continue
+
+                assert k1 == k2, "Error in importance computation."
+                assert curr_imp is not None
+                assert old_imp is not None
+                assert k2 is not None
+
+                # manage expansion of existing layers
+                self.importances[t][k1] = ParamData(
+                    f"imp_{k1}",
+                    curr_imp.shape,
+                    init_tensor=self.decay_factor * old_imp.expand(curr_imp.shape)
+                    + curr_imp.data,
+                    device=curr_imp.device,
+                )
+
+            # clear previous parameter importances
+            if t > 0 and (not self.keep_importance_data):
+                del self.importances[t - 1]
+
+        else:
+            raise ValueError("Wrong EWC mode.")
+
+
+
+    '''def _calculate_fisher(self):
+        fisher = {}
+        # Initialize Fisher tensors
+        for name, parameter in self.model.named_parameters():
+            if parameter.requires_grad:
+                fisher[name] = torch.zeros_like(parameter, device=parameter.device)
+        # Save current training mode
+        was_training = self.model.training
+        self.model.eval()
+
+        #for mbatch in self.dataloader:
+         #   self.mbatch = mbatch
+          #  self._unpack_minibatch()
+           # self.optimizer.zero_grad()
+
+        # ------------------------------------------------------------
+        # Use the CURRENT EXPERIENCE'S DATASET.
+        #
+        # Do not use self.dataloader here.
+        # ------------------------------------------------------------
+        dataset = self.experience.dataset
+
+        collate_fn = (
+            dataset.collate_fn
+            if hasattr(dataset, "collate_fn")
+            else None
+        )
+
+        fisher_dataloader = DataLoader(
+            dataset,
+            batch_size=self.train_mb_size,
+            collate_fn=collate_fn,
+            num_workers=0,
+        )
+
+        # ------------------------------------------------------------
+        # Calculate squared gradients
+        # ------------------------------------------------------------
+        num_batches = 0
+        for batch in fisher_dataloader:
+            num_batches += 1
+            # Avalanche datasets normally return:
+            #
+            #   batch[0] = x
+            #   batch[1] = y
+            #   batch[-1] = task labels
+            #
+            x = batch[0].to(self.device)
+            y = batch[1].to(self.device)
+            task_labels = batch[-1]
+            if torch.is_tensor(task_labels):
+                task_labels = task_labels.to(self.device)
+
+            # Important:
+            # zero the gradients before calculating each Fisher
+            # minibatch.
+            self.optimizer.zero_grad()
+
+            # --------------------------------------------------------
+            # Forward
+            # --------------------------------------------------------
+
+            out = avalanche_forward(
+                self.model,
+                x,
+                task_labels
+            )
+
+
+            # --------------------------------------------------------
+            # Ordinary criterion ONLY.
+            #
+            # There is deliberately no EWC penalty here.
+            #
+            # Fisher measures the importance of the parameters for
+            # the current experience's ordinary task loss.
+            # --------------------------------------------------------
+
+            loss = self._criterion(out, y)
+            #loss = criterion(out, y)
+            #loss = CrossEntropyLoss().forward(out, y)
+
+            # --------------------------------------------------------
+            # Gradient
+            # --------------------------------------------------------
+
+            loss.backward()
+
+            # --------------------------------------------------------
+            # Accumulate squared gradients
+            # --------------------------------------------------------
+
+            for name, parameter in self.model.named_parameters():
+
+                if parameter.grad is None:
+                    continue
+
+                fisher[name] += (
+                    parameter.grad.detach().pow(2)
+                )
+
+        # ------------------------------------------------------------
+        # Average Fisher over minibatches
+        # ------------------------------------------------------------
+
+        #if num_batches > 0:
+
+            #for name in fisher:
+                #fisher[name] /= float(num_batches)
+
+        # added, ModifyEWC
+        if num_batches > 0:
+            for name in fisher:
+                fisher[name] /= float(num_batches)
+
+        # normalize so total Fisher mass is comparable across experiences
+        total = sum(f.sum() for f in fisher.values()) + 1e-12
+        for name in fisher:
+            fisher[name] = fisher[name] / total
+
+        # ------------------------------------------------------------
+        # Restore training state
+        # ------------------------------------------------------------
+
+        self.model.train(was_training)
+
+        # Clear gradients generated by Fisher calculation.
+        self.optimizer.zero_grad()
+
+        return fisher'''
 
 
 
@@ -595,10 +1064,29 @@ ewc_lambda = 100
 ewc_lambda = 1000
 ewc_lambda = 10000
 ewc_lambda = 100000'''
-cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, ewc_lambda=10.1, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+print("TestEWCStrategy_2 ... TestEWCStrategy_2 ... TestEWCStrategy_2 ... TestEWCStrategy_2 ... TestEWCStrategy_2 ... TestEWCStrategy_2 ... TestEWCStrategy_2 ...")
+'''cl_strategy = TestEWCStrategy_2(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=10.1, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1)
+fname = f"./checkpoint_TRY2.pkl"
+print('Training WITHOUT LOOP Starting...')
+cl_strategy.train(outdoors_specialised_models_train_stream_class_il.exps_iter, [outdoors_specialised_models_train_stream_class_il.exps_iter, outdoors_specialised_models_val_stream_class_il.exps_iter])
+print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
+print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
+print("print(cl_strategy.plugins)", cl_strategy.plugins)
+print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
+print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
+save_checkpoint(cl_strategy, fname)
+print("save_checkpoint(strategy, fname)")
+#print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
+#cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+print('Training completed WITHOUT LOOP')
+print('Computing accuracy on the whole val set WITHOUT training LOOP -- TestEWCStrategy_2 ... TestEWCStrategy_2 ... TestEWCStrategy_2 ...')
+cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)'''
+
+
+
 
 #  mode="online", decay_factor
 '''cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=100.99, mode="online", decay_factor=100.99, train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
@@ -612,6 +1100,12 @@ cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimi
 # provided as input via a for loop like the one in this example AND THE ONE I IMPLEMENTED TAKING INSPIRATION FROM THIS EXAMPLE. You should NOT pass
 # the entire stream as input to .train(), and let the training loop handle the experience-by-experience, regardless of the data types supported
 # by .train of class BaseSGDTemplate (more info on the comments in CLStream and EagerCLStream above).
+
+print("TestEWCStrategy_2 FOR THE SECOND TIME")
+cl_strategy = TestEWCStrategy_2(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=5.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
+                    eval_every=1)
 print('Starting experiment WITH LOOP...')
 results = []
 for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
@@ -627,10 +1121,10 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
     print("print(experience.origin_stream.name)", experience.origin_stream.name)
     print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
-    print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+    '''print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
     print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
     criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-    print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+    print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)'''
     cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
     print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
     print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
@@ -642,7 +1136,7 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     #print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
     #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
     print('Training completed WITH LOOP')
-print('Computing accuracy on the whole val set OUTSIDE training LOOP')
+print('Computing accuracy on the whole val set OUTSIDE training LOOP -- TestEWCStrategy_2 FOR THE SECOND TIME')
 cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
 #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
 #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
@@ -665,8 +1159,8 @@ cl_strat, initial_exp = maybe_load_checkpoint(cl_strategy, f"./checkpoint_TRY.pk
 cl_strat.eval(outdoors_specialised_models_val_stream_class_il)'''
 
 
-
-cl_strategy = TestEWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=criterion_masked, ewc_lambda=10.1, mode="online", decay_factor=0.9, train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+print("TestEWCStrategy_2 WITH mode=online")
+cl_strategy = TestEWCStrategy_2(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.99, mode="online", decay_factor=0.9, train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Stream", mode="max", peval_mode="epoch", verbose=False)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=default_loggers(), collect_all=True),
                     eval_every=1)
@@ -699,9 +1193,9 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     print("print(experience.origin_stream.name)", experience.origin_stream.name)
     print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
     print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
+    '''print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
     criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-    print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+    print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)'''
     cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
     print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
     print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
@@ -710,10 +1204,10 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
     save_checkpoint(cl_strategy, fname)
     print("save_checkpoint(strategy, fname)")
-    print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
-    cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+    #print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
+    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
     print('Training completed WITH LOOP')
-print('Computing accuracy on the whole val set OUTSIDE training LOOP')
+print('Computing accuracy on the whole val set OUTSIDE training LOOP -- TestEWCStrategy_2 WITH mode=online')
 cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
 #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
 #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
