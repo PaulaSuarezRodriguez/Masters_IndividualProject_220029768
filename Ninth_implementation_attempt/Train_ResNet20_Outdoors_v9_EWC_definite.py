@@ -327,6 +327,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         self.saved_params: Dict[int, Dict[str, ParamData]] = defaultdict(dict)
         self.importances: Dict[int, Dict[str, ParamData]] = defaultdict(dict)
 
+
     def training_epoch(self, **kwargs):
         print("***** MY training_epoch() WAS CALLED *****")
 
@@ -349,9 +350,11 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
             self.loss += self.criterion()
             ce_loss = self.loss.detach().item() #ce_loss = self.loss
 
-            #print("CrossEntropyLoss (i.e. normal loss before EWC loss):", ce_loss.item())
+            #print("CrossEntropyLoss (i.e. normal loss before EWC loss):", ce_loss)
 
-            exp_counter = self.clock.train_exp_counter
+            exp_counter = self.clock.train_exp_counter # code changed to avoid training_epoch from being exited before backward pass if Experience 0. Now, backward pass still takes place
+            # for Experience 0, but with normal loss (i.e. ce_loss/CrossEntropyLoss or MaskedCrossEntropy) WITHOUT penalty or lambda (EWC affects the loss starting at Experience 1;
+            # i.e. if exp_counter > 0)
             '''if exp_counter == 0:
                 return'''
             penalty = torch.tensor(0).float().to(self.device)
@@ -400,7 +403,6 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
             self._after_training_iteration(**kwargs)
 
 
-
     def _train_exp(self, experience: CLExperience, eval_streams=None, **kwargs):
         if eval_streams is None:
             eval_streams = [experience]
@@ -416,8 +418,8 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
             print(f"\n\n***** MY _train_exp() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
             self.training_epoch(**kwargs)
-            #TODO: uncomment and test
-            #self.save_entire_checkpoint(f"./checkpoint_Experience_{experience.current_experience}_Epoch{_}.pkl")
+            #TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
+            self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             self._after_training_epoch(**kwargs)
 
         exp_counter = self.clock.train_exp_counter
@@ -436,9 +438,11 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         if exp_counter > 0 and (not self.keep_importance_data):
             del self.saved_params[exp_counter - 1]
 
-        self.save_entire_checkpoint(f"./checkpoint_Experience_{experience.current_experience}.pkl")
+        #todo: uncomment whenever I want to save checkpoint per entire experience (the strategy and model as they are at the end of training on that experience will be saved -- i.e. as they
+        # are once the last epoch for that experience concludes, hence this checkpoint for the entire experience will be equivalent to the checkpoint for the last epoch of that experience
+        # saved above)
+        self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl")
         #DOES NOT SAVE model_state_dict !!! save_checkpoint(self.model, f"./checkpoint_Experience_{experience.current_experience}.pth")
-
 
 
     def compute_importances(
@@ -447,7 +451,6 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         """
         Compute EWC importance matrix for each parameter
         """
-
         model.eval()
 
         # Set RNN-like modules on GPU to training mode to avoid CUDA error
@@ -497,13 +500,13 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
         return importances
 
+
     @torch.no_grad()
     def update_importances(self, importances, t: int):
         """
         Update importance for each parameter based on the currently computed
         importances.
         """
-
         if self.mode == "separate" or t == 0:
             self.importances[t] = importances
         elif self.mode == "online":
@@ -540,7 +543,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         else:
             raise ValueError("Wrong EWC mode.")
 
-#fname: FILE_LIKE
+
     #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None):
         if exclude is None:
@@ -564,38 +567,40 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
         #torch.save(checkpoint, path)
-
+        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Ninth_implementation_attempt\checkpoints")
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
         torch.save(checkpoint, fname, pickle_module=dill)
 
-    #def load_entire_checkpoint(self, path):
-    def load_entire_checkpoint(self, fname: FILE_LIKE, map_location = None, unique_objects: Any = None):  # , device):
-        '''with open(fname, "rb") as f:
-            #checkpoint = pickle.load(f)
-            checkpoint = torch.load(f, pickle_module=dill, map_location=map_location)'''
+#def load_entire_checkpoint(self, path):
+'''def load_entire_checkpoint(strategy, fname: FILE_LIKE, map_location = None, unique_objects: Any = None):  # , device):
+    ''''''with open(fname, "rb") as f:
+        #checkpoint = pickle.load(f)
+        checkpoint = torch.load(f, pickle_module=dill, map_location=map_location)''''''
 
-        checkpoint = torch.load(fname, pickle_module=dill, map_location=map_location)
+    checkpoint = torch.load(fname, pickle_module=dill, map_location=map_location)
 
-        self.model.load_state_dict(checkpoint["model_state_dict"])
-        # self.model.to(device)
-        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        self.saved_params = checkpoint["saved_params"]
-        self.importances = checkpoint["importances"]
-        self.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
-        self.ewc_lambda = checkpoint["strategy"].ewc_lambda
-        self.mode = checkpoint["strategy"].mode
-        self.decay_factor = checkpoint["strategy"].decay_factor
-        self.keep_importance_data = checkpoint["strategy"].keep_importance_data
-        self.train_mb_size = checkpoint["strategy"].train_mb_size
-        self.train_epochs = checkpoint["strategy"].train_epochs
-        self.eval_mb_size = checkpoint["strategy"].eval_mb_size
-        self.device = checkpoint["strategy"].device
-        self.plugins = checkpoint["strategy"].plugins
-        self.evaluator = checkpoint["strategy"].evaluator
-        self.eval_every = checkpoint["strategy"].eval_every
-        #self.dataloader = checkpoint["strategy"].dataloader
-        self.clock = checkpoint["strategy"].clock
-        #self.experience = checkpoint["strategy"].experience
-        return self
+    strategy.model.load_state_dict(checkpoint["model_state_dict"])
+    # strategy.model.to(device)
+    strategy.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    strategy.saved_params = checkpoint["saved_params"]
+    strategy.importances = checkpoint["importances"]
+    strategy.clock = checkpoint["strategy"].clock
+    strategy.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
+    strategy.RNGManager = checkpoint["rng_manager"]
+    strategy.ewc_lambda = checkpoint["strategy"].ewc_lambda
+    strategy.mode = checkpoint["strategy"].mode
+    strategy.decay_factor = checkpoint["strategy"].decay_factor
+    strategy.keep_importance_data = checkpoint["strategy"].keep_importance_data
+    strategy.train_mb_size = checkpoint["strategy"].train_mb_size
+    strategy.train_epochs = checkpoint["strategy"].train_epochs
+    strategy.eval_mb_size = checkpoint["strategy"].eval_mb_size
+    strategy.device = checkpoint["strategy"].device
+    strategy.plugins = checkpoint["strategy"].plugins
+    strategy.evaluator = checkpoint["strategy"].evaluator
+    strategy.eval_every = checkpoint["strategy"].eval_every
+    #strategy.dataloader = checkpoint["strategy"].dataloader
+    strategy.experience = checkpoint["strategy"].experience
+    return strategy'''
 
 
 class EarlyStoppingPlugin_mine(SupervisedPlugin):
@@ -717,6 +722,34 @@ class EarlyStoppingPlugin_mine(SupervisedPlugin):
             raise ValueError("Invalid `peval_mode`:", self.peval_mode)
 
 
+# function for re-loading checkpoints for evaluation and aggregation
+def load_entire_checkpoint(fname: FILE_LIKE, map_location=None, unique_objects: Any = None):  # , device):
+    checkpoint = torch.load(fname,pickle_module=dill,map_location=map_location)
+    strategy = checkpoint["strategy"]
+
+    strategy.model.load_state_dict(checkpoint["model_state_dict"])
+    # strategy.model.to(device)
+    strategy.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    strategy.saved_params = checkpoint["saved_params"]
+    strategy.importances = checkpoint["importances"]
+    strategy.clock = checkpoint["strategy"].clock
+    strategy.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
+    strategy.ewc_lambda = checkpoint["strategy"].ewc_lambda
+    strategy.mode = checkpoint["strategy"].mode
+    strategy.decay_factor = checkpoint["strategy"].decay_factor
+    strategy.keep_importance_data = checkpoint["strategy"].keep_importance_data
+    strategy.train_mb_size = checkpoint["strategy"].train_mb_size
+    strategy.train_epochs = checkpoint["strategy"].train_epochs
+    strategy.eval_mb_size = checkpoint["strategy"].eval_mb_size
+    strategy.device = checkpoint["strategy"].device
+    strategy.plugins = checkpoint["strategy"].plugins
+    strategy.evaluator = checkpoint["strategy"].evaluator
+    strategy.eval_every = checkpoint["strategy"].eval_every
+    strategy.dataloader = checkpoint["strategy"].dataloader
+    strategy.experience = checkpoint["strategy"].experience
+
+    return strategy
+
 
 # TRAINING LOOP
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
@@ -748,120 +781,52 @@ cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer,
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)''' # Also maybe worth trying --> ewc_lambda=0.09, mode="online", decay_factor=0.1 AND criterion=criterion_masked, ewc_lambda=00.9, mode="online", decay_factor=0.5, keep_importance_data=True,
 
-#fname = f"./checkpoint_TRY2.pkl"
+
 print('Training WITHOUT LOOP Starting...')
 cl_strategy.train(outdoors_specialised_models_train_stream_class_il, [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il])
 print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
 print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
 print("print(cl_strategy.plugins)", cl_strategy.plugins)
-#save_checkpoint(cl_strategy, fname)
-#print("save_checkpoint(strategy, fname)")
 print('Training completed WITHOUT LOOP')
 #print('Computing accuracy on the whole val set WITHOUT training LOOP')
 #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-print("Computing accuracy on checkpoint_Experience_0.pkl AFTER 'Training completed WITHOUT LOOP'")
-cl_strategy.load_entire_checkpoint(f"./checkpoint_Experience_0.pkl")
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
 
-print("Computing accuracy on checkpoint_Experience_1.pkl AFTER 'Training completed WITHOUT LOOP'")
-cl_strategy.load_entire_checkpoint(f"./checkpoint_Experience_1.pkl")
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+# loop for re-loading every saved checkpoint and evaluating on val stream
+checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Ninth_implementation_attempt\checkpoints")
+checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
 
-print("Computing accuracy on checkpoint_Experience_2.pkl AFTER 'Training completed WITHOUT LOOP'")
-cl_strategy.load_entire_checkpoint(f"./checkpoint_Experience_2.pkl")
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+for checkpoint_file in checkpoint_files:
+    print(f"Loading {checkpoint_file}")
+    cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
+    print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITHOUT LOOP'")
+    cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
 
-print("Computing accuracy on checkpoint_Experience_3.pkl AFTER 'Training completed WITHOUT LOOP'")
-cl_strategy.load_entire_checkpoint(f"./checkpoint_Experience_3.pkl")
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+# I developed save_entire_checkpoint and load_entire_checkpoint functions to use as alternatives to Avalanche's checkpointing functionality, including save_checkpoint and maybe_load_checkpoint
+# functions of Avalanche -- these are flawed for many reasons, including that they do NOT save model.state_dict(), LEADING TO AN INCOMPLETE AND/OR CORRUPT RE-CONSTRUCTION OF THE CHECKPOINT WHICH
+# WOULD NOT REFLECT THE ACTUAL STATE OF THE MODEL OR STRATEGY AT THE TIME THE CHECKPOINT WAS SAVED, LEADING TO DIFFERENT AND MISLEADING EVALUATION RESULTS THAT DIFFER FROM THOSE OF THE ACTUAL
+# MODEL THAT WAS TRAINED AT THAT POINT IN THE TRAINING!!! Do not use Avalanche's checkpointing functionality. It was also important that I made load_entire_checkpoint an independent function
+# as opposed to a class function as the objective is not to modify the fields or attributes of the class or the state of any one instance of the strategy class, but to reconstruct exactly the
+# saved strategy and model from the appropriate/corresponding checkpoint file.
+# I removed all of print("Computing accuracy on checkpoint_Experience_0.pkl AFTER 'Training completed WITHOUT LOOP'") cl_strategy.load_entire_checkpoint(f"./checkpoint_Experience_0.pkl") cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+# and print('Computing accuracy on one val experience at a time OUTSIDE training LOOP') print('Computing accuracy on on val experience 0 OUTSIDE training LOOP') cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[0])
+# because a) this is not the adequate way to call load_entire_checkpoint anymore and 2) I now realise always loading onto the same cl_strategy object which is the one created during
+# training may lead to unwanted effects, as the entire strategy object may not be overriden just by the action of calling the load function onto it; it is best to save the entire
+# strategy as it is at the time the checkpoint is saved from within the save_entire_checkpoint function with
+# strategy = copy(self) and checkpoint = {"strategy": strategy,...} and then from load_entire_checkpoint do strategy = checkpoint["strategy"] and call and load all saved attributes
+# that made up the model/strategy object at the time the checkpoint was saved on that strategy object that is strategy = checkpoint["strategy"] (i.e. the strategy object from when the
+# checkpoint was saved and to which the attributes that are being loaded onto it belong). This ensures the strategy object as it was at the point in training when the checkpoint was
+# saved is re-created exactly, without the risk of variables that remain from past initialisations or from the last epoch during training getting mixed-in with the re-loaded state of the
+# checkpoint, "corrupting" the checkpoint and impeding an honest reconstruction of what the model and strategy where like at the time when the checkpoint was saved, all of which would
+# be a risk if loading checkpoint states onto the strategy object used for training (i.e. cl_strategy), as opposed to saving the adequate/corresponding strategy object as part of the
+# checkpoint itself and then loading the rest of the checkpoint data onto it for a fair, definitely uncorrupted, reconstruction of the model and strategy at the time the checkpoint was saved.
+# It is also due to potentially corrupt / inexact instances of cl_strategy during the training loop that I removed print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}"),
+# as I cannot be certain that the cl_strategy object on which .eval() is being called is actually the one that has resulted from that .train() / that iteration of the training loop for experience in outdoors_specialised_models_train_stream_class_il ,
+# whereas with the checkpoints saved, re-loaded and re-constructed in the way I have now (saving from withing train_exp and training_epoch as well as saving strategy = copy(self) and checkpoint = {"strategy": strategy,...} and then in load_entire_strategy,
+# reconstructing the model and strategy onto this strategy object), I can be certain.
 
-print("Computing accuracy on checkpoint_Experience_4.pkl AFTER 'Training completed WITHOUT LOOP'")
-cl_strategy.load_entire_checkpoint(f"./checkpoint_Experience_4.pkl")
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-
-'''print('Computing accuracy on one val experience at a time OUTSIDE training LOOP')
-print('Computing accuracy on on val experience 0 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[0])
-print('Computing accuracy on on val experience 1 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[1])
-print('Computing accuracy on on val experience 2 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[2])
-print('Computing accuracy on on val experience 3 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[3])
-print('Computing accuracy on on val experience 4 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[4])'''
-
-
-'''print('Computing val accuracy on checkpoint_TRY2.pkl (outside training loop)')
-cl_strat, initial_exp = maybe_load_checkpoint(cl_strategy, f"./checkpoint_TRY2.pkl") #, map_location=DEVICE)
-cl_strat.eval(outdoors_specialised_models_val_stream_class_il)'''
-
-
-
-# REMEMBER! "EWCStrategy WHERE for experience in outdoors_specialised_models_benchmark.train_stream[initial_exp:]: AND fname =./checkpoint_TRY.pkl"
-# DOES NOOOOOT WORK!!!! DO NOT UNCOMMENT, IT DOES NOT WORK!!! FORGET ABOUT THIS LOOP!!!
 '''
-print("EWCStrategy WHERE for experience in outdoors_specialised_models_benchmark.train_stream[initial_exp:]: AND fname =./checkpoint_TRY.pkl")
-fname = f"./checkpoint_TRY.pkl"
-cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, fname) #, map_location=DEVICE)
-for experience in outdoors_specialised_models_benchmark.train_stream[initial_exp:]:
-    #print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP , TOP OF LOOP --- Experience {experience.current_experience}")
-    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-    #fname = f"./checkpoint_{experience}.pkl"
-    #cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, f"./checkpoint_{experience}.pkl")
-    #print("outdoors_specialised_models_benchmark.train_stream[initial_exp:]", outdoors_specialised_models_benchmark.train_stream[initial_exp:]) # EagerCLStream
-    print("Start of experience -- current TRAIN experience: ", experience.current_experience)
-    #print("Start of experience -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:].current_experience)
-    print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
-    #print("Current Classes -- current VAL .classes_in_this_experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:].classes_in_this_experience)
-    print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)", experience.dataset.coarse_label.uniques)
-    print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
-    #print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:].dataset.coarse_label.uniques)
-    #print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:].dataset.targets.uniques)
-    #print("print(experience.origin_stream.name)", experience.origin_stream.name)
-    #print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:].origin_stream.name)
-    #print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    #print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
-    #criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-    #print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    print(f"Computing cl_strategy.eval() FROM INSIDE .train() --> cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])")
-    cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il])#, outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:]])
-    print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
-    print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
-    print("print(cl_strategy.plugins)", cl_strategy.plugins)
-    #print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
-    #print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
-    #print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il.exps_iter[initial_exp:]) INSIDE training loop ONLY ON Experience {experience.current_experience}")
-    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[initial_exp:])
-    save_checkpoint(cl_strategy, fname)
-    print("save_checkpoint(strategy, fname)")
-    #fname = f"./checkpoint_{experience}.pkl"
-    #cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, fname)
-    print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
-    cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-print('Training completed WITH LOOP')
-
-#print('Computing accuracy on the whole val set OUTSIDE training LOOP')
-#cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-#results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-#print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)'''
-
-'''print('Computing accuracy on one val experience at a time OUTSIDE training LOOP')
-print('Computing accuracy on on val experience 0 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[0])
-print('Computing accuracy on on val experience 1 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[1])
-print('Computing accuracy on on val experience 2 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[2])
-print('Computing accuracy on on val experience 3 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[3])
-print('Computing accuracy on on val experience 4 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[4])'''
-
-
-'''print('Computing val accuracy on checkpoint_TRY.pkl (outside training loop)')
-cl_strat, initial_exp = maybe_load_checkpoint(cl_strategy, f"./checkpoint_TRY.pkl") #, map_location=DEVICE)
-cl_strat.eval(outdoors_specialised_models_val_stream_class_il)'''
+In this commit, I have also removed the alternative training loops and ways of calling .train() since now I know for sure that calling .train() on the ENTIRE TRAIN STREAM as opposed to iterating through the experiences and calling it once per experience IS THE ONLY / BEST WAY for the CF mitigation techniques to take effect and hence the way of training THAT GIVES THE BEST RESULTS and now that I have incorporated calls to the saving checkpoint functionality from within the train_exp and training_epoch functions, such that the model (and strategy) can be saved and used for aggregation after training on an experience is done. 
+'''
 
 
 
@@ -874,14 +839,15 @@ cl_strat.eval(outdoors_specialised_models_val_stream_class_il)'''
 
 
 
-# sort of works, but not as well as NO TRAINING LOOP / WITHOUT TRAINING LOOP
+
+
+
+# sort of works, but not as well as NO TRAINING LOOP / WITHOUT TRAINING LOOP --- EDITED given new implementations of my own saving functionality
 '''
 print('Starting experiment WITH LOOP...')
 results = []
-##########fname = f"./checkpoint_TRY_SECOND.pkl"
 for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
     i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-    fname = f"./checkpoint_{i}.pkl"
     print("Start of experience -- current TRAIN experience: ", experience.current_experience)
     print("Start of experience -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
     print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
@@ -896,198 +862,33 @@ for experience in outdoors_specialised_models_train_stream_class_il: # only acce
     #print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
     #criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
     #print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    print(f"Computing cl_strategy.eval() FROM INSIDE .train() --> cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])")
-    cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il])
+    print(f"Computing cl_strategy.eval() FROM INSIDE .train() --> cl_strategy.train(experience, [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])")
+    cl_strategy.train(experience, [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il])
     #cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
     print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
     print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
     print("print(cl_strategy.plugins)", cl_strategy.plugins)
     #print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
     #print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
-    save_checkpoint(cl_strategy, fname)
-    print("save_checkpoint(strategy, fname)")
-    cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy., fname)
-    #print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
-    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-    print('Training completed WITH LOOP')
-#print('Computing accuracy on the whole val set OUTSIDE training LOOP')
-#cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-#results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-#print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)'''
+print('Training completed WITH LOOP')
+    #HYPOTHETICALLY save_entire_checkpoint(cl_strategy, fname), but NOT NEEDED because the checkpoints are now more safely saved from within train_exp and training_epoch, in this way
+    # ensuring the checkpoint is being saved with the adequate instantiation of cl_strategy that has no chance of having been corrupted by still retaining data from past
+    # instantiations / iterations of the loop iterating through the train experiences
 
-'''print('Computing accuracy on one val experience at a time OUTSIDE training LOOP')
-print('Computing accuracy on on val experience 0 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[0])
-print('Computing accuracy on on val experience 1 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[1])
-print('Computing accuracy on on val experience 2 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[2])
-print('Computing accuracy on on val experience 3 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[3])
-print('Computing accuracy on on val experience 4 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[4])'''
+checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Ninth_implementation_attempt\checkpoints")
+checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
 
+for checkpoint_file in checkpoint_files:
+    print(f"Loading {checkpoint_file}")
+    cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
+    print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITHOUT LOOP'")
+    cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
 
-'''print('Computing val accuracy on checkpoint_TRY.pkl (outside training loop)')
-cl_strat, initial_exp = maybe_load_checkpoint(cl_strategy, f"./checkpoint_TRY.pkl") #, map_location=DEVICE)
-cl_strat.eval(outdoors_specialised_models_val_stream_class_il)'''
-
-
-# trying to improve "sort of works" loop
-#import pickle
 '''
-def save_entire_checkpoint(cl_strategy, path):
-    checkpoint = {
-        "model_state_dict": cl_strategy.model.state_dict(),
-        "optimizer_state_dict": cl_strategy.optimizer.state_dict(),
-        "saved_params": cl_strategy.saved_params,      # EWC anchors
-        "importances": cl_strategy.importances,        # EWC Fisher values
-        "clock_train_exp_counter": cl_strategy.clock.train_exp_counter,
-    }
-    with open(path, "wb") as f:
-        pickle.dump(checkpoint, f)
-
-def load_entire_checkpoint(cl_strategy, path):#, device):
-# def load_entire_checkpoint(path):
-    with open(path, "rb") as f:
-        checkpoint = pickle.load(f)
-
-    cl_strategy.model.load_state_dict(checkpoint["model_state_dict"])
-    #cl_strategy.model.to(device)
-    cl_strategy.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    cl_strategy.saved_params = checkpoint["saved_params"]
-    cl_strategy.importances = checkpoint["importances"]
-    cl_strategy.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
-    return cl_strategy
-
-# NO LOOP -- improvement on "sort of works" loop
-print('Training with NO LOOP -- improvement on "sort of works" loop')
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=5, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
-cl_strategy.train(outdoors_specialised_models_train_stream_class_il[0], [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_train_stream_class_il])
-#save_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_0_NO_LOOP.pkl")
-save_checkpoint(cl_strategy, f"./checkpoint_Experience_0_NO_LOOP.pkl")
-
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=4, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
-#cl_strategy = load_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_0_NO_LOOP.pkl")#, DEVICE)
-cl_strategy, initial_exp0 = maybe_load_checkpoint(cl_strategy, f"./checkpoint_Experience_0_NO_LOOP.pkl")#, DEVICE)
-cl_strategy.train(outdoors_specialised_models_train_stream_class_il[1], [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_train_stream_class_il])
-#save_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_1_NO_LOOP.pkl")
-save_checkpoint(cl_strategy, f"./checkpoint_Experience_1_NO_LOOP.pkl")
-
-
-
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=5, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
-cl_strategy = load_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_1_NO_LOOP.pkl")#, DEVICE)
-#cl_strategy, initial_exp1 = maybe_load_checkpoint(cl_strategy, f"./checkpoint_Experience_1_NO_LOOP.pkl")#, DEVICE)
-cl_strategy.train(outdoors_specialised_models_train_stream_class_il[2], [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_train_stream_class_il])
-save_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_2_NO_LOOP.pkl")
-save_checkpoint(cl_strategy, f"./checkpoint_Experience_2_NO_LOOP.pkl")
-
-
-
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=5, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
-cl_strategy = load_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_2_NO_LOOP.pkl")#, DEVICE)
-#cl_strategy, initial_exp2 = maybe_load_checkpoint(cl_strategy, f"./checkpoint_Experience_2_NO_LOOP.pkl")#, DEVICE)
-cl_strategy.train(outdoors_specialised_models_train_stream_class_il[3], [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_train_stream_class_il])
-save_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_3_NO_LOOP.pkl")
-#save_checkpoint(cl_strategy, f"./checkpoint_Experience_3_NO_LOOP.pkl")
-
-
-
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=5, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
-cl_strategy = load_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_3_NO_LOOP.pkl")#, DEVICE)
-#cl_strategy, initial_exp3 = maybe_load_checkpoint(cl_strategy, f"./checkpoint_Experience_3_NO_LOOP.pkl")#, DEVICE)
-cl_strategy.train(outdoors_specialised_models_train_stream_class_il[4], [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_train_stream_class_il])
-save_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_4_NO_LOOP.pkl")
-#save_checkpoint(cl_strategy, f"./checkpoint_Experience_4_NO_LOOP.pkl")
-
-
-
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=5, eval_mb_size=100, #device=DEVICE,
-                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
-cl_strategy = load_entire_checkpoint(cl_strategy, f"./checkpoint_Experience_4_NO_LOOP.pkl")#, DEVICE)
-#cl_strategy, initial_exp4 = maybe_load_checkpoint(cl_strategy, f"./checkpoint_Experience_4_NO_LOOP.pkl")#, DEVICE)
-#cl_strategy.eval(outdoors_specialised_models_train_stream_class_il, [outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_train_stream_class_il])'''
-
-
-
-
-# REMEMBER! "Starting experiment WITH LOOP and NO SAVING OF CHECKPOINT..."
-# DOES NOOOOOT WORK!!!! DO NOT UNCOMMENT, IT DOES NOT WORK!!! FORGET ABOUT THIS LOOP!!!
-''' 
-print('Starting experiment WITH LOOP and NO SAVING OF CHECKPOINT...')
-results = []
-#fname = f"./checkpoint_TRY_SECOND.pkl"
-for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
-    i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-    #fname = f"./checkpoint_{i}.pkl"
-    print("Start of experience -- current TRAIN experience: ", experience.current_experience)
-    print("Start of experience -- current VAL experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
-    print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
-    print("Current Classes -- current VAL .classes_in_this_experience: ", outdoors_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
-    print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)", experience.dataset.coarse_label.uniques)
-    print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
-    print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
-    print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
-    print("print(experience.origin_stream.name)", experience.origin_stream.name)
-    print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)", outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
-    #print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    #print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
-    #criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-    #print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-    print(f"Computing cl_strategy.eval() FROM INSIDE .train() --> cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])")
-    cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il])
-    #cl_strategy.train(experience, [experience, outdoors_specialised_models_val_stream_class_il.exps_iter[i]])
-    print("print(cl_strategy.evaluator.get_last_metrics())", cl_strategy.evaluator.get_last_metrics())
-    print("print(cl_strategy.evaluator.get_all_metrics())", cl_strategy.evaluator.get_all_metrics())
-    print("print(cl_strategy.plugins)", cl_strategy.plugins)
-    #print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
-    #print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
-    #save_checkpoint(cl_strategy, fname)
-    print("save_checkpoint(strategy, fname)")
-    #cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, fname)
-    #print(f"Computing cl_strategy.eval(outdoors_specialised_models_val_stream_class_il) INSIDE training LOOP --- Experience {experience.current_experience}")
-    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-    print('Training completed WITH LOOP')
 #print('Computing accuracy on the whole val set OUTSIDE training LOOP')
 #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
 #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-#print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)'''
-
-'''print('Computing accuracy on one val experience at a time OUTSIDE training LOOP')
-print('Computing accuracy on on val experience 0 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[0])
-print('Computing accuracy on on val experience 1 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[1])
-print('Computing accuracy on on val experience 2 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[2])
-print('Computing accuracy on on val experience 3 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[3])
-print('Computing accuracy on on val experience 4 OUTSIDE training LOOP')
-cl_strategy.eval(outdoors_specialised_models_val_stream_class_il[4])'''
-
-
-'''print('Computing val accuracy on checkpoint_TRY.pkl (outside training loop)')
-cl_strat, initial_exp = maybe_load_checkpoint(cl_strategy, f"./checkpoint_TRY.pkl") #, map_location=DEVICE)
-cl_strat.eval(outdoors_specialised_models_val_stream_class_il)'''
-
+#print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
 
 
 
