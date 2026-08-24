@@ -77,7 +77,7 @@ from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmar
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 from avalanche.training.supervised import Naive, EWC, LwF  # and many more!
 from avalanche.training.losses import MaskedCrossEntropy
 from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin, EWCPlugin, LwFPlugin
@@ -93,7 +93,7 @@ import torch.nn.functional as F
 from avalanche.models import MultiTaskModule, avalanche_forward
 from avalanche._annotations import deprecated
 
-'''
+
 def stable_softmax(x):
     z = x - torch.max(x, dim=1, keepdim=True)[0]
     numerator = torch.exp(z)
@@ -114,7 +114,7 @@ def cross_entropy_with_oh_targets(outputs, targets, reduction="mean"):
     else:
         raise NotImplementedError("reduction must be mean or none")
     return ce
-'''
+
 
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
 from avalanche.evaluation.metrics.accuracy import accuracy_metrics
@@ -194,6 +194,7 @@ import warnings
 from copy import deepcopy
 import pickle
 from avalanche.training.plugins import SupervisedPlugin
+from torch.optim.adam import Adam
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
@@ -293,7 +294,7 @@ if DEBUG:
     print("type(outdoors_specialised_models_train_stream_class_il.exps_iter[0])", type(outdoors_specialised_models_train_stream_class_il.exps_iter[0]))
 
 #####################################################################################################################################################################################################################
-class LearningWithoutForgetting_mine(RegularizationMethod):
+'''class LearningWithoutForgetting_mine(RegularizationMethod):
     """Learning Without Forgetting.
 
     The method applies knowledge distillation to mitigate forgetting.
@@ -372,7 +373,7 @@ class LearningWithoutForgetting_mine(RegularizationMethod):
         :param exp: current experience
         """
         self.expcount += 1
-        #self.prev_model = copy.deepcopy(agent.model)
+        self.prev_model = copy.deepcopy(agent.model)
 
         pc = set(exp.dataset.targets.uniques)
         self.prev_classes = self.prev_classes.union(pc)
@@ -390,7 +391,7 @@ class LearningWithoutForgetting_mine(RegularizationMethod):
 
         pc = set(experience.dataset.targets.uniques)
         self.prev_classes = self.prev_classes.union(pc)
-
+'''
 class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed to EWCStrategy now that it is the definite version/implementation of the class to be used
     def __init__(
         self,
@@ -427,10 +428,13 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
             eval_every=eval_every,
             **base_kwargs
         )
+        self.prev_classes = set()
+        self.alpha = 1
+        self.temperature = 2
         self.prev_classes_by_task = defaultdict(set)
         self.expcount = 0
-        self.prev_model = []
-        self.lwf_mine = LearningWithoutForgetting_mine(alpha=1, temperature=2)
+        self.prev_model = None
+        #self.lwf_mine = LearningWithoutForgetting_mine(alpha=1, temperature=2)
 
         if mode not in ("separate", "online"):
             raise ValueError(
@@ -485,7 +489,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
             # print("CrossEntropyLoss (i.e. normal loss before EWC loss):", ce_loss.item())
 
             if self.experience.current_experience > 0:
-                self.loss += self.lwf_mine(self.mb_x, self.mb_output, self.model)
+                self.loss += self.final_weighted_loss(self.mb_x, self.mb_output, self.model)
 
             exp_counter = self.clock.train_exp_counter # code changed to avoid training_epoch from being exited before backward pass if Experience 0. Now, backward pass still takes place
             # for Experience 0, but with normal loss (i.e. ce_loss/CrossEntropyLoss or MaskedCrossEntropy) WITHOUT penalty or lambda (EWC affects the loss starting at Experience 1;
@@ -577,8 +581,10 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
             self._after_training_epoch(**kwargs)
 
-            # LwF code
-            self.lwf_mine.post_adapt(self, self.experience)
+        # LwF code
+        #self.lwf_mine.post_adapt(self, self.experience)
+        #if experience.current_experience > 0:
+        self.post_adapt(self, self.experience)
 
         exp_counter = self.clock.train_exp_counter
         importances = self.compute_importances(
@@ -596,11 +602,20 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         if exp_counter > 0 and (not self.keep_importance_data):
             del self.saved_params[exp_counter - 1]
 
-        #todo: uncomment whenever I want to save checkpoint per entire experience (the strategy and model as they are at the end of training on that experience will be saved -- i.e. as they
-        # are once the last epoch for that experience concludes, hence this checkpoint for the entire experience will be equivalent to the checkpoint for the last epoch of that experience
-        # saved above)
-        self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl")
-        # DOES NOT SAVE model_state_dict !!! save_checkpoint(self.model, f"./checkpoint_Experience_{experience.current_experience}.pth")
+        # to save checkpoint per entire experience (the strategy and model as they are at the end of training on that experience will be saved -- i.e. as they are once the last epoch for
+        # that experience concludes, hence this checkpoint for the entire experience will be equivalent to the checkpoint for the last epoch of that experience saved above)
+        #TODO: Apparently it does NOT WORK AS INTENDED! For some reason it saves checkpoint of Epoch_2 instead of checkpoint of last epoch as you would expect given it is called once
+        # _train_exp is about to exit and so, you'd expect the .self on which it is called to be the state of the model / the state of the strategy as it was during the last epoch
+        # TODO: Find out why it fails OR make the decision of NOT USING THIS and instead perform aggregation from the saved checkpoints of the last epoch of corresponding experiences
+        #  of the different specialised models (i.e. to aggregate experience 1 of all specialised models as I am supposed to, aggregate the last epoch checkpoint of experience 1, instead
+        #  of the one that is supposed to be saved at the end of _train_exp in the line of code below). The fact that the checkpoint of Epoch_2 is the one saved tells me nothing about what
+        #  is causing this issue, as if it was that the code in the body of _train_exp that comes after call to training_epoch was actually executed after every epoch and not once per experience,
+        #  and then the checkpoint for Epoch 0 would be the one being saved as the experience epoch, so, since I have such little idea of what could be causing this bug, perhaps just use the
+        #  appropriate epoch checkpoints instead of wasting time trying to fix this bug!!!!
+
+        #self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl")
+        #print(f"Saved {f'./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl'} --- from inside _training_exp()")
+        #DOES NOT SAVE model_state_dict !!! save_checkpoint(self.model, f"./checkpoint_Experience_{experience.current_experience}.pth")
         # DO NOT call self.load_entire_checkpoint_inside_class !!! IT LEADS TO AN ERROR. I tried this to see if it would re-load the last experience checkpoint
         # (checkpoint_Experience_{experience.current_experience}.pkl; NOT epoch checkpoint) saved and start the next .train() call on the checkpoint saved for the last experience/last
         # .train() call that concluded, but it leads to an error. This seemed like the only logical place where to place such call in order to avoid differences in numbers that occur
@@ -708,6 +723,107 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
         else:
             raise ValueError("Wrong EWC mode.")
+
+
+    def _distillation_loss(self, out, prev_out, active_units):
+        """Compute distillation loss between output of the current model and
+        and output of the previous (saved) model.
+        """
+        # we compute the loss only on the previously active units.
+        au = list(active_units)
+
+        # some people use the crossentropy instead of the KL
+        # They are equivalent. We compute
+        # kl_div(log_p_curr, p_prev) = p_prev * (log (p_prev / p_curr)) =
+        #   p_prev * log(p_prev) - p_prev * log(p_curr).
+        # Now, the first term is constant (we don't optimize the teacher),
+        # so optimizing the crossentropy and kl-div are equivalent.
+        log_p = torch.log_softmax(out[:, au] / self.temperature, dim=1)
+        q = torch.softmax(prev_out[:, au] / self.temperature, dim=1)
+        res = torch.nn.functional.kl_div(log_p, q, reduction="batchmean")
+        return res
+
+    def _lwf_penalty(self, out, x, curr_model):
+        """
+        Compute weighted distillation loss.
+        """
+        '''
+        if self.prev_model is None or len(self.prev_classes) == 0:
+            return 0
+        else:
+            with torch.no_grad():
+                y_prev = self.prev_model(x)
+            y_curr = out
+
+            # compute kd only for the targets/classes seen so far.
+            au = self.prev_classes
+            dist_loss = self._distillation_loss(y_curr, y_prev, au)
+            return dist_loss
+        '''
+        if self.prev_model is None:
+            return 0
+        else:
+            if isinstance(self.prev_model, MultiTaskModule):
+                # output from previous output heads.
+                with torch.no_grad():
+                    y_prev = avalanche_forward(self.prev_model, x, None)
+                y_prev = {k: v for k, v in y_prev.items()}
+                # in a multitask scenario we need to compute the output
+                # from all the heads, so we need to call forward again.
+                # TODO: can we avoid this?
+                y_curr = avalanche_forward(curr_model, x, None)
+                y_curr = {k: v for k, v in y_curr.items()}
+            else:  # no task labels. Single task LwF
+                with torch.no_grad():
+                    y_prev = {0: self.prev_model(x)}
+                y_curr = {0: out}
+
+            #dist_loss = 0
+            # compute kd only for the targets/classes seen so far.
+            au = self.prev_classes
+            dist_loss = self._distillation_loss(y_curr[0], y_prev[0], au)
+            return dist_loss
+
+
+    def final_weighted_loss(self, mb_x, mb_pred, model):
+        """
+        Add distillation loss
+        """
+        alpha = (
+            self.alpha[self.expcount]
+            if isinstance(self.alpha, (list, tuple))
+            else self.alpha
+        )
+        return alpha * self._lwf_penalty(mb_pred, mb_x, model)
+
+    def post_adapt(self, agent, exp):
+        """Save a copy of the model after each experience and
+        update self.prev_classes to include the newly learned targets.
+
+        :param agent: agent state
+        :param exp: current experience
+        """
+        self.expcount += 1
+        #self.prev_model = copy.deepcopy(agent.model)
+        self.prev_model = deepcopy(agent.model)
+
+        pc = set(exp.dataset.targets.uniques)
+        self.prev_classes = self.prev_classes.union(pc)
+
+    #@deprecated(0.7, "switch to post_udpate method")
+    def update(self, experience, model):
+        """Save a copy of the model after each experience and
+        update self.prev_classes to include the newly learned targets.
+
+        :param experience: current experience
+        :param model: current model
+        """
+        self.expcount += 1
+        #self.prev_model = copy.deepcopy(model)
+        self.prev_model = deepcopy(model)
+
+        pc = set(experience.dataset.targets.uniques)
+        self.prev_classes = self.prev_classes.union(pc)
 
 
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
@@ -882,7 +998,10 @@ class EarlyStoppingPlugin_mine(SupervisedPlugin):
             self.best_step = self._get_strategy_counter(strategy)
             if self.verbose:
                 print("EarlyStopping: new best value:", val_acc)
-
+            #TODO: in testing, REMEMBER TO REMOVE IF IT DOES NOT WORK
+            if strategy.clock.train_exp_epochs > 10:
+                self.margin += 0.2
+                print("self.margin increased to: ", self.margin)
         return self.best_val
 
     def _get_strategy_counter(self, strategy):
@@ -895,7 +1014,7 @@ class EarlyStoppingPlugin_mine(SupervisedPlugin):
 
 
 
-
+'''
 # function for re-loading checkpoints for evaluation and aggregation
 def load_entire_checkpoint(fname: FILE_LIKE, map_location=None, unique_objects: Any = None):  # , device):
     checkpoint = torch.load(fname,pickle_module=dill,map_location=map_location)
@@ -928,18 +1047,39 @@ def load_entire_checkpoint(fname: FILE_LIKE, map_location=None, unique_objects: 
 
     #RNGManager.__setstate__(checkpoint["rng_manager"])
     return strategy
-
+'''
 
 # TRAINING LOOP
-optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
+# original optimizer:
+# optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
+
+#optimizer = Adam(outdoors_specialised_model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, amsgrad=False)
 #criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
 
 #ewc_lambda=1e2
 #todo: Changed metric_name to "Top1_Acc_Exp" since now we are training on the entire train stream!!!!
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+# DEFINITE:
+'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
+                    eval_every=1)'''
+# tested and worked pretty good --- individual acc for subsequent experiences was never as high, but knowledge of past experiences was retained better, although the knowledge that was retained was with less accuracy
+optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.3, verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)
+'''optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWC(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EWCPlugin( ewc_lambda=0.9, mode="separate")],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
+                    eval_every=1)'''
+'''optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=10.1, mode="online", decay_factor=5.1, keep_importance_data=True,
+                          train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.3, verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
+                    eval_every=1)'''
 #TODO: NEXT uncomment the below cl_strategy and test
 '''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.8, verbose=True)],
@@ -970,6 +1110,8 @@ if TRAINING_WITHOUT_LOOP:
     #print('Computing accuracy on the whole val set WITHOUT training LOOP')
     #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
 
+#TODO: Uncomment later
+'''
     # loop for re-loading every saved checkpoint and evaluating on val stream
     checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Tenth_implementation_attempt\checkpoints")
     checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
@@ -979,7 +1121,7 @@ if TRAINING_WITHOUT_LOOP:
         cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
         print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITHOUT LOOP'")
         cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
-
+'''
 
 
 
