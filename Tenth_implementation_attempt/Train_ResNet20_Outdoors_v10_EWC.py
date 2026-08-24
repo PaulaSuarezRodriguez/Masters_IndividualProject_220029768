@@ -71,7 +71,7 @@ from Tenth_implementation_attempt.Config_v10 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 RNGManager.set_random_seeds(SEED)
 #RNGManager_SEED = RNGManager.set_random_seeds(SEED)
-from Tenth_implementation_attempt.ResNet20_v10 import ResNet20
+from Tenth_implementation_attempt.ResNet20_v10_DynamicModel import ResNet20
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_train_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_val_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_test_subset)
@@ -401,12 +401,13 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
             self._after_training_iteration(**kwargs)
 
-        # TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
+        # to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
         self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl")
         print(f"Saved {f'./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
 
         if TRAINING_WITH_LOOP:
-            # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
+            # to load epoch checkpoint from which to start next .train() call if TRAINING_WITH_LOOP. WORKS!!! The .eval() from within .train() performed before any training has occurred
+            # reveals metric results equal to those of the last epoch in the previous experience. Hence, calling the function to load epoch checkpoint here WORKS AS INTENDED!!!! KEEP!!!
             self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
 
@@ -421,12 +422,23 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
             self._before_training_epoch(**kwargs)
 
             if self._stop_training:  # Early stopping
+                '''
+                # Commented-out / not used BECAUSE IT SEEMS TO LEAD TO WORSE RESULTS !!!!!!!! Originally added because training_epoch() never executes if EarlyStopping is triggered so I
+                # feared the correct model was never re-loaded, but I was wrong -- I have verified this from checking what get saved in train_exp as the final epoch/model and what the output 
+                # to the console says was the last epoch/model state during training from the statements that get printed during training
+                if TRAINING_WITH_LOOP:
+                    # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
+                    epoch_counter = self.clock.train_exp_epochs
+                    prev_epoch = epoch_counter - 1
+                    self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{prev_epoch}.pkl")
+                    print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{prev_epoch}.pkl'} to continue training the next epoch of the experience on it --- from inside _train_exp()")
+                '''
                 self._stop_training = False
                 break
 
             print(f"\n\n***** MY _train_exp() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
             self.training_epoch(**kwargs)
-            '''# TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
+            '''
             # It works, but it seems that when self.load_entire_checkpoint_inside_class is placed on training_epoch, it works better.
             # Keep in case something changes and it is worth testing what would happen if self.load_entire_checkpoint_inside_class was placed on _train_exp
             self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
@@ -457,10 +469,19 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         if exp_counter > 0 and (not self.keep_importance_data):
             del self.saved_params[exp_counter - 1]
 
-        #todo: uncomment whenever I want to save checkpoint per entire experience (the strategy and model as they are at the end of training on that experience will be saved -- i.e. as they
-        # are once the last epoch for that experience concludes, hence this checkpoint for the entire experience will be equivalent to the checkpoint for the last epoch of that experience
-        # saved above)
-        self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl")
+        # to save checkpoint per entire experience (the strategy and model as they are at the end of training on that experience will be saved -- i.e. as they are once the last epoch for
+        # that experience concludes, hence this checkpoint for the entire experience will be equivalent to the checkpoint for the last epoch of that experience saved above)
+        #TODO: Apparently it does NOT WORK AS INTENDED! For some reason it saves checkpoint of Epoch_2 instead of checkpoint of last epoch as you would expect given it is called once
+        # _train_exp is about to exit and so, you'd expect the .self on which it is called to be the state of the model / the state of the strategy as it was during the last epoch
+        # TODO: Find out why it fails OR make the decision of NOT USING THIS and instead perform aggregation from the saved checkpoints of the last epoch of corresponding experiences
+        #  of the different specialised models (i.e. to aggregate experience 1 of all specialised models as I am supposed to, aggregate the last epoch checkpoint of experience 1, instead
+        #  of the one that is supposed to be saved at the end of _train_exp in the line of code below). The fact that the checkpoint of Epoch_2 is the one saved tells me nothing about what
+        #  is causing this issue, as if it was that the code in the body of _train_exp that comes after call to training_epoch was actually executed after every epoch and not once per experience,
+        #  and then the checkpoint for Epoch 0 would be the one being saved as the experience epoch, so, since I have such little idea of what could be causing this bug, perhaps just use the
+        #  appropriate epoch checkpoints instead of wasting time trying to fix this bug!!!!
+
+        #self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl")
+        #print(f"Saved {f'./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl'} --- from inside _training_exp()")
         #DOES NOT SAVE model_state_dict !!! save_checkpoint(self.model, f"./checkpoint_Experience_{experience.current_experience}.pth")
         # DO NOT call self.load_entire_checkpoint_inside_class !!! IT LEADS TO AN ERROR. I tried this to see if it would re-load the last experience checkpoint
         # (checkpoint_Experience_{experience.current_experience}.pkl; NOT epoch checkpoint) saved and start the next .train() call on the checkpoint saved for the last experience/last
@@ -789,13 +810,19 @@ def load_entire_checkpoint(fname: FILE_LIKE, map_location=None, unique_objects: 
 
 
 # TRAINING LOOP
-optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
+#optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
 #criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
 
 #ewc_lambda=1e2
 #todo: Changed metric_name to "Top1_Acc_Exp" since now we are training on the entire train stream!!!!
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
+                    eval_every=1)'''
+# tested and worked pretty good --- individual acc for subsequent experiences was never as high, but knowledge of past experiences was retained better, although the knowledge that was retained was with less accuracy
+optimizer = SGD(nature_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWCStrategy(model=nature_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
+                    plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)
 #TODO: NEXT uncomment the below cl_strategy and test
@@ -827,7 +854,7 @@ if TRAINING_WITHOUT_LOOP:
     print('Training completed WITHOUT LOOP')
     #print('Computing accuracy on the whole val set WITHOUT training LOOP')
     #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-
+'''
     # loop for re-loading every saved checkpoint and evaluating on val stream
     checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Tenth_implementation_attempt\checkpoints")
     checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
@@ -837,7 +864,7 @@ if TRAINING_WITHOUT_LOOP:
         cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
         print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITHOUT LOOP'")
         cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
-
+'''
 # I developed save_entire_checkpoint and load_entire_checkpoint functions to use as alternatives to Avalanche's checkpointing functionality, including save_checkpoint and maybe_load_checkpoint
 # functions of Avalanche -- these are flawed for many reasons, including that they do NOT save model.state_dict(), LEADING TO AN INCOMPLETE AND/OR CORRUPT RE-CONSTRUCTION OF THE CHECKPOINT WHICH
 # WOULD NOT REFLECT THE ACTUAL STATE OF THE MODEL OR STRATEGY AT THE TIME THE CHECKPOINT WAS SAVED, LEADING TO DIFFERENT AND MISLEADING EVALUATION RESULTS THAT DIFFER FROM THOSE OF THE ACTUAL

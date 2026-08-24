@@ -67,8 +67,9 @@ from Tenth_implementation_attempt.Config_v10 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
 from Tenth_implementation_attempt.Config_v10 import set_device
 DEVICE=set_device()
+from Tenth_implementation_attempt.Config_v10 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
-RNGManager.set_random_seeds(1234)
+RNGManager.set_random_seeds(SEED)
 from Tenth_implementation_attempt.ResNet20_v10 import ResNet20
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_train_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_val_subset)
@@ -254,8 +255,11 @@ print("Print len(avl_train.targets.uniques) to know the NUMBER OF FINE CLASSES w
 print("IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OBJECT PASSED TO class_order IN class_incremental_benchmark TO AVOID/AS A WORK-AROUND TO THE num_classes BUG IN THE LIBRARY CODE, since by provideing a class_order, 'class_order = torch.randperm(num_classes).tolist()' within 'if class_order is None:' IS AVOIDED!", sorted(avl_train.targets.uniques))# print class_order
 
 outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 2, 2, 69]) # which is equivalent to num_experiences=5 due to the reasons explained in previous version)
+                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 2, 2, 69])# which is equivalent to num_experiences=5 due to the reasons explained in previous version)
 
+# TODO: try tomorrow, but this would require modifying the benchmark and stream objects cause otherwise model is still trained on what it thinks are Exp004 and Exp005
+'''outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[3, 3, 71])'''
 if DEBUG:
     print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
     for i, exp in enumerate(outdoors_specialised_models_benchmark.train_stream):
@@ -463,6 +467,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         self.saved_params: Dict[int, Dict[str, ParamData]] = defaultdict(dict)
         self.importances: Dict[int, Dict[str, ParamData]] = defaultdict(dict)
         self.ce_loss = self._make_empty_loss()  # self.ce_loss = torch.tensor(0).float().to(self.device)
+        #self.retain_graph = True
 
     def training_epoch(self, **kwargs):
         print("***** MY training_epoch() WAS CALLED *****")
@@ -585,6 +590,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         #self.lwf_mine.post_adapt(self, self.experience)
         #if experience.current_experience > 0:
         self.post_adapt(self, self.experience)
+        #self.update(self.experience, self.model)
 
         exp_counter = self.clock.train_exp_counter
         importances = self.compute_importances(
@@ -1167,7 +1173,7 @@ if TRAINING_WITH_LOOP:
     print('Training completed WITH LOOP')
 
 
-
+'''
     checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
     for checkpoint_file in checkpoint_files:
         print(f"Loading {checkpoint_file}")
@@ -1175,7 +1181,7 @@ if TRAINING_WITH_LOOP:
         print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITH LOOP VERSION 2'")
         cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
 
-
+'''
     #print('Computing accuracy on the whole val set OUTSIDE training LOOP')
     #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
     #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
