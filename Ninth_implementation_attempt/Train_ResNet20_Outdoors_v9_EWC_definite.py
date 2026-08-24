@@ -168,7 +168,7 @@ from avalanche.training.plugins import SupervisedPlugin
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
-TRAINING_WITHOUT_LOOP = True #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITHOUT LOOP'.
+TRAINING_WITHOUT_LOOP = True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
 
 print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v9.py ################################ \n\n\n")
 
@@ -407,12 +407,12 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
         # TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
         self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl")
-        print(f"Saved {f'./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl'} to continue training of the next experience on it --- from inside _training_epoch()")
+        print(f"Saved {f'./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
 
         if TRAINING_WITH_LOOP:
             # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
             self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl")
-            print(f"Loaded {f'./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl'} to continue training of the next experience on it --- from inside _training_epoch()")
+            print(f"Loaded {f'./checkpoints/checkpoint_Experience_{self.clock.train_exp_counter}_Epoch_{self.clock.train_exp_epochs}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
 
 
     def _train_exp(self, experience: CLExperience, eval_streams=None, **kwargs):
@@ -430,16 +430,18 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
             print(f"\n\n***** MY _train_exp() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
             self.training_epoch(**kwargs)
-            # TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
+            '''# TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
+            # It works, but it seems that when self.load_entire_checkpoint_inside_class is placed on training_epoch, it works better.
+            # Keep in case something changes and it is worth testing what would happen if self.load_entire_checkpoint_inside_class was placed on _train_exp
             self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
-            print(f"Saved {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training of the next experience on it --- from inside _training_exp()")
+            print(f"Saved {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} --- from inside _training_exp()")
 
             #TODO: MUST BE BEFORE self._after_training_epoch(**kwargs). It works, but it seems that when self.load_entire_checkpoint_inside_class is placed on training_epoch, it works better.
             # Keep in case something changes and it is worth testing what would happen if self.load_entire_checkpoint_inside_class was placed on _train_exp
-            '''if TRAINING_WITH_LOOP: # MUST BE BEFORE self._after_training_epoch(**kwargs)
+            if TRAINING_WITH_LOOP: # MUST BE BEFORE self._after_training_epoch(**kwargs)
                 # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
                 self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
-                print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training of the next experience on it --- from inside _training_exp()")'''
+                print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next experience on it --- from inside _training_exp()")'''
 
             self._after_training_epoch(**kwargs)
 
@@ -464,6 +466,12 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         # saved above)
         self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}.pkl")
         #DOES NOT SAVE model_state_dict !!! save_checkpoint(self.model, f"./checkpoint_Experience_{experience.current_experience}.pth")
+        # DO NOT call self.load_entire_checkpoint_inside_class !!! IT LEADS TO AN ERROR. I tried this to see if it would re-load the last experience checkpoint
+        # (checkpoint_Experience_{experience.current_experience}.pkl; NOT epoch checkpoint) saved and start the next .train() call on the checkpoint saved for the last experience/last
+        # .train() call that concluded, but it leads to an error. This seemed like the only logical place where to place such call in order to avoid differences in numbers that occur
+        # across .train() calls / experiences when training with loop when compared to when training without loop, but it did not work. There are no more alternatives to try, so accept
+        # that the numbers will be slightly different when training with loop --- THIS IS AS ACCURATE A SET-UP FOR WHEN TRAINING WITH LOOP AS I WILL GET, since its not that important and
+        # not worth spending more time on it !!!
 
 
     def compute_importances(
@@ -565,8 +573,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
             raise ValueError("Wrong EWC mode.")
 
 
-    #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
-    def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None):
+    def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
             exclude = []
         ended_experience_counter = self.clock.train_exp_counter
@@ -577,7 +584,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
 
         checkpoint = {
             "strategy": strategy,
-            "rng_manager": RNGManager, #.set_random_seeds(SEED),
+            "rng_manager_state": RNGManager.__getstate__(),#"rng_manager": RNGManager, #.set_random_seeds(SEED),
             "exp_counter": ended_experience_counter,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
@@ -624,6 +631,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         self.eval_every = checkpoint["strategy"].eval_every
         self.dataloader = checkpoint["strategy"].dataloader
         self.experience = checkpoint["strategy"].experience
+        RNGManager.__setstate__(checkpoint["rng_manager_state"])
         #RNGManager.__setstate__(checkpoint["rng_manager"])
 
         print(f"Executing load_entire_checkpoint_inside_class from call made from within _train_exp()")
@@ -778,6 +786,7 @@ def load_entire_checkpoint(fname: FILE_LIKE, map_location=None, unique_objects: 
     strategy.eval_every = checkpoint["strategy"].eval_every
     strategy.dataloader = checkpoint["strategy"].dataloader
     strategy.experience = checkpoint["strategy"].experience
+    RNGManager.__setstate__(checkpoint["rng_manager_state"])
 
     #RNGManager.__setstate__(checkpoint["rng_manager"])
     return strategy
@@ -855,10 +864,14 @@ if TRAINING_WITHOUT_LOOP:
 # as I cannot be certain that the cl_strategy object on which .eval() is being called is actually the one that has resulted from that .train() / that iteration of the training loop for experience in outdoors_specialised_models_train_stream_class_il ,
 # whereas with the checkpoints saved, re-loaded and re-constructed in the way I have now (saving from withing train_exp and training_epoch as well as saving strategy = copy(self) and checkpoint = {"strategy": strategy,...} and then in load_entire_strategy,
 # reconstructing the model and strategy onto this strategy object), I can be certain.
+# In this commit, I have also removed the alternative training loops and ways of calling .train() since now I know for sure that calling .train() on the ENTIRE TRAIN STREAM as opposed to
+# iterating through the experiences and calling it once per experience IS THE ONLY / BEST WAY for the CF mitigation techniques to take effect and hence the way of training THAT GIVES THE
+# BEST RESULTS and now that I have incorporated calls to the saving checkpoint functionality from within the train_exp and training_epoch functions, such that the model (and strategy) can
+# be saved and used for aggregation after training on an experience is done and saved after every epoch for the purpose of evaluation when training without loop and for the purpose of
+# evaluation and re-starting training on the model exactly as it was when the last .train() call concluded on the last experience on which it was trained if training with loop version 2,
+# for which loading of the saved epoch from within train_epoch is also needed and has been implemented.
 
-'''
-In this commit, I have also removed the alternative training loops and ways of calling .train() since now I know for sure that calling .train() on the ENTIRE TRAIN STREAM as opposed to iterating through the experiences and calling it once per experience IS THE ONLY / BEST WAY for the CF mitigation techniques to take effect and hence the way of training THAT GIVES THE BEST RESULTS and now that I have incorporated calls to the saving checkpoint functionality from within the train_exp and training_epoch functions, such that the model (and strategy) can be saved and used for aggregation after training on an experience is done. 
-'''
+
 
 
 
