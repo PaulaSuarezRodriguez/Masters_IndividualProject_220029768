@@ -1,4 +1,4 @@
-from Tenth_implementation_attempt.Config_v10 import set_seed
+from Eleventh_implementation_attempt.Config_v11 import set_seed
 
 set_seed()
 #set_device() # TODO: FIX ERROR! Why does set_device lead to error? ValueError: Expected a torch.device with a specified index or an integer, but got:cuda

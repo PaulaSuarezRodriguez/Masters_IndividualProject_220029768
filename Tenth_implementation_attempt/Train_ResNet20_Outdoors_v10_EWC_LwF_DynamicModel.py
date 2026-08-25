@@ -70,7 +70,8 @@ DEVICE=set_device()
 from Tenth_implementation_attempt.Config_v10 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 RNGManager.set_random_seeds(SEED)
-from Tenth_implementation_attempt.ResNet20_v10_DynamicModel import ResNet20
+#from Tenth_implementation_attempt.ResNet20_v10 import ResNet20
+from Tenth_implementation_attempt.ResNet20_v10_DynamicModel import ResNet20_DynamicModel
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_train_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_val_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_test_subset)
@@ -203,12 +204,12 @@ TRAINING_WITHOUT_LOOP = True #TODO: Remember to change TRAINING_WITHOUT_LOOP to 
 
 print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v10.py ################################ \n\n\n")
 
-resnet20_global_model = ResNet20(num_classes=100)
-outdoors_specialised_model = ResNet20(num_classes=10) #No need for num_classes=10 anymore despite 10 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
-nature_specialised_model = ResNet20(num_classes=15) #No need for num_classes=15 anymore despite 15 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
-people_specialised_model = ResNet20(num_classes=5) #No need for num_classes=5 anymore despite 5 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
-animals_specialised_model = ResNet20(num_classes=45) #No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
-objects_and_vehicles_specialised_model = ResNet20(num_classes=25) #No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+resnet20_dm_global_model = ResNet20_DynamicModel(num_classes=100)
+outdoors_dm_specialised_model = ResNet20_DynamicModel(num_classes=10) #No need for num_classes=10 anymore despite 10 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+nature_dm_specialised_model = ResNet20_DynamicModel(num_classes=15) #No need for num_classes=15 anymore despite 15 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+people_dm_specialised_model = ResNet20_DynamicModel(num_classes=5) #No need for num_classes=5 anymore despite 5 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+animals_dm_specialised_model = ResNet20_DynamicModel(num_classes=45) #No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+objects_and_vehicles_dm_specialised_model = ResNet20_DynamicModel(num_classes=25) #No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
 
 avl_train = make_avalanche_dataset(outdoors_specialised_models_train_subset.dataset)
 avl_val = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
@@ -956,51 +957,51 @@ def load_entire_checkpoint(fname: FILE_LIKE, map_location=None, unique_objects: 
 
 # TRAINING LOOP
 # original optimizer:
-# optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.001, momentum=0.9)
+# optimizer = SGD(outdoors_dm_specialised_model.parameters(), lr=0.001, momentum=0.9)
 
-#optimizer = Adam(outdoors_specialised_model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, amsgrad=False)
+#optimizer = Adam(outdoors_dm_specialised_model.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, amsgrad=False)
 #criterion_masked = MaskedCrossEntropy(mask="seen") # Using MaskedCrossEntropy for masking all but the classes that appear in the specialised model's subset (https://github.com/ContinualAI/avalanche/blob/master/avalanche/training/losses.py , https://avalanche-api.continualai.org/en/latest/generated/avalanche.training.MaskedCrossEntropy.html#avalanche.training.MaskedCrossEntropy)
 
 #ewc_lambda=1e2
 #todo: Changed metric_name to "Top1_Acc_Exp" since now we are training on the entire train stream!!!!
 # DEFINITE:
-'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+'''cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)'''
 # tested and worked pretty good --- individual acc for subsequent experiences was never as high, but knowledge of past experiences was retained better, although the knowledge that was retained was with less accuracy
-optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
+optimizer = SGD(outdoors_dm_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)
-'''optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
-cl_strategy = EWC(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
+'''optimizer = SGD(outdoors_dm_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWC(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
                     plugins=[EWCPlugin( ewc_lambda=0.9, mode="separate")],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)'''
-'''optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
-cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=10.1, mode="online", decay_factor=5.1, keep_importance_data=True,
+'''optimizer = SGD(outdoors_dm_specialised_model.parameters(), lr=0.0001, momentum=0.9)
+cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=10.1, mode="online", decay_factor=5.1, keep_importance_data=True,
                           train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)'''
 #TODO: NEXT uncomment the below cl_strategy and test
-'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+'''cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.8, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)'''
-'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=2, eval_mb_size=100, #device=DEVICE,
+'''cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=2, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)'''
-'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=2, eval_mb_size=100, #device=DEVICE,
+'''cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=2, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.8, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)'''
 
 
-'''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="online", decay_factor=0.9, train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
+'''cl_strategy = EWCStrategy(model=outdoors_dm_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="online", decay_factor=0.9, train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Top1_Acc_Exp", mode="max", peval_mode="epoch", margin=0.3, verbose=True)],
                     evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
                     eval_every=1)''' # Also maybe worth trying --> ewc_lambda=0.09, mode="online", decay_factor=0.1 AND criterion=criterion_masked, ewc_lambda=00.9, mode="online", decay_factor=0.5, keep_importance_data=True,

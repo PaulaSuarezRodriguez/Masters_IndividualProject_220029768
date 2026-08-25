@@ -63,18 +63,19 @@ from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
 from avalanche.training.plugins.checkpoint import CheckpointPlugin
 from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 
-from Tenth_implementation_attempt.Config_v10 import set_seed
+from Eleventh_implementation_attempt.Config_v11 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Tenth_implementation_attempt.Config_v10 import set_device
+from Eleventh_implementation_attempt.Config_v11 import set_device
 DEVICE=set_device()
-from Tenth_implementation_attempt.Config_v10 import SEED
+from Eleventh_implementation_attempt.Config_v11 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 RNGManager.set_random_seeds(SEED)
 #RNGManager_SEED = RNGManager.set_random_seeds(SEED)
-from Tenth_implementation_attempt.ResNet20_v10_DynamicModel import ResNet20
-from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_train_subset)
-from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_val_subset)
-from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_test_subset)
+from Eleventh_implementation_attempt.ResNet20_v11 import ResNet20
+#from Eleventh_implementation_attempt.ResNet20_DynamicModel_v11 import ResNet20_DynamicModel
+from Eleventh_implementation_attempt.Load_cifar100_v11 import (outdoors_specialised_models_train_subset)
+from Eleventh_implementation_attempt.Load_cifar100_v11 import (outdoors_specialised_models_val_subset)
+from Eleventh_implementation_attempt.Load_cifar100_v11 import (outdoors_specialised_models_test_subset)
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
@@ -166,7 +167,7 @@ DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
 TRAINING_WITHOUT_LOOP = True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
 
-print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v10.py ################################ \n\n\n")
+print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v11.py ################################ \n\n\n")
 
 resnet20_global_model = ResNet20(num_classes=100)
 outdoors_specialised_model = ResNet20(num_classes=100) #No need for num_classes=10 anymore despite 10 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
@@ -616,7 +617,7 @@ class EWCStrategy(SupervisedTemplate): #formerly TestEWCStrategy_2, but renamed 
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
         #torch.save(checkpoint, path)
-        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Tenth_implementation_attempt\checkpoints")
+        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         torch.save(checkpoint, fname, pickle_module=dill)
 
@@ -856,7 +857,7 @@ if TRAINING_WITHOUT_LOOP:
     #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
 '''
     # loop for re-loading every saved checkpoint and evaluating on val stream
-    checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Tenth_implementation_attempt\checkpoints")
+    checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
     checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
 
     for checkpoint_file in checkpoint_files:
@@ -914,7 +915,7 @@ if TRAINING_WITHOUT_LOOP:
 if TRAINING_WITH_LOOP:
     print('Starting experiment WITH LOOP... VERSION 2')
     results = []
-    checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Tenth_implementation_attempt\checkpoints")
+    checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
     for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)

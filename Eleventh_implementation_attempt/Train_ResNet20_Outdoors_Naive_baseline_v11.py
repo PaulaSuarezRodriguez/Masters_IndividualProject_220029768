@@ -63,18 +63,18 @@ from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
 from avalanche.training.plugins.checkpoint import CheckpointPlugin
 from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 
-from Tenth_implementation_attempt.Config_v10 import set_seed
+from Eleventh_implementation_attempt.Config_v11 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Tenth_implementation_attempt.Config_v10 import set_device
+from Eleventh_implementation_attempt.Config_v11 import set_device
 DEVICE=set_device()
-from Tenth_implementation_attempt.Config_v10 import SEED
+from Eleventh_implementation_attempt.Config_v11 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 RNGManager.set_random_seeds(SEED)
-#RNGManager_SEED = RNGManager.set_random_seeds(SEED)
-from Tenth_implementation_attempt.ResNet20_v10_DynamicModel import ResNet20
-from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_train_subset)
-from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_val_subset)
-from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_test_subset)
+from Eleventh_implementation_attempt.ResNet20_v11 import ResNet20
+#from Eleventh_implementation_attempt.ResNet20_DynamicModel_v11 import ResNet20_DynamicModel
+from Eleventh_implementation_attempt.Load_cifar100_v11 import (outdoors_specialised_models_train_subset)
+from Eleventh_implementation_attempt.Load_cifar100_v11 import (outdoors_specialised_models_val_subset)
+from Eleventh_implementation_attempt.Load_cifar100_v11 import (outdoors_specialised_models_test_subset)
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute

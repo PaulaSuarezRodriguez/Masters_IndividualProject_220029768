@@ -1,5 +1,5 @@
 # Implementation inspired by code from https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
-from Tenth_implementation_attempt.Config_v10 import set_seed
+from Eleventh_implementation_attempt.Config_v11 import set_seed
 set_seed()
 import torch.nn as nn
 import torch.nn.functional as F

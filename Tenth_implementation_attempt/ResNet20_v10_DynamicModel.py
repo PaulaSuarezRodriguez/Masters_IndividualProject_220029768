@@ -10,21 +10,21 @@ def _weights_init(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight)
 
-class LambdaLayer(nn.Module):
+class LambdaLayer_DynamicModel(nn.Module):
     def __init__(self, lambd):
-        super(LambdaLayer, self).__init__()
+        super(LambdaLayer_DynamicModel, self).__init__()
         self.lambd = lambd
 
     def forward(self, x):
         return self.lambd(x)
 
 
-class BasicBlock(nn.Module):
+class BasicBlock_DynamicModel(nn.Module):
     """
     BasicBlock used in ResNet20 for CIFAR-style datasets.
     """
     def __init__(self, in_planes, planes, stride=1, option='A'):
-        super(BasicBlock, self).__init__()
+        super(BasicBlock_DynamicModel, self).__init__()
 
         self.conv1 = nn.Conv2d(
             in_planes,
@@ -50,7 +50,7 @@ class BasicBlock(nn.Module):
 
         if stride != 1 or in_planes != planes:
             if option == 'A':
-                self.shortcut = LambdaLayer(
+                self.shortcut = LambdaLayer_DynamicModel(
                     lambda x:
                     F.pad(
                         x[:, :, ::2, ::2],
@@ -80,9 +80,9 @@ class BasicBlock(nn.Module):
         return out
 
 
-class ResNet20(nn.Module):
+class ResNet20_DynamicModel(nn.Module):
     def __init__(self, num_classes=100):
-        super(ResNet20, self).__init__()
+        super(ResNet20_DynamicModel, self).__init__()
 
         self.in_planes = 16
 
@@ -133,7 +133,7 @@ class ResNet20(nn.Module):
 
         for stride in strides:
             layers.append(
-                BasicBlock(
+                BasicBlock_DynamicModel(
                     self.in_planes,
                     planes,
                     stride
@@ -167,10 +167,10 @@ class ResNet20(nn.Module):
         return out
 
 if __name__ == "__main__":
-    dummy_resnet20_global_model = ResNet20(num_classes=100)
-    dummy_outdoors_specialised_model = ResNet20(num_classes=10)
-    dummy_nature_specialised_model = ResNet20(num_classes=15)
-    dummy_people_specialised_model = ResNet20(num_classes=5)
-    dummy_animals_specialised_model = ResNet20(num_classes=45)
-    dummy_objects_and_vehicles_specialised_model = ResNet20(num_classes=25)
+    dummy_resnet20_dm_global_model = ResNet20_DynamicModel(num_classes=100)
+    dummy_outdoors_dm_specialised_model = ResNet20_DynamicModel(num_classes=10)
+    dummy_nature_dm_specialised_model = ResNet20_DynamicModel(num_classes=15)
+    dummy_people_dm_specialised_model = ResNet20_DynamicModel(num_classes=5)
+    dummy_animals_dm_specialised_model = ResNet20_DynamicModel(num_classes=45)
+    dummy_objects_and_vehicles_dm_specialised_model = ResNet20_DynamicModel(num_classes=25)
 

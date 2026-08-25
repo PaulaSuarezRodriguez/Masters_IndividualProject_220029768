@@ -71,6 +71,7 @@ from Tenth_implementation_attempt.Config_v10 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 RNGManager.set_random_seeds(SEED)
 from Tenth_implementation_attempt.ResNet20_v10 import ResNet20
+#from Tenth_implementation_attempt.ResNet20_v10_DynamicModel import ResNet20_DynamicModel
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_train_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_val_subset)
 from Tenth_implementation_attempt.Load_cifar100_v10 import (outdoors_specialised_models_test_subset)
