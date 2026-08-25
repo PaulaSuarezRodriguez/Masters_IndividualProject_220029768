@@ -58,10 +58,13 @@ WHEN YOU WANT EarlyStoppingPlugin_mine (just like I would do if I were using the
 WHATEVER IS PROVIDED .train() and if only one experience is provided, then it will manipulate this as if it were the entire stream when it comes to tracking metrics for early stopping
 
 """
-
+from avalanche.benchmarks.utils.data_loader import TaskBalancedDataLoader
 from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
+from avalanche.models.dynamic_modules import avalanche_model_adaptation
+from avalanche.models.dynamic_optimizers import update_optimizer
 from avalanche.training.plugins.checkpoint import CheckpointPlugin
 from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
+from avalanche.training.templates.base import TExperienceType
 
 from Eleventh_implementation_attempt.Config_v11 import set_seed
 set_seed() # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
@@ -149,10 +152,10 @@ from functools import partial
 from packaging.version import parse
 FILE_LIKE: TypeAlias = Union[str, os.PathLike, BinaryIO, IO[bytes]]
 from torch.optim import SGD
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from avalanche.models.utils import avalanche_forward
 
-from avalanche.benchmarks import CLExperience, SplitMNIST
+from avalanche.benchmarks import CLExperience, SplitMNIST, AvalancheDataset, OnlineCLExperience
 from avalanche.evaluation.metrics import accuracy_metrics, loss_metrics, \
     class_accuracy_metrics
 from avalanche.logging import InteractiveLogger, TensorboardLogger, \
@@ -164,7 +167,7 @@ from avalanche.training.supervised import Naive
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from avalanche.training.templates.common_templates import SupervisedTemplate
+from avalanche.training.templates.common_templates import SupervisedTemplate, SGDUpdate
 import sys
 from typing import Callable, Sequence, Optional, TypeVar, Union, List, Dict, Collection
 from collections import defaultdict
@@ -184,9 +187,9 @@ from avalanche.training.templates.strategy_mixin_protocol import (
     CriterionType,
     SupervisedStrategyProtocol,
     TMBOutput,
-    TMBInput,
+    TMBInput, SGDStrategyProtocol, TSGDExperienceType,
 )
-from avalanche.training.utils import copy_params_dict, zerolike_params_dict, ParamData
+from avalanche.training.utils import copy_params_dict, zerolike_params_dict, ParamData, _at_task_boundary
 import warnings
 import itertools
 
@@ -200,7 +203,8 @@ from torch.optim.adam import Adam
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
-TRAINING_WITHOUT_LOOP = True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
+TRAINING_WITHOUT_LOOP = False #True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
+TRAINING_WITH_LOOP_LwF = True #False
 
 print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v11.py ################################ \n\n\n")
 
@@ -257,6 +261,10 @@ print("IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OB
 
 outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
                                                                     class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 2, 2, 69]) # which is equivalent to num_experiences=5 due to the reasons explained in previous version)
+
+# TODO: try tomorrow, but this would require modifying the benchmark and stream objects cause otherwise model is still trained on what it thinks are Exp004 and Exp005
+'''outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[3, 3, 71])'''
 
 if DEBUG:
     print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
@@ -898,3 +906,1117 @@ if TRAINING_WITH_LOOP:
     #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
     #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
     #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
+
+
+
+
+###################################################################################################################################################################################
+'''
+"""Implements Learning without Forgetting (LwF)."""
+from __future__ import division, print_function
+
+import argparse
+import copy
+import json
+import warnings
+
+import dataset
+import networks as net
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import torchnet as tnt
+import utils as utils
+from prune import SparsePruner
+from torch.autograd import Variable
+from tqdm import tqdm
+
+# To prevent PIL warnings.
+warnings.filterwarnings("ignore")
+
+FLAGS = argparse.ArgumentParser()
+FLAGS.add_argument('--mode',
+                   choices=['finetune', 'eval'],
+                   help='Run mode')
+FLAGS.add_argument('--finetune_layers',
+                   choices=['all', 'fc', 'classifier'], default='all',
+                   help='Which layers to finetune')
+FLAGS.add_argument('--num_outputs', type=int, default=-1,
+                   help='Num outputs for dataset')
+# Optimization options.
+FLAGS.add_argument('--lr', type=float,
+                   help='Learning rate')
+FLAGS.add_argument('--lr_decay_every', type=int,
+                   help='Step decay every this many epochs')
+FLAGS.add_argument('--lr_decay_factor', type=float,
+                   help='Multiply lr by this much every step of decay')
+FLAGS.add_argument('--finetune_epochs', type=int,
+                   help='Number of initial finetuning epochs')
+FLAGS.add_argument('--batch_size', type=int, default=32,
+                   help='Batch size')
+FLAGS.add_argument('--dropout', type=float, default=0.5,
+                   help='Dropout ratio')
+FLAGS.add_argument('--weight_decay', type=float, default=5e-4,
+                   help='Weight decay')
+FLAGS.add_argument('--temperature', type=float, default=2.0,
+                   help='LwF logit temperature')
+FLAGS.add_argument('--ft_shared_after', type=int, default=5,
+                   help='Finetune shared layers after this epoch')
+# Paths.
+FLAGS.add_argument('--dataset', type=str, default='',
+                   help='Name of dataset')
+FLAGS.add_argument('--train_path', type=str, default='',
+                   help='Location of train data')
+FLAGS.add_argument('--test_path', type=str, default='',
+                   help='Location of test data')
+FLAGS.add_argument('--save_prefix', type=str, default='../checkpoints/',
+                   help='Location to save model')
+FLAGS.add_argument('--loadname', type=str, default='',
+                   help='Location to save model')
+# Other.
+FLAGS.add_argument('--cuda', action='store_true', default=True,
+                   help='use CUDA')
+
+
+def distillation_loss(y, teacher_scores, T, scale):
+    """Computes the distillation loss (cross-entropy).
+       xentropy(y, t) = kl_div(y, t) + entropy(t)
+       entropy(t) does not contribute to gradient wrt y, so we skip that.
+       Thus, loss value is slightly different, but gradients are correct.
+       \delta_y{xentropy(y, t)} = \delta_y{kl_div(y, t)}.
+       scale is required as kl_div normalizes by nelements and not batch size.
+    """
+    return F.kl_div(F.log_softmax(y / T), F.softmax(teacher_scores / T)) * scale
+
+
+class Manager(object):
+    """Handles training and pruning."""
+
+    def __init__(self, args, original_model, model, dataset2idx):
+        self.args = args
+        self.cuda = args.cuda
+        self.dataset2idx = dataset2idx
+        self.original_model = original_model
+        self.model = model
+
+        if args.mode != 'check':
+            # Set up data loader, criterion, and pruner.
+            if 'cropped' in args.train_path:
+                train_loader = dataset.train_loader_cropped
+                test_loader = dataset.test_loader_cropped
+            else:
+                train_loader = dataset.train_loader
+                test_loader = dataset.test_loader
+            self.train_data_loader = train_loader(
+                args.train_path, args.batch_size, pin_memory=args.cuda)
+            self.test_data_loader = test_loader(
+                args.test_path, args.batch_size, pin_memory=args.cuda)
+            self.criterion = nn.CrossEntropyLoss()
+
+    def eval(self):
+        """Performs evaluation."""
+        self.model.eval()
+        error_meter = None
+
+        print('Performing eval...')
+        for batch, label in tqdm(self.test_data_loader, desc='Eval'):
+            if self.cuda:
+                batch = batch.cuda()
+            batch = Variable(batch, volatile=True)
+
+            output = self.model(batch)
+
+            # Init error meter.
+            if error_meter is None:
+                topk = [1]
+                if output.size(1) > 5:
+                    topk.append(5)
+                error_meter = tnt.meter.ClassErrorMeter(topk=topk)
+            error_meter.add(output.data, label)
+
+        errors = error_meter.value()
+        print('Error: ' + ', '.join('@%s=%.2f' %
+                                    t for t in zip(topk, errors)))
+        self.model.train()
+        return errors
+
+    def do_batch(self, optimizer, batch, label, epoch_idx):
+        """Runs model for one batch."""
+        batch_original = batch.clone()
+        if self.cuda:
+            batch_original = batch_original.cuda(1)
+            batch = batch.cuda()
+            label = label.cuda()
+        batch_original = Variable(batch_original, requires_grad=False)
+        batch = Variable(batch)
+        label = Variable(label)
+
+        # Get targets using original model.
+        self.original_model.eval()
+        x = self.original_model.shared(batch_original)
+        target_logits = [classifier(x).data.cpu()
+                         for classifier in self.original_model.classifiers]
+        # Move to same GPU as current model.
+        target_logits = [Variable(item.cuda(), requires_grad=False)
+                         for item in target_logits]
+        scale = [item.size(-1) for item in target_logits]
+
+        # Work with current model.
+        # Set grads to 0.
+        self.model.zero_grad()
+
+        # Do forward.
+        x = self.model.shared(batch)
+        pred_logits = [classifier(x) for classifier in self.model.classifiers]
+
+        # Compute loss.
+        dist_loss = 0
+        # Apply distillation loss to all old tasks.
+        for idx in range(len(target_logits)):
+            dist_loss += distillation_loss(
+                pred_logits[idx], target_logits[idx], self.args.temperature, scale[idx])
+        # Apply cross entropy for current task.
+        output = pred_logits[-1]
+        new_loss = self.criterion(output, label)
+        loss = dist_loss + new_loss
+
+        # Do backward.
+        loss.backward()
+
+        if epoch_idx <= self.args.ft_shared_after:
+            # Set shared layer gradients to 0 if early epochs.
+            for module in self.model.shared.modules():
+                if isinstance(module, nn.Linear) or isinstance(module, nn.Conv2d):
+                    module.weight.grad.data.fill_(0)
+                    module.bias.grad.data.fill_(0)
+            # Set old classifier gradients to 0 if early epochs.
+            for idx in range(len(self.model.classifiers) - 1):
+                module = self.model.classifiers[idx]
+                module.weight.grad.data.fill_(0)
+                module.bias.grad.data.fill_(0)
+
+        # Update params.
+        optimizer.step()
+
+    def do_epoch(self, epoch_idx, optimizer):
+        """Trains model for one epoch."""
+        for batch, label in tqdm(self.train_data_loader, desc='Epoch: %d ' % (epoch_idx)):
+            self.do_batch(optimizer, batch, label, epoch_idx)
+
+    def save_model(self, epoch, best_accuracy, errors, savename):
+        """Saves model to file."""
+        base_model = self.model
+        if isinstance(self.model, nn.DataParallel):
+            base_model = self.model.module
+
+        # Prepare the ckpt.
+        ckpt = {
+            'epoch': epoch,
+            'dataset2idx': self.dataset2idx,
+            'accuracy': best_accuracy,
+            'errors': errors,
+            'args': self.args,
+            'model': base_model,
+        }
+
+        # Save to file.
+        torch.save(ckpt, savename + '.pt')
+
+    def train(self, epochs, optimizer, save=True, savename='', best_accuracy=0):
+        """Performs training."""
+        best_accuracy = best_accuracy
+        error_history = []
+
+        if self.args.cuda:
+            self.model = self.model.cuda()
+
+        for idx in range(epochs):
+            epoch_idx = idx + 1
+            print('Epoch: %d' % (epoch_idx))
+
+            optimizer = utils.step_lr(epoch_idx, self.args.lr, self.args.lr_decay_every,
+                                      self.args.lr_decay_factor, optimizer)
+            self.model.train()
+            self.do_epoch(epoch_idx, optimizer)
+            errors = self.eval()
+            error_history.append(errors)
+            accuracy = 100 - errors[0]  # Top-1 accuracy.
+
+            # Save performance history and stats.
+            with open(savename + '.json', 'w') as fout:
+                json.dump({
+                    'error_history': error_history,
+                    'args': vars(self.args),
+                }, fout)
+
+            # Save best model, if required.
+            if save and accuracy > best_accuracy:
+                print('Best model so far, Accuracy: %0.2f%% -> %0.2f%%' %
+                      (best_accuracy, accuracy))
+                best_accuracy = accuracy
+                self.save_model(epoch_idx, best_accuracy, errors, savename)
+
+        if isinstance(self.model, nn.DataParallel):
+            self.model = self.model.module
+        print('Finished finetuning...')
+        print('Best error/accuracy: %0.2f%%, %0.2f%%' %
+              (100 - best_accuracy, best_accuracy))
+        print('-' * 16)
+
+    def check(self, verbose=False):
+        """Makes sure that the layers are pruned."""
+        print('Checking...')
+        for layer_idx, module in enumerate(self.model.shared.modules()):
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+                weight = module.weight.data
+                num_params = weight.numel()
+                num_zero = weight.view(-1).eq(0).sum()
+                if verbose:
+                    print('Layer #%d: Pruned %d/%d (%.2f%%)' %
+                          (layer_idx, num_zero, num_params, 100 * num_zero / num_params))
+
+
+def main():
+    """Do stuff."""
+    args = FLAGS.parse_args()
+
+    # Set default train and test path if not provided as input.
+    if not args.train_path:
+        args.train_path = '../data/%s/train' % (args.dataset)
+    if not args.test_path:
+        if args.dataset == 'imagenet' or args.dataset == 'places':
+            args.test_path = '../data/%s/val' % (args.dataset)
+        else:
+            args.test_path = '../data/%s/test' % (args.dataset)
+
+    # Load the required model.
+    if 'finetune' in args.mode and not args.loadname:
+        model = net.ModifiedVGG16()
+    else:
+        ckpt = torch.load(args.loadname)
+        model = ckpt['model']
+        dataset2idx = ckpt['dataset2idx']
+
+    original_model = copy.deepcopy(model)
+
+    # Add and set the model dataset.
+    model.add_dataset(args.dataset, args.num_outputs)
+    model.set_dataset(args.dataset)
+    if args.dataset not in dataset2idx:
+        idxs = [dataset2idx[key] for key in dataset2idx]
+        dataset2idx[args.dataset] = max(idxs) + 1
+    if args.cuda:
+        model = model.cuda(0)
+        if args.mode == 'finetune':
+            original_model = original_model.cuda(1)
+
+    # Create the manager object.
+    manager = Manager(args, original_model, model, dataset2idx)
+
+    # Perform necessary mode operations.
+    if args.mode == 'finetune':
+        # Get optimizer with correct params.
+        if args.finetune_layers == 'all':
+            params_to_optimize = model.parameters()
+        elif args.finetune_layers == 'classifier':
+            for param in model.shared.parameters():
+                param.requires_grad = False
+            params_to_optimize = model.classifier.parameters()
+        elif args.finetune_layers == 'fc':
+            params_to_optimize = []
+            # Add fc params.
+            for param in model.shared.parameters():
+                if param.size(0) == 4096:
+                    param.requires_grad = True
+                    params_to_optimize.append(param)
+                else:
+                    param.requires_grad = False
+            # Add classifier params.
+            for param in model.classifier.parameters():
+                params_to_optimize.append(param)
+            params_to_optimize = iter(params_to_optimize)
+        optimizer = optim.SGD(params_to_optimize, lr=args.lr,
+                              momentum=0.9, weight_decay=args.weight_decay)
+        # Perform finetuning.
+        manager.train(args.finetune_epochs, optimizer,
+                      save=True, savename=args.save_prefix)
+    elif args.mode == 'check':
+        # Load model and make sure everything is fine.
+        manager.check(verbose=True)
+    elif args.mode == 'eval':
+        # Just run the model on the eval set.
+        manager.eval()
+
+
+if __name__ == '__main__':
+    main()
+'''
+
+
+
+
+
+
+import copy
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
+'''
+def train_dataset_adaptation(self, **kwargs):
+    """Initialize `self.adapted_dataset`."""
+    assert self.experience is not None
+    self.adapted_dataset = self.experience.dataset
+    assert self.adapted_dataset is not None
+    self.adapted_dataset = self.adapted_dataset.train()
+
+
+    def eval_dataset_adaptation(self, **kwargs):
+        """Initialize `self.adapted_dataset`."""
+        assert self.experience is not None
+        self.adapted_dataset = self.experience.dataset
+        assert self.adapted_dataset is not None
+        self.adapted_dataset = self.adapted_dataset.eval()
+
+def make_train_dataloader(
+        self,
+        num_workers=0,
+        shuffle=True,
+        pin_memory=None,
+        persistent_workers=False,
+        drop_last=False,
+        **kwargs
+    ):
+    assert self.adapted_dataset is not None
+    self.dataloader = DataLoader(self.adapted_dataset, num_workers=0, shuffle=True,pin_memory=None,persistent_workers=False,drop_last=False,)
+
+def make_eval_dataloader(
+        self,
+        num_workers=0,
+        shuffle=False,
+        pin_memory=None,
+        persistent_workers=False,
+        **kwargs
+    ):
+    assert self.adapted_dataset is not None
+    self.dataloader = SingleDatasetDataLoader(self.adapted_dataset,num_workers=0,shuffle=False,pin_memory=None,persistent_workers=False,) # BUT I WILL BE REPLACING THIS SingleDatasetDataLoader
+    # WITH normal PyTorch DataLoader!!!! I do not think it will interfere, as SingleDatasetDataLoader is Avalanche functionality that allows you to use functionality of its parent class
+    # MultiDatasetDataLoader, which is a Custom data loader for multiple datasets -- for combining minibatches of several datasets into a single dataset, which I do not think I need so,
+    # I believe I can savely switch to using PyTorch Dataloader
+
+    # THE IMPORTANT THING TO REMEBER FROM THIS IS --> Dataloader for train has shuffle=True, and that of eval has shuffle=False. The dataloaders for train and eval do take experience.dataset
+    # as the dataset, BUT they take the "adapted_dataset" version, which as can be seen from the Avalanche source code I have pasted, is simply self.adapted_dataset.train(), a class
+    # AvalancheDataset function that returns the train transformation of the dataset, which in my case, given the previous data manipulation, should be the entire experience being passed to
+    # train. Same thing with eval. THIS IS STILL ALL DATA PREPARATION, FOR WHICH I STILL INTEND TO USE THE AVvalanche FUNCTIONALITY, hence why this and knowing what data I should be passing
+    # to the Dataloaders according to Avalanche, IS RELEVANT!!!!!!!!!!
+'''
+
+'''
+from avalanche.models import avalanche_forward
+from avalanche.training.templates.strategy_mixin_protocol import (
+    SupervisedStrategyProtocol,
+    TSGDExperienceType,
+    TMBInput,
+    TMBOutput,
+)
+import torch
+
+# Types are perfectly ok for MyPy
+# Also confirmed here: https://stackoverflow.com/a/70907644
+# PyLance just does not understand it
+class SupervisedProblem(
+    SupervisedStrategyProtocol[TSGDExperienceType, TMBInput, TMBOutput]
+):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @property
+    def mb_x(self):
+        """Current mini-batch input."""
+        mbatch = self.mbatch
+        assert mbatch is not None
+        return mbatch[0]
+
+    @property
+    def mb_y(self):
+        """Current mini-batch target."""
+        mbatch = self.mbatch
+        assert mbatch is not None
+        return mbatch[1]
+
+    @property
+    def mb_task_id(self):
+        """Current mini-batch task labels."""
+        mbatch = self.mbatch
+        assert mbatch is not None
+        assert len(mbatch) >= 3, "Task label not found."
+        return mbatch[-1]
+
+    def criterion(self):
+        """Loss function for supervised problems."""
+        return self._criterion(self.mb_output, self.mb_y)
+
+    def forward(self):
+        """Compute the model's output given the current mini-batch."""
+        # use task-aware forward only for task-aware benchmarks
+        if hasattr(self.experience, "task_labels"):
+            return avalanche_forward(self.model, self.mb_x, self.mb_task_id)
+        else:
+            return self.model(self.mb_x)
+
+    def _unpack_minibatch(self):
+        """Check if the current mini-batch has 3 components."""
+        mbatch = self.mbatch
+        assert mbatch is not None
+
+        if isinstance(mbatch, tuple):
+            mbatch = list(mbatch)
+            self.mbatch = mbatch
+
+        for i in range(len(mbatch)):
+            if isinstance(mbatch[i], dict):
+                # Move all tensor values in the dictionary to the specified device
+                mbatch[i] = {
+                    key: value.to(self.device, non_blocking=True)
+                    for key, value in mbatch[i].items()
+                }
+            elif isinstance(mbatch[i], torch.Tensor):
+                # Directly move the tensor to the specified device
+                mbatch[i] = mbatch[i].to(self.device, non_blocking=True)
+            else:
+                # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
+                raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
+
+
+'''
+
+
+#class LwFTrainer(Generic[TSGDExperienceType, TMBInput, TMBOutput], BaseStrategyProtocol[TSGDExperienceType],Protocol[TSGDExperienceType, TMBInput, TMBOutput],):
+'''    
+    mbatch: Optional[TMBInput]
+
+    mb_output: Optional[TMBOutput]
+
+    dataloader: Iterable[TMBInput]
+
+    _stop_training: bool
+
+    optimizer: Optimizer
+
+    loss: Tensor
+
+    _criterion: CriterionType
+'''
+
+'''class Data_Preparation(BaseSGDTemplate):
+    self._before_training_exp(self, **kwargs):'''
+
+'''data_preparation_object = BaseSGDTemplate
+data_preparation_object.train_dataset_adaptation(experience=outdoors_specialised_models_test_stream_class_il, )
+data_preparation_object.eval_dataset_adaptation()
+data_preparation_object.make_train_dataloader()
+data_preparation_object.make_eval_dataloader()'''
+
+from torch.utils.data.dataset import Dataset
+from avalanche.benchmarks.utils import AvalancheDataset
+from avalanche.benchmarks.utils.dataset_definitions import T_co
+
+
+def model_adaptation(self, model=None):
+    """Adapts the model to the current data.
+
+    Calls the :class:`~avalanche.models.DynamicModule`s adaptation.
+    """
+    if model is None:
+        model = self.model
+
+    assert self.experience is not None
+
+    # For training:
+    if isinstance(self.experience, OnlineCLExperience) and self.is_training:
+        if self.experience.access_task_boundaries:
+            avalanche_model_adaptation(model, self.experience.origin_experience)
+        else:
+            avalanche_model_adaptation(model, self.experience)
+    else:
+        avalanche_model_adaptation(model, self.experience)
+
+    return model.to(self.device)
+
+
+def make_optimizer(
+        self,
+        reset_optimizer_state=False,
+        remove_params=False,
+        verbose_optimizer=False,
+        **kwargs
+):
+    """Optimizer initialization.
+
+    Called before each training experience to configure the optimizer.
+
+    :param reset_optimizer_state: bool, whether to reset the
+        state of the optimizer, defaults to False
+    :param remove_params: bool, whether to remove parameters that
+                          are in the optimizer but not found in the current model
+    :param verbose_optimizer: bool, print optimized parameters
+                              along with their parameter group
+
+    Warnings:
+        - The first time this function is called
+          for a given strategy it will reset the
+          optimizer to gather the (name, param)
+          correspondance of the optimized parameters
+          all of the model parameters will be put in the
+          optimizer, regardless of what parameters are
+          initially put in the optimizer.
+
+    """
+    self.optimized_param_id = update_optimizer(
+        self.optimizer,
+        dict(self.model.named_parameters()),
+        self.optimized_param_id,
+        reset_state=reset_optimizer_state,
+        remove_params=remove_params,
+        verbose=verbose_optimizer,
+    )
+
+
+def check_model_and_optimizer(self, reset_optimizer_state=False, **kwargs):
+    # If strategy has access to the task boundaries, and the current
+    # sub-experience is the first sub-experience in the online stream,
+    # then adapt the model with the full origin experience:
+    assert self.experience is not None
+
+    if self.optimized_param_id is None:
+        self.make_optimizer(reset_optimizer_state=True, **kwargs)
+
+    if _at_task_boundary(self.experience, before=True):
+        self.model = self.model_adaptation()
+        self.make_optimizer(reset_optimizer_state=reset_optimizer_state, **kwargs)
+
+
+def train_dataset_adaptation(experiences: Union[TExperienceType, Iterable[TExperienceType]]):# -> AvalancheDataset[T_co]: #(experience: Optional[TExperienceType]):
+    """Initialize `self.adapted_dataset`."""
+    assert experiences is not None
+    adapted_dataset = experiences.dataset
+    assert adapted_dataset is not None
+    adapted_dataset = adapted_dataset.train()
+    return adapted_dataset
+
+
+#outdoors_train_adapted_dataset = train_dataset_adaptation(experiences=outdoors_specialised_models_train_stream_class_il)
+outdoors_train_adapted_dataset = train_dataset_adaptation(experiences=outdoors_specialised_models_train_stream_class_il.exps_iter[0])
+
+
+def make_train_dataloader(
+        #experiences: Union[TExperienceType, Iterable[TExperienceType]],
+        adapted_dataset: Optional[Dataset], #AvalancheDataset[T_co],
+        batch_size: int,
+        num_workers=0,
+        shuffle=True,
+        pin_memory=None,
+        persistent_workers=False,
+        drop_last=False,
+        **kwargs
+):
+    """Data loader initialization.
+
+    Called at the start of each learning experience after the dataset
+    adaptation.
+
+    :param num_workers: number of thread workers for the data loading.
+    :param shuffle: True if the data should be shuffled, False otherwise.
+    :param pin_memory: If True, the data loader will copy Tensors into CUDA
+        pinned memory before returning them. Defaults to True.
+    """
+
+    assert adapted_dataset is not None
+
+    # CODE FOR "other_dataloader_args = self._obtain_common_dataloader_parameters(..." DELETED, as it does not seem like I needed for the reasons explained above
+
+    # CODE FOR "use task-balanced dataloader for task-aware benchmarks" DELETED since it was causing data type issues and I am not gonna be using task-aware/task-IL benchmark (AT LEAST NOT FOR NOW!)
+    dataloader = DataLoader(adapted_dataset,
+                            batch_size=batch_size,
+                            num_workers=num_workers,
+                            shuffle=shuffle,
+                            pin_memory=pin_memory,
+                            persistent_workers=persistent_workers,
+                            drop_last=drop_last,)
+
+    return dataloader
+
+outdoors_train_dataloader = make_train_dataloader(outdoors_train_adapted_dataset, batch_size=32)
+
+
+@property
+def mb_x(self):
+    """Current mini-batch input."""
+    mbatch = self.mbatch
+    assert mbatch is not None
+    return mbatch[0]
+
+
+@property
+def mb_y(self):
+    """Current mini-batch target."""
+    mbatch = self.mbatch
+    assert mbatch is not None
+    return mbatch[1]
+
+
+@property
+def mb_task_id(self):
+    """Current mini-batch task labels."""
+    mbatch = self.mbatch
+    assert mbatch is not None
+    assert len(mbatch) >= 3, "Task label not found."
+    return mbatch[-1]
+
+'''
+def criterion(self):
+    """Loss function for supervised problems."""
+    return self._criterion(self.mb_output, self.mb_y)
+
+
+def forward(self):
+    """Compute the model's output given the current mini-batch."""
+    # use task-aware forward only for task-aware benchmarks
+    if hasattr(self.experience, "task_labels"):
+        return avalanche_forward(self.model, self.mb_x, self.mb_task_id)
+    else:
+        return self.model(self.mb_x)
+
+def unpack_minibatch(self):
+    """Check if the current mini-batch has 3 components."""
+    mbatch = self.mbatch
+    assert mbatch is not None
+
+    if isinstance(mbatch, tuple):
+        mbatch = list(mbatch)
+        self.mbatch = mbatch
+
+    for i in range(len(mbatch)):
+        if isinstance(mbatch[i], dict):
+            # Move all tensor values in the dictionary to the specified device
+            mbatch[i] = {
+                key: value.to(self.device, non_blocking=True)
+                for key, value in mbatch[i].items()
+            }
+        elif isinstance(mbatch[i], torch.Tensor):
+            # Directly move the tensor to the specified device
+            mbatch[i] = mbatch[i].to(self.device, non_blocking=True)
+        else:
+            # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
+            raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
+
+'''
+# class LwFTrainer(SGDStrategyProtocol):
+#class LwFTrainer(SGDStrategyProtocol[TSGDExperienceType, TMBInput, TMBOutput]):
+class LwFTrainer():
+    def __init__(
+        self,
+        model: nn.Module,
+        train_adapted_dataset,
+        train_dataloader: DataLoader,
+        #val_adapted_dataset,
+        #val_dataloader,
+        device="cuda",
+        lr=0.001,
+        momentum=0.9,
+        weight_decay=5e-4,
+        temperature=2.0,
+        alpha=1.0,
+        #batch_size=32,
+    ):
+
+        self.adapted_dataset = None
+        self.optimized_param_id = None
+        self.model = model.to(device)
+        self.device = device
+
+        self.temperature = temperature
+        self.alpha = alpha
+        self.batch_size = train_dataloader.batch_size
+
+        self.optimizer = torch.optim.SGD(
+            self.model.parameters(),
+            lr=lr,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+
+        self.criterion = nn.CrossEntropyLoss()
+        #self.dataloader: Iterable[Any] = []
+        #""" Dataloader. """
+        #self.train_dataloader: Iterable[Any] = train_dataloader
+        self.train_dataloader= train_dataloader
+        #self.val_dataloader = val_dataloader
+        self.train_adapted_dataset = train_adapted_dataset
+        #self.val_adapted_dataset = val_adapted_dataset
+
+        self.mbatch: Optional[TMBInput] = None
+        """ Current mini-batch. """
+
+        self.mb_output: Optional[TMBOutput] = None
+        """ Model's output computed on the current mini-batch. """
+
+        ####self._stop_training = False
+
+        # Teacher from previous experience
+        self.teacher = None
+
+        # Classes learned before current experience
+        self.old_classes = set()
+        '''
+        self.dataloader = DataLoader(
+            CLExperience.dataset.train(),
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=False,
+            persistent_workers=False,
+            drop_last=False
+        )
+        '''
+
+    def distillation_loss(
+        self,
+        student_logits,
+        teacher_logits,
+    ):
+
+        T = self.temperature
+
+        student_log_probs = F.log_softmax(
+            student_logits / T,
+            dim=1,
+        )
+
+        teacher_probs = F.softmax(
+            teacher_logits / T,
+            dim=1,
+        )
+
+        # Match authors' implementation:
+        #
+        # F.kl_div(...) * number_of_outputs
+
+        scale = student_logits.size(1)
+
+        return F.kl_div(
+            student_log_probs,
+            teacher_probs,
+            reduction="mean",
+        ) * scale
+
+    def train_experience(self, experience: CLExperience, epochs=1): #def train_experience(self, experience: CLExperience, eval_streams=None, epochs=1, ** kwargs):
+
+        '''train_dataloader = DataLoader(
+            experience.dataset.train(),
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=False,
+            persistent_workers=False,
+            drop_last=False
+        )'''
+        self.before_training_exp(experience)
+
+        self.model.train()
+
+        for epoch in range(epochs):
+
+            total_ce = 0.0
+            total_dist = 0.0
+            total_loss = 0.0
+            n=0
+
+            for self.mbatch in self.train_dataloader: # for batch, targets in train_dataloader:
+
+                self.unpack_minibatch()
+
+                #batch = batch.to(self.device)
+                targets = experience.dataset.targets #.uniques
+
+                self.optimizer.zero_grad()
+
+                # ------------------------------------------------
+                # Current model
+                # ------------------------------------------------
+
+                student_logits = self.model(self.mbatch)#student_logits = self.model(batch)
+
+                # ------------------------------------------------
+                # Ordinary CE loss for current experience
+                # ------------------------------------------------
+
+                ce_loss = self.criterion(
+                    student_logits,
+                    targets,
+                )
+
+                # ------------------------------------------------
+                # LwF
+                # ------------------------------------------------
+
+                if self.teacher is not None:
+
+                    with torch.no_grad():
+                        teacher_logits = self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
+
+                    # Only old classes
+                    old_classes = sorted(self.old_classes)
+
+                    student_old = student_logits[:, old_classes]
+                    teacher_old = teacher_logits[:, old_classes]
+
+                    dist_loss = self.distillation_loss(
+                        student_old,
+                        teacher_old,
+                    )
+
+                    loss = (
+                        ce_loss
+                        + self.alpha * dist_loss
+                    )
+
+                else:
+
+                    dist_loss = torch.tensor(
+                        0.0,
+                        device=self.device,
+                    )
+
+                    loss = ce_loss
+
+                # ------------------------------------------------
+                # Backpropagation
+                # ------------------------------------------------
+
+                loss.backward()
+
+                self.optimizer.step()
+
+                # ------------------------------------------------
+                # Statistics
+                # ------------------------------------------------
+
+                total_ce += ce_loss.item()
+                total_dist += dist_loss.item()
+                total_loss += loss.item()
+
+                n += 1 # n = len(train_dataloader)
+
+            print(
+                f"Epoch {epoch + 1}/{epochs} | "
+                f"CE: {total_ce / n:.6f} | "
+                f"LwF: {total_dist / n:.6f} | "
+                f"Total: {total_loss / n:.6f}"
+            )
+
+        # --------------------------------------------------------
+        # IMPORTANT:
+        # Save teacher AFTER completing the experience
+        # --------------------------------------------------------
+
+        self.teacher = copy.deepcopy(self.model)
+
+        self.teacher.eval()
+
+        for parameter in self.teacher.parameters():
+            parameter.requires_grad = False
+
+        # Add classes from this experience
+        experience_classes = set(
+            experience.dataset.targets.uniques
+        )
+
+        self.old_classes.update(experience_classes)
+
+        print(
+            f"Teacher updated. "
+            f"Old classes = {sorted(self.old_classes)}"
+        )
+
+    def unpack_minibatch(self):
+        """Check if the current mini-batch has 3 components."""
+        mbatch = self.mbatch
+        assert mbatch is not None
+
+        if isinstance(mbatch, tuple):
+            mbatch = list(mbatch)
+            self.mbatch = mbatch
+
+        for i in range(len(mbatch)):
+            if isinstance(mbatch[i], dict):
+                # Move all tensor values in the dictionary to the specified device
+                mbatch[i] = {
+                    key: value.to(self.device, non_blocking=True)
+                    for key, value in mbatch[i].items()
+                }
+            elif isinstance(mbatch[i], torch.Tensor):
+                # Directly move the tensor to the specified device
+                mbatch[i] = mbatch[i].to(self.device, non_blocking=True)
+            else:
+                # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
+                raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
+
+    def check_model_and_optimizer(self, experience: CLExperience, reset_optimizer_state=False, **kwargs):
+        # If strategy has access to the task boundaries, and the current
+        # sub-experience is the first sub-experience in the online stream,
+        # then adapt the model with the full origin experience:
+        assert experience is not None
+
+        if self.optimized_param_id is None:
+            self.make_optimizer(reset_optimizer_state=True, **kwargs)
+
+        if _at_task_boundary(experience, before=True):
+            self.model = self.model_adaptation(experience)
+            self.make_optimizer(reset_optimizer_state=reset_optimizer_state, **kwargs)
+
+    def model_adaptation(self, experience: CLExperience, model=None):
+        """Adapts the model to the current data.
+
+        Calls the :class:`~avalanche.models.DynamicModule`s adaptation.
+        """
+        if model is None:
+            model = self.model
+
+        assert experience is not None
+
+        # For training:
+        if isinstance(experience, OnlineCLExperience) and self.is_training:
+            if experience.access_task_boundaries:
+                avalanche_model_adaptation(model, experience.origin_experience)
+            else:
+                avalanche_model_adaptation(model, experience)
+        else:
+            avalanche_model_adaptation(model, experience)
+
+        return model.to(self.device)
+
+    def make_optimizer(
+            self,
+            reset_optimizer_state=False,
+            remove_params=False,
+            verbose_optimizer=False,
+            **kwargs
+    ):
+        """Optimizer initialization.
+
+        Called before each training experience to configure the optimizer.
+
+        :param reset_optimizer_state: bool, whether to reset the
+            state of the optimizer, defaults to False
+        :param remove_params: bool, whether to remove parameters that
+                              are in the optimizer but not found in the current model
+        :param verbose_optimizer: bool, print optimized parameters
+                                  along with their parameter group
+
+        Warnings:
+            - The first time this function is called
+              for a given strategy it will reset the
+              optimizer to gather the (name, param)
+              correspondance of the optimized parameters
+              all of the model parameters will be put in the
+              optimizer, regardless of what parameters are
+              initially put in the optimizer.
+
+        """
+        self.optimized_param_id = update_optimizer(
+            self.optimizer,
+            dict(self.model.named_parameters()),
+            self.optimized_param_id,
+            reset_state=reset_optimizer_state,
+            remove_params=remove_params,
+            verbose=verbose_optimizer,
+        )
+
+    def before_training_exp(self, experience: CLExperience):
+        """Setup to train on a single experience."""
+        # Data Adaptation (e.g. add new samples/data augmentation)
+        self.train_dataset_adaptation(experience)
+        self.make_train_dataloader(self.train_adapted_dataset, self.batch_size)
+        # Model Adaptation (e.g. freeze/add new units)
+        self.check_model_and_optimizer(experience)
+
+    def train_dataset_adaptation(self, experience: CLExperience):#experiences: Union[TExperienceType, Iterable[TExperienceType]]):  # -> AvalancheDataset[T_co]: #(experience: Optional[TExperienceType]):
+        """Initialize `self.adapted_dataset`."""
+        assert experience is not None
+        self.adapted_dataset = experience.dataset
+        assert self.adapted_dataset is not None
+        self.adapted_dataset = self.adapted_dataset.train()
+        #return self.adapted_dataset
+
+    def make_train_dataloader(self,
+            # experiences: Union[TExperienceType, Iterable[TExperienceType]],
+            adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
+            batch_size: int,
+            num_workers=0,
+            shuffle=True,
+            pin_memory=None,
+            persistent_workers=False,
+            drop_last=False,
+            **kwargs
+    ):
+        assert adapted_dataset is not None
+        # CODE FOR "other_dataloader_args = self._obtain_common_dataloader_parameters(..." DELETED, as it does not seem like I needed for the reasons explained above
+        # CODE FOR "use task-balanced dataloader for task-aware benchmarks" DELETED since it was causing data type issues and I am not gonna be using task-aware/task-IL benchmark (AT LEAST NOT FOR NOW!)
+        dataloader = DataLoader(adapted_dataset,
+                                batch_size=batch_size,
+                                num_workers=num_workers,
+                                shuffle=shuffle,
+                                pin_memory=pin_memory,
+                                persistent_workers=persistent_workers,
+                                drop_last=drop_last, )
+
+        #return dataloader
+
+
+
+if TRAINING_WITH_LOOP_LwF:
+
+    lwf_trainer = LwFTrainer(model=outdoors_specialised_model, train_adapted_dataset =outdoors_train_adapted_dataset, train_dataloader=outdoors_train_dataloader, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
+
+    print('Starting experiment WITH LwFTrainer')
+    results = []
+    checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
+    for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
+        i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+        print("Start of experience -- current TRAIN experience: ", experience.current_experience)
+        print("Start of experience -- current VAL experience: ",outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
+        print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
+        print("Current Classes -- current VAL .classes_in_this_experience: ",outdoors_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
+        print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)",experience.dataset.coarse_label.uniques)
+        print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
+        print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)",outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
+        print("outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)",outdoors_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
+        print("print(experience.origin_stream.name)", experience.origin_stream.name)
+        print("print(outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)",outdoors_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
+        # print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+        # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
+        # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
+        # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+        lwf_trainer.train_experience(experience, 100)
+        # print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
+        # print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
+print('Training completed WITH LwFTrainer')
+
+
+'''
+    checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
+    for checkpoint_file in checkpoint_files:
+        print(f"Loading {checkpoint_file}")
+        cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
+        print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITH LOOP VERSION 2'")
+        cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
+
+'''
+    #print('Computing accuracy on the whole val set OUTSIDE training LOOP')
+    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+    #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
+
