@@ -1720,8 +1720,8 @@ if TRAINING_WITH_LOOP_LwF:
 
     #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.0001, momentum=0.9, weight_decay=5e-4,
-                             temperature=2.0, alpha=5.0,#1.0,
-                             train_mb_size=100, train_epochs=5, eval_mb_size=100, #device=DEVICE,
+                             temperature=4.0, alpha=5.0,#temperature=2.0, alpha=1.0,
+                             train_mb_size=32, train_epochs=4, eval_mb_size=100, #device=DEVICE,
                              plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",
                                                                metric_name="Loss_Exp", mode="min", peval_mode="epoch",
                                                                margin=0.3, verbose=True)],
