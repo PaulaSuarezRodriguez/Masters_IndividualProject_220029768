@@ -941,7 +941,7 @@ class LwFTrainer(SupervisedTemplate):
         weight_decay=5e-4,
         temperature=2.0,
         alpha=1.0,
-        batch_size=32,
+        #batch_size=32,
         train_mb_size: int = 1,
         train_epochs: int = 1,
         eval_mb_size: Optional[int] = None,
@@ -977,7 +977,7 @@ class LwFTrainer(SupervisedTemplate):
 
         self.temperature = temperature
         self.alpha = alpha
-        self.batch_size = batch_size
+        #self.batch_size = batch_size
 
         self.optimizer = torch.optim.SGD(
             self.model.parameters(),
@@ -1030,12 +1030,6 @@ class LwFTrainer(SupervisedTemplate):
         self.eval_every = eval_every
         peval = PeriodicEval(eval_every, peval_mode)
         self.plugins.append(peval)
-
-        self.clock: Clock = Clock()
-        """ Incremental counters for strategy events. """
-        # WARNING: Clock needs to be the last plugin, otherwise
-        # counters will be wrong for plugins called after it.
-        self.plugins.append(self.clock)
 
         self.clock: Clock = Clock()
         """ Incremental counters for strategy events. """
