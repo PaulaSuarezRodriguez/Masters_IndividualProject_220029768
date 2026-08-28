@@ -539,7 +539,7 @@ class LwFTrainer(SupervisedTemplate):
         self.plugins.append(self.clock)
 
         # Teacher from previous experience
-        self.teacher = None
+        #self.teacher = None
         self.teachers = []
         self.teacher_classes = []
         self.teachers_state_dict = []
@@ -638,21 +638,6 @@ class LwFTrainer(SupervisedTemplate):
         ] = None,
         **kwargs,
     ):
-        """Training loop.
-
-        If experiences is a single element trains on it.
-        If it is a sequence, trains the model on each experience in order.
-        This is different from joint training on the entire stream.
-        It returns a dictionary with last recorded value for each metric.
-
-        :param experiences: single Experience or sequence.
-        :param eval_streams: sequence of streams for evaluation.
-            If None: use training experiences for evaluation.
-            Use [] if you do not want to evaluate during training.
-            Experiences in `eval_streams` are grouped by stream name
-            when calling `eval`. If you use multiple streams, they must
-            have different names.
-        """
         if not self._distributed_check:
             # Checks if the strategy elements are compatible with
             # distributed training
@@ -700,19 +685,10 @@ class LwFTrainer(SupervisedTemplate):
             if self._stop_training:  # Early stopping
                 self._stop_training = False
                 break
-            '''       
-            self.is_training = True
-            self._stop_training = False
-            self.experience = experience
-            self.model.train()
-            self.model.to(self.device)
-            '''
 
             print(f"\n\n***** MY train_experience() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
             '''self._before_training_exp(**kwargs)# mine which is currently commented-out --> self.before_training_exp(experience)'''
 
-            #for epoch in range(self.train_epochs):
-            #for _ in range(self.train_epochs):
             print(f"\n***** EXECUTING Epoch {_} OF Experience {experience.current_experience} --- from inside train_experience() *****\n")
             total_ce = 0.0
             total_dist = 0.0
@@ -779,45 +755,20 @@ class LwFTrainer(SupervisedTemplate):
 
                     loss = ce_loss'''
 
-                if self.teacher is not None:
-
-                    with torch.no_grad():
-                        teacher_logits = self.teacher(self.mb_x)  # self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
-
-                    # Only old classes
-                    old_classes = sorted(self.old_classes)
-
-                    student_old = student_logits[:, old_classes]
-                    teacher_old = teacher_logits[:, old_classes]
-
-                    dist_loss = self.distillation_loss(
-                        student_old,
-                        teacher_old,
-                    )
-
-                    loss = (ce_loss + self.alpha * dist_loss)
-
-                else:
-
-                    dist_loss = torch.tensor(
-                        0.0,
-                        device=self.device,
-                    )
-
-                    loss = ce_loss
                 # ------------------------------------------------
                 # LwF
                 # ------------------------------------------------
-                '''dist_loss = torch.tensor(
+                print("dist_loss = torch.tensor(0.0,device=self.device)")
+                dist_loss = torch.tensor(
                     0.0,
                     device=self.device
+                )
+                '''print("dist_loss = torch.tensor(total_dist,device=self.device)")
+                dist_loss = torch.tensor(
+                    total_dist,
+                    device=self.device
                 )'''
-                if self.teachers is not None:
-                    '''dist_loss = torch.tensor(
-                        0.0,
-                        device=self.device
-                    )'''
-
+                if len(self.teachers)>0:#if self.teachers is not None:
                     for teacher, teacher_state_dict, classes in zip(
                             self.teachers,
                             self.teachers_state_dict,
@@ -827,16 +778,31 @@ class LwFTrainer(SupervisedTemplate):
                             teacher.load_state_dict(teacher_state_dict)#teacher_state_dict = teacher.load_state_dict(teacher_state_dict)
                             teacher_logits = teacher(self.mb_x)#self.teacher(self.mb_x)
 
-                        student_old = student_logits[:, classes]
-                        teacher_old = teacher_logits[:, classes]
+                        '''student_old = student_logits[:, classes]
+                        teacher_old = teacher_logits[:, classes]'''
+                        classes = torch.tensor(
+                            sorted(classes),
+                            device=self.device,
+                            dtype=torch.long
+                        )
+                        student_old = student_logits.index_select(1, classes)
+                        teacher_old = teacher_logits.index_select(1, classes)
 
-                        '''dist_loss += self.distillation_loss(
+                        dist_loss += self.distillation_loss(
                             student_old,
                             teacher_old
-                        )'''
-                        dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
+                        )
+                        #dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
 
-                loss = ce_loss + self.alpha * dist_loss
+                    loss = ce_loss + self.alpha * dist_loss
+
+                else:
+                    '''dist_loss = torch.tensor(
+                            0.0,
+                            device=self.device,
+                        )'''
+
+                    loss = ce_loss
 
                 # ------------------------------------------------
                 # Backpropagation
@@ -867,9 +833,9 @@ class LwFTrainer(SupervisedTemplate):
 
             # TODO: Commented-out for testing -- remember to uncomment later
             # TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
-            self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
+            '''self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             print(f"Saved {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_experience()")
-
+            '''
             # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
             '''self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
@@ -881,13 +847,14 @@ class LwFTrainer(SupervisedTemplate):
         # Save teacher AFTER completing the experience
         # --------------------------------------------------------
 
-        self.teacher = copy.deepcopy(self.model)
-        self.teacher.eval()
-        #teacher = copy.deepcopy(self.model)
-        #teacher.eval()
+        #self.teacher = copy.deepcopy(self.model)
+        #self.teacher.eval()
+        teacher = copy.deepcopy(self.model)
+        teacher_state_dict = copy.deepcopy(self.model.state_dict())
+        teacher.eval()
 
-        for parameter in self.teacher.parameters():
-        #for parameter in teacher.parameters():
+        #for parameter in self.teacher.parameters():
+        for parameter in teacher.parameters():
             parameter.requires_grad = False
 
         # Add classes from this experience
@@ -897,11 +864,12 @@ class LwFTrainer(SupervisedTemplate):
 
         self.old_classes.update(experience_classes)
 
-        #self.teachers.append(teacher)
-        self.teachers.append(self.teacher)
+        self.teachers.append(teacher)
+        #self.teachers.append(self.teacher)
 
-        self.teachers_state_dict.append(self.teacher.state_dict())
-        #self.teachers_state_dict.append(teacher.state_dict())
+        #self.teachers_state_dict.append(self.teacher.state_dict())
+        ##self.teachers_state_dict.append(teacher.state_dict())
+        self.teachers_state_dict.append(teacher_state_dict)
 
         self.teacher_classes.append(
             sorted(experience.dataset.targets.uniques)
@@ -920,16 +888,6 @@ class LwFTrainer(SupervisedTemplate):
         experiences: Union[TExperienceType, CLStream[TExperienceType]],
         **kwargs,
     ):
-        """
-        Evaluate the current model on a series of experiences and
-        returns the last recorded value for each metric.
-
-        :param exp_list: CL experience information.
-        :param kwargs: custom arguments.
-
-        :return: dictionary containing last recorded value for
-            each metric name
-        """
         if not self._distributed_check:
             # Checks if the strategy elements are compatible with
             # distributed training
@@ -1021,7 +979,7 @@ class LwFTrainer(SupervisedTemplate):
             self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
 
             self._after_eval_iteration(**kwargs) # formerly commented-out
-
+'''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
             exclude = []
@@ -1088,7 +1046,7 @@ class LwFTrainer(SupervisedTemplate):
         print(f"Executing load_entire_checkpoint_inside_class from call made from within _train_exp()")
         return self
 
-
+'''
 
 
 if TRAINING_WITH_LOOP_LwF:
