@@ -87,7 +87,7 @@ from avalanche.training import LearningWithoutForgetting, RegularizationMethod
 from collections.abc import Iterable # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
 from avalanche.evaluation.metrics.accuracy import accuracy_metrics
 from avalanche.core import BasePlugin
-from avalanche.evaluation.metrics import loss_metrics
+from avalanche.evaluation.metrics import loss_metrics, forgetting_metrics, bwt_metrics
 from avalanche.training.plugins.evaluation import default_loggers
 import torch
 from torch.nn import CrossEntropyLoss
@@ -627,8 +627,9 @@ cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer,
 optimizer = SGD(outdoors_specialised_model.parameters(), lr=0.0001, momentum=0.9)
 cl_strategy = NaiveStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), train_mb_size=100, train_epochs=12, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.3, verbose=True)],
-                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True), loggers=InteractiveLogger(), collect_all=True),
-                    eval_every=1)
+                    evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True), loss_metrics(experience=True, stream=True),
+                                               #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
+                                               loggers=InteractiveLogger(), collect_all=True), eval_every=1)
 #TODO: NEXT uncomment the below cl_strategy and test
 '''cl_strategy = EWCStrategy(model=outdoors_specialised_model, optimizer=optimizer, criterion=CrossEntropyLoss(), ewc_lambda=0.9, mode="separate", train_mb_size=100, train_epochs=100, eval_mb_size=100, #device=DEVICE,
                     plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream", metric_name="Loss_Exp", mode="min", peval_mode="epoch", margin=0.8, verbose=True)],
