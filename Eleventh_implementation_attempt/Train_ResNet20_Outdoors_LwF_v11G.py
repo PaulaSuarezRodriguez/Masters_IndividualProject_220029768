@@ -206,8 +206,8 @@ from torch.optim.adam import Adam
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
 TRAINING_WITHOUT_LOOP = False #True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
-TRAINING_WITH_LOOP_LwF = True #False
-DYNAMIC_MODELS = True
+TRAINING_WITH_LOOP_LwF = True
+DYNAMIC_MODELS = False #True
 print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v11.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
@@ -220,7 +220,7 @@ if DYNAMIC_MODELS == False:
 
 if DYNAMIC_MODELS == True:
     resnet20_global_model = ResNet20_DynamicModel(num_classes=100)
-    outdoors_specialised_model = ResNet20_DynamicModel(num_classes=10) #No need for num_classes=10 anymore despite 10 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+    outdoors_specialised_model = ResNet20_DynamicModel(num_classes=2) #No need for num_classes=10 anymore despite 10 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     nature_specialised_model = ResNet20_DynamicModel(num_classes=15) #No need for num_classes=15 anymore despite 15 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     people_specialised_model = ResNet20_DynamicModel(num_classes=5) #No need for num_classes=5 anymore despite 5 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     animals_specialised_model = ResNet20_DynamicModel(num_classes=45) #No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
@@ -463,7 +463,6 @@ class LwFTrainer(SupervisedTemplate):
         weight_decay=5e-4,
         temperature=2.0,
         alpha=1.0,
-        #batch_size=32,
         train_mb_size: int = 1,
         train_epochs: int = 1,
         eval_mb_size: Optional[int] = None,
@@ -485,7 +484,6 @@ class LwFTrainer(SupervisedTemplate):
 
         self.temperature = temperature
         self.alpha = alpha
-        #self.batch_size = batch_size
 
         self.optimizer = torch.optim.SGD(
             self.model.parameters(),
@@ -545,7 +543,6 @@ class LwFTrainer(SupervisedTemplate):
         #self.teacher = None
         self.teachers = []
         self.teacher_classes = []
-        self.teachers_state_dict = []
 
         # Classes learned before current experience
         self.old_classes = set()
@@ -643,7 +640,10 @@ class LwFTrainer(SupervisedTemplate):
         self._before_training(**kwargs)
 
         for self.experience in experiences_list:
+            '''self.model.linear.adaptation(self.experience)
+            self.model.classfier.adaptation(self.experience)'''
             self._before_training_exp(**kwargs)
+            self.add_classes(self.model, len(self.experience.classes_in_this_experience))
             self.train_experience(self.experience, eval_streams, **kwargs)
             # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
             self.evaluate_all_experiences(self.experience, eval_streams)
@@ -651,10 +651,6 @@ class LwFTrainer(SupervisedTemplate):
         self._after_training(**kwargs)
         self._train_cleanup()
 
-    #def train_experience(self, experience: CLExperience, eval_streams: Union[TExperienceType, CLStream[TExperienceType]],**kwargs, ):#def train_experience(self, experience: CLExperience, eval_streams: Optional[Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None,**kwargs,): #def train_experience(self, experience: CLExperience, experiences: Union[TExperienceType, CLStream[TExperienceType]]): #def train_experience(self, experience: CLExperience, eval_streams=None, epochs=1, ** kwargs):
-    # definition of train, not of train_exp in source code --> def train_experience(self, experiences: Union[TExperienceType, Iterable[TExperienceType]], eval_streams: Optional[Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None,**kwargs,):
-    #def train_experience(self, experience: CLExperience, eval_streams: Union[CLExperience, CLStream],**kwargs, ):
-    #def train_experience(self, experience: CLExperience, eval_streams=None, **kwargs):
     def train_experience(self, experience: CLExperience, eval_streams=None, **kwargs):
         if eval_streams is None:
             eval_streams = [experience]
@@ -681,6 +677,8 @@ class LwFTrainer(SupervisedTemplate):
 
                 self.unpack_minibatch()
 
+                self._before_training_iteration(**kwargs) #TODO: NEW, in testing
+
                 #batch = batch.to(self.device)
                 targets = self.mb_y #experience.dataset.targets #.uniques
 
@@ -690,52 +688,19 @@ class LwFTrainer(SupervisedTemplate):
                 # Current model
                 # ------------------------------------------------
                 #I think I added this myself -- self.mb_output = self.model(self.mbatch)
-
+                self._before_forward(**kwargs)
                 #student_logits is student output, which in a single-loss set-up would be " self.mb_output = self.forward() "
-                student_logits = self.model(self.mb_x) #student_logits = self.model(self.mbatch) #student_logits = self.model(batch)
+                self.mb_output = self.model(self.mb_x)#student_logits = self.model(self.mb_x) #student_logits = self.model(self.mbatch) #student_logits = self.model(batch)
+                self._after_forward(**kwargs)
 
                 # ------------------------------------------------
                 # Ordinary CE loss for current experience
                 # ------------------------------------------------
 
                 ce_loss = self.criterion(
-                    student_logits,
+                    self.mb_output, #student_logits,
                     targets,
                 )
-
-                # ------------------------------------------------
-                # LwF
-                # ------------------------------------------------
-
-                '''if self.teacher is not None:
-
-                    with torch.no_grad():
-                        teacher_logits =self.teacher(self.mb_x) #self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
-
-                    # Only old classes
-                    old_classes = sorted(self.old_classes)
-
-                    student_old = student_logits[:, old_classes]
-                    teacher_old = teacher_logits[:, old_classes]
-
-                    dist_loss = self.distillation_loss(
-                        student_old,
-                        teacher_old,
-                    )
-
-                    loss = (
-                        ce_loss
-                        + self.alpha * dist_loss
-                    )
-
-                else:
-
-                    dist_loss = torch.tensor(
-                        0.0,
-                        device=self.device,
-                    )
-
-                    loss = ce_loss'''
 
                 # ------------------------------------------------
                 # LwF
@@ -745,47 +710,35 @@ class LwFTrainer(SupervisedTemplate):
                     0.0,
                     device=self.device
                 )
-                '''print("dist_loss = torch.tensor(total_dist,device=self.device)")
-                dist_loss = torch.tensor(
-                    total_dist,
-                    device=self.device
-                )'''
                 if len(self.teachers)>0:#if self.teachers is not None:
-                    for teacher, teacher_state_dict, classes in zip(
+                    for teacher, classes in zip(#for teacher, teacher_state_dict, classes in zip(
                             self.teachers,
-                            self.teachers_state_dict,
+                            #self.teachers_state_dict,
                             self.teacher_classes
                     ):
                         with torch.no_grad():
-                            teacher.load_state_dict(teacher_state_dict)#teacher_state_dict = teacher.load_state_dict(teacher_state_dict)
+                            #teacher.load_state_dict(teacher_state_dict)#teacher_state_dict = teacher.load_state_dict(teacher_state_dict)
                             teacher_logits = teacher(self.mb_x)#self.teacher(self.mb_x)
 
-                        '''student_old = student_logits[:, classes]
-                        teacher_old = teacher_logits[:, classes]'''
                         classes = torch.tensor(
                             sorted(classes),
                             device=self.device,
                             dtype=torch.long
                         )
-                        student_old = student_logits.index_select(1, classes)
+                        student_old = self.mb_output.index_select(1, classes)#student_logits.index_select(1, classes)
                         teacher_old = teacher_logits.index_select(1, classes)
 
                         dist_loss += self.distillation_loss(
                             student_old, #student logits does not work
                             teacher_old
                         )
-                        #dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
-                        if MATCH_AUTHOR_LOSS:
-                            loss = ce_loss + self.alpha * dist_loss
-                        if MATCH_AUTHOR_LOSS == False:
-                            loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss))#loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
+                    #dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
+                    if MATCH_AUTHOR_LOSS:
+                        loss = ce_loss + self.alpha * dist_loss
+                    if MATCH_AUTHOR_LOSS == False:
+                        loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss))#loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
 
                 else:
-                    '''dist_loss = torch.tensor(
-                            0.0,
-                            device=self.device,
-                        )'''
-
                     loss = ce_loss
 
                 # ------------------------------------------------
@@ -806,14 +759,14 @@ class LwFTrainer(SupervisedTemplate):
 
                 n += 1 #n = len(self.dataloader)
 
+                self._after_training_iteration(**kwargs) #TODO: NEW, in testing
+
             print(
                 f"Epoch {_}/{self.train_epochs} | "
                 f"CE: {total_ce / n:.6f} | "
                 f"LwF: {total_dist / n:.6f} | "
                 f"Total: {total_loss / n:.6f}"
             )
-
-            '''self.eval(eval_streams)'''
 
             # TODO: Commented-out for testing -- remember to uncomment later
             # TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
@@ -824,20 +777,14 @@ class LwFTrainer(SupervisedTemplate):
             '''self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
             '''
-            '''self._eval_streams=eval_streams'''
             self._after_training_epoch(**kwargs)
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
         # --------------------------------------------------------
-
-        #self.teacher = copy.deepcopy(self.model)
-        #self.teacher.eval()
         teacher = copy.deepcopy(self.model)
-        teacher_state_dict = copy.deepcopy(self.model.state_dict())
         teacher.eval()
 
-        #for parameter in self.teacher.parameters():
         for parameter in teacher.parameters():
             parameter.requires_grad = False
 
@@ -849,11 +796,6 @@ class LwFTrainer(SupervisedTemplate):
         self.old_classes.update(experience_classes)
 
         self.teachers.append(teacher)
-        #self.teachers.append(self.teacher)
-
-        #self.teachers_state_dict.append(self.teacher.state_dict())
-        ##self.teachers_state_dict.append(teacher.state_dict())
-        self.teachers_state_dict.append(teacher_state_dict)
 
         self.teacher_classes.append(
             sorted(experience.dataset.targets.uniques)
@@ -863,8 +805,60 @@ class LwFTrainer(SupervisedTemplate):
             f"Teacher updated. "
             f"Old classes = {sorted(self.old_classes)}"
         )
+        self.alpha += 0.05
 
-        '''self.eval(eval_streams)'''
+
+    def add_classes(self, model, num_new_classes: int):
+        if DYNAMIC_MODELS == True:
+            if num_new_classes <= 0:
+                return []
+
+            old_num_classes = model.num_classes
+            new_num_classes = old_num_classes + num_new_classes
+
+            old_classifier = model.linear #old_classifier = model.classifier
+
+            new_classifier = nn.Linear(
+                int(model.in_features),
+                int(new_num_classes),
+                #bias=self.bias,
+            ).to(
+                device=old_classifier.weight.device
+                if old_classifier is not None
+                else None,
+                dtype=old_classifier.weight.dtype
+                if old_classifier is not None
+                else None,
+            )
+
+            if old_classifier is not None:
+
+                with torch.no_grad():
+
+                    new_classifier.weight[
+                        :old_num_classes
+                    ].copy_(
+                        old_classifier.weight
+                    )
+
+                    #if self.bias:
+                    new_classifier.bias[
+                        :old_num_classes
+                    ].copy_(
+                        old_classifier.bias
+                    )
+
+            model.linear = new_classifier # self.classifier = new_classifier
+            model.num_classes = new_num_classes
+
+            return list(
+                new_classifier.parameters()
+            )
+
+        if DYNAMIC_MODELS == False:
+            return exit
+
+
 
     @torch.no_grad()
     def eval(
@@ -892,6 +886,7 @@ class LwFTrainer(SupervisedTemplate):
         self._before_eval(**kwargs)
         for self.experience in experiences_list:
             self._before_eval_exp(**kwargs)
+            self.add_classes(self.model, len(self.experience.classes_in_this_experience))
             self.eval_experience()#self._eval_exp(**kwargs)
             self._after_eval_exp(**kwargs)
 
@@ -1206,17 +1201,17 @@ After training Experience 2:
   
  # past alpha 0.5 , the model fails to learn anything new. 0.5 is tthe upper limit for the model to at least learn more that 0.5% acc for experiences past Exp 0
 '''
-MATCH_AUTHOR_DISTILL = True
-MATCH_AUTHOR_LOSS = False
-#DYNAMIC_MODELS = True
+MATCH_AUTHOR_DISTILL = False#True
+MATCH_AUTHOR_LOSS = False#True #False
+#DYNAMIC_MODELS = False #True
 
 if TRAINING_WITH_LOOP_LwF:
 
     #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.0001, momentum=0.9, weight_decay=5e-4,
-                             temperature=2.0, alpha=5.0,#temperature=9.0, alpha=0.5,#temperature=4.0, alpha=5.0,
-                             train_mb_size=32, train_epochs=5, eval_mb_size=100, #eval_mb_size=32, #device=DEVICE,
-                             plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream",
+                             temperature=0.2, alpha=0.1,#temperature=4.0, alpha=5.0,
+                             train_mb_size=100, train_epochs=100, eval_mb_size=100, #eval_mb_size=32, #device=DEVICE,
+                             plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",
                                                                metric_name="Loss_Exp", mode="min", peval_mode="epoch",
                                                                margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True),
@@ -1232,6 +1227,8 @@ if TRAINING_WITH_LOOP_LwF:
     checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
     for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+        if i == 4:
+            break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
         print("Start of experience -- current VAL experience: ",outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
         print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
