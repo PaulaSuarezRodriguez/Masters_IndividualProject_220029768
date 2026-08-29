@@ -648,7 +648,7 @@ class LwFTrainer(SupervisedTemplate):
             self._before_training_exp(**kwargs)
             '''new_parameters=self.add_classes(self.model, len(self.experience.classes_in_this_experience))
             self.optimizer.add_param_group({"params": new_parameters})'''
-            self.register_new_classes(self.experience)
+            #self.register_new_classes(self.experience)
             self.add_classes(self.model, len(self.experience.classes_in_this_experience))
             # IMPORTANT:
             # recreate optimizer after classifier expansion
@@ -696,7 +696,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 #batch = batch.to(self.device)
                 #remap_targets(self, targets)
-                targets = self.remap_targets(self.mb_y)#targets = self.mb_y #experience.dataset.targets #.uniques
+                targets = self.mb_y #targets = self.remap_targets(self.mb_y)#targets = self.mb_y #experience.dataset.targets #.uniques
 
                 self.optimizer.zero_grad()
 
@@ -736,12 +736,15 @@ class LwFTrainer(SupervisedTemplate):
                             #teacher.load_state_dict(teacher_state_dict)#teacher_state_dict = teacher.load_state_dict(teacher_state_dict)
                             teacher_logits = teacher(self.mb_x)#self.teacher(self.mb_x)
 
-                        '''classes = torch.tensor(
+                        classes = torch.tensor(
                             sorted(classes),
                             device=self.device,
                             dtype=torch.long
-                        )'''
-                        class_indices = torch.tensor(
+                        )
+                        student_old = self.mb_output.index_select(1, classes)#student_logits.index_select(1, classes)
+                        teacher_old = teacher_logits.index_select(1, classes)
+
+                        '''class_indices = torch.tensor(
                             [
                                 self.class_to_idx[c]
                                 for c in sorted(classes)
@@ -749,10 +752,8 @@ class LwFTrainer(SupervisedTemplate):
                             device=self.device,
                             dtype=torch.long
                         )
-                        '''student_old = self.mb_output.index_select(1, classes)#student_logits.index_select(1, classes)
-                        teacher_old = teacher_logits.index_select(1, classes)'''
                         student_old = self.mb_output.index_select(1, class_indices)  # student_logits.index_select(1, classes)
-                        teacher_old = teacher_logits.index_select(1, class_indices)
+                        teacher_old = teacher_logits.index_select(1, class_indices)'''
 
                         dist_loss += self.distillation_loss(
                             student_old, #student logits does not work
@@ -922,7 +923,7 @@ class LwFTrainer(SupervisedTemplate):
             old_num_classes = model.num_classes
             new_num_classes = old_num_classes + num_new_classes
 
-            old_classifier = model.linear
+            old_classifier = copy.deepcopy(model.linear) # WHICH GIVES EXACTLY THE SAME RESULTS AS old_classifier = model.linear
 
             new_classifier = nn.Linear(
                 model.in_features,
@@ -1098,14 +1099,14 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.remap_targets(self.mb_y) #targets = self.mb_y #TODO: RE-MAPPING OF TARGETS, BEING TESTED!!!! Remove later
+                        targets = self.mb_y #targets = self.remap_targets(self.mb_y) #targets = self.mb_y #TODO: RE-MAPPING OF TARGETS, BEING TESTED!!!! Remove later
 
                         student_logits = self.model(self.mb_x)
                         loss = self.criterion(student_logits, targets)
 
                         total_loss += loss.item() * targets.size(0)
                         predictions = torch.argmax(student_logits, dim=1)
-                        targets = self.map_targets_to_original(self.mb_y) #TODO: Just invented this function, brand new!!
+                        #targets = self.map_targets_to_original(self.mb_y) #TODO: Just invented this function, brand new!!
                         total_correct += (predictions == targets).sum().item()
                         total_samples += targets.size(0)
 
@@ -1209,7 +1210,7 @@ class LwFTrainer(SupervisedTemplate):
                                 persistent_workers=persistent_workers,
                                 drop_last=drop_last, )
         return eval_dataloader
-
+'''
     def register_new_classes(self, experience: CLExperience):
 
         for class_id in sorted(experience.classes_in_this_experience):
@@ -1243,7 +1244,7 @@ class LwFTrainer(SupervisedTemplate):
             device=targets.device,
             dtype=torch.long
         )
-
+'''
 '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
