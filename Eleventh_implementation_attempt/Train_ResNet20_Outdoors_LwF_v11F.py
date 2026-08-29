@@ -1227,7 +1227,7 @@ After training Experience 2:
   - Tested on Experience 1: 10.50%
   - Tested on Experience 2: 5.00%
   
- # past alpha 0.5 , the model fails to learn anything new. 0.5 is tthe upper limit for the model to at least learn more that 0.5% acc for experiences past Exp 0
+ # past alpha 0.5 , the model fails to learn anything new. 0.5 is the upper limit for the model to at least learn more that 0.5% acc for experiences past Exp 0
 '''
 
 if TRAINING_WITH_LOOP_LwF:

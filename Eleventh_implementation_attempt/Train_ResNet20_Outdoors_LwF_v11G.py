@@ -1199,7 +1199,33 @@ After training Experience 2:
   - Tested on Experience 1: 10.50%
   - Tested on Experience 2: 5.00%
   
- # past alpha 0.5 , the model fails to learn anything new. 0.5 is tthe upper limit for the model to at least learn more that 0.5% acc for experiences past Exp 0
+ # past alpha 0.5 , the model fails to learn anything new. 0.5 is the upper limit for the model to at least learn more that 0.5% acc for experiences past Exp 0
+ 
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+WITH self.alpha += 0.05 AFTER EVERY EXPERIENCE 
+lr=0.0001, temperature=0.2, alpha=0.1, train_mb_size=100, train_epochs=100, eval_mb_size=100, plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",
+                                                               metric_name="Loss_Exp", mode="min", peval_mode="epoch",
+                                                               margin=0.3, verbose=True)],
+
+After training Experience 0:
+  - Tested on Experience 0: 49.50%
+
+After training Experience 1:
+  - Tested on Experience 0: 22.50%
+  - Tested on Experience 1: 31.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 23.50%
+  - Tested on Experience 1: 40.50%
+  - Tested on Experience 2: 19.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 23.50%
+  - Tested on Experience 1: 40.50%
+  - Tested on Experience 2: 19.50%
+  - Tested on Experience 3: 0.00%
+
 '''
 MATCH_AUTHOR_DISTILL = False#True
 MATCH_AUTHOR_LOSS = False#True #False
