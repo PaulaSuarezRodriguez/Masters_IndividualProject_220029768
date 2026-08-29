@@ -673,14 +673,14 @@ class LwFTrainer(SupervisedTemplate):
             # After training each experience, evaluate on ALL previous experiences
             self.evaluate_all_experiences(self.experience, eval_streams)
             # Compute and print backward transfer
-            self.compute_backward_transfer(eval_streams)
+            #self.compute_backward_transfer(eval_streams)
 
             self._after_training_exp(**kwargs)
 
             # After training each experience, evaluate on ALL previous experiences
             #self.evaluate_all_experiences(experiences_list)
         # Compute and print backward transfer
-        #self.compute_backward_transfer(experiences_list)
+        #self.compute_backward_transfer(eval_streams)
 
         self._after_training(**kwargs)
         self._train_cleanup()
@@ -996,7 +996,7 @@ class LwFTrainer(SupervisedTemplate):
 
             self._after_eval_iteration(**kwargs) # formerly commented-out
 
-    def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None,):
+    '''def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None,):
         """Evaluate on all experiences seen so far."""
         print(f"\n{'=' * 60}")
         print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")# {self.experience.current_experience}")
@@ -1017,8 +1017,6 @@ class LwFTrainer(SupervisedTemplate):
 
         self.model.eval()
 
-        eval_results = {}
-
         for stream_idx, eval_stream in enumerate(eval_streams):
             if not isinstance(eval_stream, Iterable):
                 eval_stream = [eval_stream]
@@ -1030,6 +1028,68 @@ class LwFTrainer(SupervisedTemplate):
                 exp_id = exp.current_experience
 
                 # Don't re-evaluate the experience we just trained on if already done
+                if exp_id >= current_exp_id:
+                    break
+
+                # Prepare eval data
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_mine(eval_adapted_dataset, self.eval_mb_size)
+
+                total_loss = 0.0
+                total_correct = 0
+                total_samples = 0
+
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets = self.mb_y
+
+                        student_logits = self.model(self.mb_x)
+                        loss = self.criterion(student_logits, targets)
+
+                        total_loss += loss.item() * targets.size(0)
+                        predictions = torch.argmax(student_logits, dim=1)
+                        total_correct += (predictions == targets).sum().item()
+                        total_samples += targets.size(0)
+
+                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
+                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+
+                # Store results
+                self.experience_accuracies[current_exp_id][exp_id] = accuracy
+                self.experience_losses[current_exp_id][exp_id] = avg_loss
+
+                print(
+                    f"AFTER TRAINING ON Exp {current_exp_id}, "
+                    f"performance of model on previously learned Exp {exp_id} ({stream_name}_stream_exp_{exp_id})--> Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                )'''
+
+    def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
+        Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
+        """Evaluate on all experiences seen so far."""
+        print(f"\n{'=' * 60}")
+        print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
+        print(f"{'=' * 60}\n")
+
+        current_exp_id = experience.current_experience
+
+        if current_exp_id not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id] = {}
+            self.experience_losses[current_exp_id] = {}
+
+        if eval_streams is None:
+            eval_streams = [experience]
+
+        self.model.eval()
+
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
+
+            for exp in eval_stream:
+                exp_id = exp.current_experience
+
+                # Don't evaluate future experiences
                 if exp_id > current_exp_id:
                     break
 
@@ -1062,49 +1122,28 @@ class LwFTrainer(SupervisedTemplate):
                 self.experience_losses[current_exp_id][exp_id] = avg_loss
 
                 print(
-                    f"After training Exp {current_exp_id}, "
-                    f"Exp {exp_id}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                    f"AFTER TRAINING ON Exp {current_exp_id}, "
+                    f"performance on Exp {exp_id}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
                 )
 
-    def compute_backward_transfer(self, eval_streams: Optional[Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None,):
-        """
-        Compute backward transfer metric.
+        # Compute backward transfer AFTER all evaluations
+        self._compute_backward_transfer_internal()
 
-        Backward Transfer (BWT) = average decrease in accuracy on previous tasks
-        when learning a new task.
-
-        BWT = (1/T) * sum_{i=0}^{T-1} (Acc_{T,i} - Acc_{i,i})
-
-        where:
-        - Acc_{j,i} = accuracy on task i after training on task j
-        - Acc_{i,i} = accuracy on task i right after training on it (diagonal)
-        - Lower BWT (more negative) = more forgetting
-        """
+    def _compute_backward_transfer_internal(self):
+        """Compute and print backward transfer after evaluation."""
         print(f"\n{'=' * 80}")
         print(f"BACKWARD TRANSFER ANALYSIS")
         print(f"{'=' * 80}\n")
 
-        # Build results matrix
-        num_experiences = len(list(eval_streams))
         exp_ids = sorted(self.experience_accuracies.keys())
 
-        print("Accuracy Matrix (rows: trained up to exp, cols: tested on exp):")
-        print("-" * (num_experiences * 12 + 10))
-        print(f"{'Trained':<10}", end="")
-        for exp_id in range(num_experiences):
-            print(f"Exp{exp_id:>0}", end="")
-        print()
-        print("-" * (num_experiences * 12 + 10))
-
+        # Print accuracy results
+        print("Accuracy Results:")
         for trained_exp_id in exp_ids:
-            print(f"After Exp{trained_exp_id:<3}", end="")
-            for test_exp_id in range(num_experiences):
-                if test_exp_id in self.experience_accuracies[trained_exp_id]:
-                    acc = self.experience_accuracies[trained_exp_id][test_exp_id]
-                    print(f"{acc:>8.2f}%", end="")
-                else:
-                    print(f"{'N/A':>8}", end="")
-            print()
+            print(f"\nAfter training Experience {trained_exp_id}:")
+            for test_exp_id in sorted(self.experience_accuracies[trained_exp_id].keys()):
+                acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                print(f"  - Tested on Experience {test_exp_id}: {acc:.2f}%")
 
         print("\n" + "-" * 80 + "\n")
 
@@ -1112,19 +1151,18 @@ class LwFTrainer(SupervisedTemplate):
         bwt_per_task = {}
         all_bwt_values = []
 
-        for test_exp_id in range(num_experiences):
-            # Get diagonal (accuracy right after training on this task)
+        for test_exp_id in range(max(exp_ids) + 1 if exp_ids else 0):
+            # Find diagonal accuracy (right after training on this task)
             diagonal_acc = None
             for trained_exp_id in exp_ids:
-                if trained_exp_id >= test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
-                    if trained_exp_id == test_exp_id:
-                        diagonal_acc = self.experience_accuracies[trained_exp_id][test_exp_id]
-                        break
+                if trained_exp_id == test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
+                    diagonal_acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                    break
 
             if diagonal_acc is None:
                 continue
 
-            # Get accuracy after training all subsequent tasks
+            # Find final accuracy (after training all subsequent tasks)
             final_acc = None
             for trained_exp_id in reversed(exp_ids):
                 if trained_exp_id >= test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
@@ -1137,20 +1175,20 @@ class LwFTrainer(SupervisedTemplate):
                 all_bwt_values.append(bwt)
 
                 print(
-                    f"Task {test_exp_id}: "
-                    f"Accuracy right after training = {diagonal_acc:.2f}% | "
-                    f"Accuracy at the end = {final_acc:.2f}% | "
-                    f"BWT = {bwt:+.2f}%"
+                    f"Experience {test_exp_id}:\n"
+                    f"  Accuracy on Exp {test_exp_id} right after training on Exp {test_exp_id} = {diagonal_acc:.2f}%\n"
+                    f"  Accuracy on Exp {test_exp_id} after training on Exp {trained_exp_id} = {final_acc:.2f}%\n"#f"  Accuracy at the end = {final_acc:.2f}%\n"
+                    f"  BWT = {bwt:+.2f}%\n"
                 )
 
         if all_bwt_values:
             mean_bwt = sum(all_bwt_values) / len(all_bwt_values)
-            print(f"\nMean Backward Transfer (BWT): {mean_bwt:+.2f}%")
+            print(f"Mean Backward Transfer (BWT): {mean_bwt:+.2f}%")
             print(f"  Positive BWT = improvement on old tasks (good)")
             print(f"  Negative BWT = forgetting on old tasks (bad)")
             print(f"  BWT ≈ 0 = stable performance (ideal)")
 
-        print("\n" + "=" * 80 + "\n")
+        print("=" * 80 + "\n")
 
         return bwt_per_task
 

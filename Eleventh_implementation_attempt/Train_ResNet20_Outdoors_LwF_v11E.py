@@ -833,7 +833,7 @@ class LwFTrainer():
                 f"Total: {total_loss / n:.6f}"
             )
             # ===== EVALUATION AFTER EACH EPOCH =====
-            print(f"\nEvaluating after Epoch {_} of Experience {experience.current_experience} --- from inside train_experience() *****\n:")
+            print(f"\nEvaluating after Epoch {_} of Experience {experience.current_experience} --- from inside train_experience():\n")
             self.evaluate_experience(experience, eval_streams, **kwargs)
 
             '''self.eval(eval_streams)'''
