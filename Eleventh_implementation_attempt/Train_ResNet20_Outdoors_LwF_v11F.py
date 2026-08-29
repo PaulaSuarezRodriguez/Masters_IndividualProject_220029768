@@ -629,7 +629,7 @@ class LwFTrainer(SupervisedTemplate):
                 F.kl_div(
                     student_log_probs,
                     teacher_probs,
-                    reduction="batchmean",
+                    reduction="batchmean"
                 )
                 * (T ** 2)
         )
@@ -670,19 +670,9 @@ class LwFTrainer(SupervisedTemplate):
         for self.experience in experiences_list:
             self._before_training_exp(**kwargs)
             self.train_experience(self.experience, eval_streams, **kwargs)
-
-            # After training each experience, evaluate on ALL previous experiences
-            self.evaluate_all_experiences(experiences_list)
-            # Compute and print backward transfer
-            self.compute_backward_transfer(experiences_list)
-
+            # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
+            self.evaluate_all_experiences(self.experience, eval_streams)
             self._after_training_exp(**kwargs)
-
-            # After training each experience, evaluate on ALL previous experiences
-            self.evaluate_all_experiences(experiences_list)
-            # Compute and print backward transfer
-            self.compute_backward_transfer(experiences_list)
-
         self._after_training(**kwargs)
         self._train_cleanup()
 
@@ -811,7 +801,7 @@ class LwFTrainer(SupervisedTemplate):
                         )
                         #dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
 
-                    loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
+                    loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss))#loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
 
                 else:
                     '''dist_loss = torch.tensor(
@@ -997,100 +987,87 @@ class LwFTrainer(SupervisedTemplate):
 
             self._after_eval_iteration(**kwargs) # formerly commented-out
 
-    def evaluate_all_experiences(self, experiences_list):
+
+    def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
+        Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
         """Evaluate on all experiences seen so far."""
         print(f"\n{'=' * 60}")
-        print(f"EVALUATING ALL EXPERIENCES UP TO {self.experience.current_experience}")
+        print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
         print(f"{'=' * 60}\n")
 
-        current_exp_id = self.experience.current_experience
+        current_exp_id = experience.current_experience
 
         if current_exp_id not in self.experience_accuracies:
             self.experience_accuracies[current_exp_id] = {}
             self.experience_losses[current_exp_id] = {}
 
+        if eval_streams is None:
+            eval_streams = [experience]
+
         self.model.eval()
 
-        # Evaluate on all experiences up to and including current
-        for exp in experiences_list:
-            exp_id = exp.current_experience
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
 
-            # Don't re-evaluate the experience we just trained on if already done
-            if exp_id > current_exp_id:
-                break
+            for exp in eval_stream:
+                exp_id = exp.current_experience
 
-            # Prepare eval data
-            self.eval_adapted_dataset = exp.dataset.eval()
-            self.make_eval_dataloader(self.eval_adapted_dataset, self.eval_mb_size)
+                # Don't evaluate future experiences
+                if exp_id > current_exp_id:
+                    break
 
-            total_loss = 0.0
-            total_correct = 0
-            total_samples = 0
+                # Prepare eval data
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-            with torch.no_grad():
-                for self.mbatch in self.eval_dataloader:
-                    self.unpack_minibatch()
-                    targets = self.mb_y
+                total_loss = 0.0
+                total_correct = 0
+                total_samples = 0
 
-                    student_logits = self.model(self.mb_x)
-                    loss = self.criterion(student_logits, targets)
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets = self.mb_y
 
-                    total_loss += loss.item() * targets.size(0)
-                    predictions = torch.argmax(student_logits, dim=1)
-                    total_correct += (predictions == targets).sum().item()
-                    total_samples += targets.size(0)
+                        student_logits = self.model(self.mb_x)
+                        loss = self.criterion(student_logits, targets)
 
-            avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
-            accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+                        total_loss += loss.item() * targets.size(0)
+                        predictions = torch.argmax(student_logits, dim=1)
+                        total_correct += (predictions == targets).sum().item()
+                        total_samples += targets.size(0)
 
-            # Store results
-            self.experience_accuracies[current_exp_id][exp_id] = accuracy
-            self.experience_losses[current_exp_id][exp_id] = avg_loss
+                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
+                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
 
-            print(
-                f"After training Exp {current_exp_id}, "
-                f"Exp {exp_id}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
-            )
+                # Store results
+                self.experience_accuracies[current_exp_id][exp_id] = accuracy
+                self.experience_losses[current_exp_id][exp_id] = avg_loss
 
-    def compute_backward_transfer(self, experiences_list):
-        """
-        Compute backward transfer metric.
+                print(
+                    f"AFTER TRAINING ON Exp {current_exp_id}, "
+                    f"performance on Exp {exp_id}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                )
 
-        Backward Transfer (BWT) = average decrease in accuracy on previous tasks
-        when learning a new task.
+        # Compute backward transfer AFTER all evaluations
+        self._compute_backward_transfer_internal()
 
-        BWT = (1/T) * sum_{i=0}^{T-1} (Acc_{T,i} - Acc_{i,i})
-
-        where:
-        - Acc_{j,i} = accuracy on task i after training on task j
-        - Acc_{i,i} = accuracy on task i right after training on it (diagonal)
-        - Lower BWT (more negative) = more forgetting
-        """
+    def _compute_backward_transfer_internal(self):
+        """Compute and print backward transfer after evaluation."""
         print(f"\n{'=' * 80}")
         print(f"BACKWARD TRANSFER ANALYSIS")
         print(f"{'=' * 80}\n")
 
-        # Build results matrix
-        num_experiences = len(list(experiences_list))
         exp_ids = sorted(self.experience_accuracies.keys())
 
-        print("Accuracy Matrix (rows: trained up to exp, cols: tested on exp):")
-        print("-" * (num_experiences * 12 + 10))
-        print(f"{'Trained':<10}", end="")
-        for exp_id in range(num_experiences):
-            print(f"Exp{exp_id:>8}", end="")
-        print()
-        print("-" * (num_experiences * 12 + 10))
-
+        # Print accuracy results
+        print("Accuracy Results:")
         for trained_exp_id in exp_ids:
-            print(f"After Exp{trained_exp_id:<3}", end="")
-            for test_exp_id in range(num_experiences):
-                if test_exp_id in self.experience_accuracies[trained_exp_id]:
-                    acc = self.experience_accuracies[trained_exp_id][test_exp_id]
-                    print(f"{acc:>8.2f}%", end="")
-                else:
-                    print(f"{'N/A':>8}", end="")
-            print()
+            print(f"\nAfter training Experience {trained_exp_id}:")
+            for test_exp_id in sorted(self.experience_accuracies[trained_exp_id].keys()):
+                acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                print(f"  - Tested on Experience {test_exp_id}: {acc:.2f}%")
 
         print("\n" + "-" * 80 + "\n")
 
@@ -1098,19 +1075,18 @@ class LwFTrainer(SupervisedTemplate):
         bwt_per_task = {}
         all_bwt_values = []
 
-        for test_exp_id in range(num_experiences):
-            # Get diagonal (accuracy right after training on this task)
+        for test_exp_id in range(max(exp_ids) + 1 if exp_ids else 0):
+            # Find diagonal accuracy (right after training on this task)
             diagonal_acc = None
             for trained_exp_id in exp_ids:
-                if trained_exp_id >= test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
-                    if trained_exp_id == test_exp_id:
-                        diagonal_acc = self.experience_accuracies[trained_exp_id][test_exp_id]
-                        break
+                if trained_exp_id == test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
+                    diagonal_acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                    break
 
             if diagonal_acc is None:
                 continue
 
-            # Get accuracy after training all subsequent tasks
+            # Find final accuracy (after training all subsequent tasks)
             final_acc = None
             for trained_exp_id in reversed(exp_ids):
                 if trained_exp_id >= test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
@@ -1123,22 +1099,46 @@ class LwFTrainer(SupervisedTemplate):
                 all_bwt_values.append(bwt)
 
                 print(
-                    f"Task {test_exp_id}: "
-                    f"Accuracy right after training = {diagonal_acc:.2f}% | "
-                    f"Accuracy at the end = {final_acc:.2f}% | "
-                    f"BWT = {bwt:+.2f}%"
+                    f"Experience {test_exp_id}:\n"
+                    f"  Accuracy on Exp {test_exp_id} right after training on Exp {test_exp_id} = {diagonal_acc:.2f}%\n"
+                    f"  Accuracy on Exp {test_exp_id} after training on Exp {trained_exp_id} = {final_acc:.2f}%\n"#f"  Accuracy at the end = {final_acc:.2f}%\n"
+                    f"  BWT = {bwt:+.2f}%\n"
                 )
 
         if all_bwt_values:
             mean_bwt = sum(all_bwt_values) / len(all_bwt_values)
-            print(f"\nMean Backward Transfer (BWT): {mean_bwt:+.2f}%")
+            print(f"Mean Backward Transfer (BWT): {mean_bwt:+.2f}%")
             print(f"  Positive BWT = improvement on old tasks (good)")
             print(f"  Negative BWT = forgetting on old tasks (bad)")
             print(f"  BWT ≈ 0 = stable performance (ideal)")
 
-        print("\n" + "=" * 80 + "\n")
+        print("=" * 80 + "\n")
 
         return bwt_per_task
+
+    def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
+            # experiences: Union[TExperienceType, Iterable[TExperienceType]],
+            eval_adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
+            batch_size: int,
+            num_workers=0,
+            shuffle=True,
+            pin_memory=None,
+            persistent_workers=False,
+            drop_last=False,
+            **kwargs
+    ):
+        assert eval_adapted_dataset is not None
+        # CODE FOR "other_dataloader_args = self._obtain_common_dataloader_parameters(..." DELETED, as it does not seem like I needed for the reasons explained above
+        # CODE FOR "use task-balanced dataloader for task-aware benchmarks" DELETED since it was causing data type issues and I am not gonna be using task-aware/task-IL benchmark (AT LEAST NOT FOR NOW!)
+        eval_dataloader = DataLoader(eval_adapted_dataset,
+                                batch_size=self.eval_mb_size,
+                                num_workers=num_workers,
+                                shuffle=shuffle,
+                                pin_memory=pin_memory,
+                                persistent_workers=persistent_workers,
+                                drop_last=drop_last, )
+        return eval_dataloader
+
 '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
@@ -1207,13 +1207,34 @@ class LwFTrainer(SupervisedTemplate):
         return self
 
 '''
+'''
+temperature=0.4, alpha=0.5, train_epochs=5 -- struggles to learn new experiences (definitely by more that 11D), but retains previous experiences way better than 11D (where loss is LwF loss instead of KD final loss)
+After training Experience 2:
+  - Tested on Experience 0: 44.50%
+  - Tested on Experience 1: 11.00%
+  - Tested on Experience 2: 5.00%
 
+
+temperature=0.8, alpha=0.5, train_epochs=5
+After training Experience 2:
+  - Tested on Experience 0: 45.50%
+  - Tested on Experience 1: 12.00%
+  - Tested on Experience 2: 4.00%
+
+temperature=0.1, alpha=0.5, train_epochs=5 # SO IT SEEMS THAT TEMPERATURE VALUE HAS PRACTICALLY NO EFFECT
+After training Experience 2:
+  - Tested on Experience 0: 42.00%
+  - Tested on Experience 1: 10.50%
+  - Tested on Experience 2: 5.00%
+  
+ # past alpha 0.5 , the model fails to learn anything new. 0.5 is tthe upper limit for the model to at least learn more that 0.5% acc for experiences past Exp 0
+'''
 
 if TRAINING_WITH_LOOP_LwF:
 
     #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.0001, momentum=0.9, weight_decay=5e-4,
-                             temperature=0.4, alpha=0.1,#temperature=4.0, alpha=5.0,
+                             temperature=0.4, alpha=0.5,#temperature=9.0, alpha=0.5,#temperature=4.0, alpha=5.0,
                              train_mb_size=32, train_epochs=5, eval_mb_size=100, #eval_mb_size=32, #device=DEVICE,
                              plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream",
                                                                metric_name="Loss_Exp", mode="min", peval_mode="epoch",
@@ -1247,6 +1268,7 @@ if TRAINING_WITH_LOOP_LwF:
         # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
         print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
         lwf_trainer.train(experience, [outdoors_specialised_models_train_stream_class_il,outdoors_specialised_models_val_stream_class_il])
+        print("Temperature:" ,lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
         #lwf_trainer.train(experience, outdoors_specialised_models_val_stream_class_il)
         #lwf_trainer.train_experience(experience, outdoors_specialised_models_val_stream_class_il)
         #lwf_trainer.train_experience(experience, [outdoors_specialised_models_train_stream_class_il,outdoors_specialised_models_val_stream_class_il])

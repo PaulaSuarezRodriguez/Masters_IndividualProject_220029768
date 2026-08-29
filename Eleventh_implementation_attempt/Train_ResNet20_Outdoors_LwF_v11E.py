@@ -545,6 +545,10 @@ class LwFTrainer():
         # Classes learned before current experience
         self.old_classes = set()
 
+        # Track accuracy after training each experience
+        self.experience_accuracies = {}  # {exp_id: {exp_id: accuracy}}
+        self.experience_losses = {}  # {exp_id: {exp_id: loss}}
+
         # check plugin compatibility
         #self._check_plugin_compatibility()
 
@@ -1086,6 +1090,12 @@ class LwFTrainer():
 
     def evaluate_experience(self, experience: CLExperience, eval_streams=None, **kwargs):
         """Evaluate model on given experience(s) after training."""
+        current_exp_id = experience.current_experience
+
+        if current_exp_id not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id] = {}
+            self.experience_losses[current_exp_id] = {}
+
         if eval_streams is None:
             eval_streams = [experience]
 
@@ -1105,6 +1115,9 @@ class LwFTrainer():
 
             for exp in eval_stream:
                 exp_id = exp.current_experience
+
+                if exp_id > current_exp_id:
+                    break
 
                 # Prepare eval data for this experience
                 self.eval_adapted_dataset = exp.dataset.eval()
@@ -1150,8 +1163,100 @@ class LwFTrainer():
                     f"Loss = {avg_loss:.6f} | "
                     f"Accuracy = {accuracy:.2f}% ({total_correct}/{total_samples})"
                 )
+                # Store results
+                self.experience_accuracies[current_exp_id][exp_id] = accuracy
+                self.experience_losses[current_exp_id][exp_id] = avg_loss
+        self._compute_backward_transfer_internal()
 
         return eval_results
+
+
+    def _compute_backward_transfer_internal(self):
+        """Compute and print backward transfer after evaluation."""
+        print(f"\n{'=' * 80}")
+        print(f"BACKWARD TRANSFER ANALYSIS")
+        print(f"{'=' * 80}\n")
+
+        exp_ids = sorted(self.experience_accuracies.keys())
+
+        # Print accuracy results
+        print("Accuracy Results:")
+        for trained_exp_id in exp_ids:
+            print(f"\nAfter training Experience {trained_exp_id}:")
+            for test_exp_id in sorted(self.experience_accuracies[trained_exp_id].keys()):
+                acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                print(f"  - Tested on Experience {test_exp_id}: {acc:.2f}%")
+
+        print("\n" + "-" * 80 + "\n")
+
+        # Compute backward transfer for each task
+        bwt_per_task = {}
+        all_bwt_values = []
+
+        for test_exp_id in range(max(exp_ids) + 1 if exp_ids else 0):
+            # Find diagonal accuracy (right after training on this task)
+            diagonal_acc = None
+            for trained_exp_id in exp_ids:
+                if trained_exp_id == test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
+                    diagonal_acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                    break
+
+            if diagonal_acc is None:
+                continue
+
+            # Find final accuracy (after training all subsequent tasks)
+            final_acc = None
+            for trained_exp_id in reversed(exp_ids):
+                if trained_exp_id >= test_exp_id and test_exp_id in self.experience_accuracies[trained_exp_id]:
+                    final_acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                    break
+
+            if final_acc is not None:
+                bwt = final_acc - diagonal_acc
+                bwt_per_task[test_exp_id] = bwt
+                all_bwt_values.append(bwt)
+
+                print(
+                    f"Experience {test_exp_id}:\n"
+                    f"  Accuracy on Exp {test_exp_id} right after training on Exp {test_exp_id} = {diagonal_acc:.2f}%\n"
+                    f"  Accuracy on Exp {test_exp_id} after training on Exp {trained_exp_id} = {final_acc:.2f}%\n"#f"  Accuracy at the end = {final_acc:.2f}%\n"
+                    f"  BWT = {bwt:+.2f}%\n"
+                )
+
+        if all_bwt_values:
+            mean_bwt = sum(all_bwt_values) / len(all_bwt_values)
+            print(f"Mean Backward Transfer (BWT): {mean_bwt:+.2f}%")
+            print(f"  Positive BWT = improvement on old tasks (good)")
+            print(f"  Negative BWT = forgetting on old tasks (bad)")
+            print(f"  BWT ≈ 0 = stable performance (ideal)")
+
+        print("=" * 80 + "\n")
+
+        return bwt_per_task
+
+    def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
+            # experiences: Union[TExperienceType, Iterable[TExperienceType]],
+            eval_adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
+            batch_size: int,
+            num_workers=0,
+            shuffle=True,
+            pin_memory=None,
+            persistent_workers=False,
+            drop_last=False,
+            **kwargs
+    ):
+        assert eval_adapted_dataset is not None
+        # CODE FOR "other_dataloader_args = self._obtain_common_dataloader_parameters(..." DELETED, as it does not seem like I needed for the reasons explained above
+        # CODE FOR "use task-balanced dataloader for task-aware benchmarks" DELETED since it was causing data type issues and I am not gonna be using task-aware/task-IL benchmark (AT LEAST NOT FOR NOW!)
+        eval_dataloader = DataLoader(eval_adapted_dataset,
+                                batch_size=self.eval_mb_size,
+                                num_workers=num_workers,
+                                shuffle=shuffle,
+                                pin_memory=pin_memory,
+                                persistent_workers=persistent_workers,
+                                drop_last=drop_last, )
+        return eval_dataloader
+
 
 
 
@@ -1160,7 +1265,7 @@ if TRAINING_WITH_LOOP_LwF:
     #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.0001, momentum=0.9, weight_decay=5e-4,
                              temperature=0.4, alpha=0.1,#temperature=4.0, alpha=5.0,
-                             train_mb_size=32, train_epochs=4, eval_mb_size=100, #eval_mb_size=32, #device=DEVICE,
+                             train_mb_size=32, train_epochs=5, eval_mb_size=100, #eval_mb_size=32, #device=DEVICE,
                              plugins=[EarlyStoppingPlugin_mine(patience=1, val_stream_name="valid_stream",
                                                                metric_name="Loss_Exp", mode="min", peval_mode="epoch",
                                                                margin=0.3, verbose=True)],

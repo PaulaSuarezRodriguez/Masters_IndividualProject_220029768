@@ -1033,7 +1033,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 # Prepare eval data
                 eval_adapted_dataset = exp.dataset.eval()
-                eval_dataloader = self.make_eval_dataloader_mine(eval_adapted_dataset, self.eval_mb_size)
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
                 total_loss = 0.0
                 total_correct = 0
@@ -1095,7 +1095,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 # Prepare eval data
                 eval_adapted_dataset = exp.dataset.eval()
-                eval_dataloader = self.make_eval_dataloader_mine(eval_adapted_dataset, self.eval_mb_size)
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
                 total_loss = 0.0
                 total_correct = 0
@@ -1192,7 +1192,7 @@ class LwFTrainer(SupervisedTemplate):
 
         return bwt_per_task
 
-    def make_eval_dataloader_mine(self,
+    def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
             # experiences: Union[TExperienceType, Iterable[TExperienceType]],
             eval_adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
             batch_size: int,
