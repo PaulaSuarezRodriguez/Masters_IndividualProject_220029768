@@ -207,7 +207,7 @@ DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False #TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
 TRAINING_WITHOUT_LOOP = False #True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
 TRAINING_WITH_LOOP_LwF = True
-DYNAMIC_MODELS = False#True
+DYNAMIC_MODELS = True
 print("\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v11.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
@@ -649,7 +649,7 @@ class LwFTrainer(SupervisedTemplate):
             '''new_parameters=self.add_classes(self.model, len(self.experience.classes_in_this_experience))
             self.optimizer.add_param_group({"params": new_parameters})'''
             #self.register_new_classes(self.experience)
-            self.add_classes(self.model, len(self.experience.classes_in_this_experience))
+            self.add_classes(self.model, len(self.experience.classes_in_this_experience)) #TODO: temporary commented-out while I test use of IncrementalClassifier
             # IMPORTANT:
             # recreate optimizer after classifier expansion
             self.optimizer = torch.optim.SGD(
@@ -924,26 +924,33 @@ class LwFTrainer(SupervisedTemplate):
             new_num_classes = old_num_classes + num_new_classes
 
             old_classifier = copy.deepcopy(model.linear) # WHICH GIVES EXACTLY THE SAME RESULTS AS old_classifier = model.linear
+            '''
+            old_w, old_b = old_classifier.weight, old_classifier.bias
 
-            new_classifier = nn.Linear(
-                model.in_features,
-                new_num_classes,
-                bias=True
-            ).to(
-                device=old_classifier.weight.device,
-                dtype=old_classifier.weight.dtype
-            )
-
+            new_classifier = nn.Linear(in_features=model.in_features,out_features=new_num_classes,bias=True).to(device=old_classifier.weight.device,dtype=old_classifier.weight.dtype)
+            '''
             with torch.no_grad():
 
-                if old_num_classes > 0:
+                '''if old_num_classes > 0:
                     new_classifier.weight[:old_num_classes].copy_(
                         old_classifier.weight
                     )
 
                     new_classifier.bias[:old_num_classes].copy_(
                         old_classifier.bias
-                    )
+                    )'''
+                # update classifier weights
+                if old_num_classes == new_num_classes:
+                    return
+                #old_w, old_b = self.classifier.weight, self.classifier.bias
+               # self.classifier = torch.nn.Linear(in_features, new_nclasses).to(device)
+                old_w, old_b = old_classifier.weight, old_classifier.bias
+
+                new_classifier = nn.Linear(in_features=model.in_features, out_features=new_num_classes, bias=True).to(
+                    device=old_classifier.weight.device, dtype=old_classifier.weight.dtype)
+
+                new_classifier.weight[:old_num_classes] = old_w #self.classifier.weight[:old_nclasses] = old_w
+                new_classifier.bias[:old_num_classes] = old_b
 
             model.linear = new_classifier
             model.num_classes = new_num_classes
@@ -1361,9 +1368,9 @@ After training Experience 3:
   - Tested on Experience 3: 0.00%
 
 '''
-MATCH_AUTHOR_DISTILL = False#True
-MATCH_AUTHOR_LOSS = False#True #False
-#DYNAMIC_MODELS = False #True
+MATCH_AUTHOR_DISTILL =True
+MATCH_AUTHOR_LOSS =True #False
+#DYNAMIC_MODELS = True
 
 if TRAINING_WITH_LOOP_LwF:
 

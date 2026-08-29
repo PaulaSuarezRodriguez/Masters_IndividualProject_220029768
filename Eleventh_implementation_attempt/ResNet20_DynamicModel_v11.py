@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 #from avalanche.models.dynamic_modules import IncrementalClassifier, DynamicModule
-
+from avalanche.models.dynamic_modules import DynamicModule
 
 def _weights_init(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
@@ -85,7 +85,7 @@ class BasicBlock_DynamicModel(nn.Module):
 
 
 class ResNet20_DynamicModel(nn.Module):
-    def __init__(self, num_classes=100):
+    def __init__(self, num_classes:int):
         super(ResNet20_DynamicModel, self).__init__()
         self.num_classes = num_classes
         self.in_features = 64
@@ -104,7 +104,7 @@ class ResNet20_DynamicModel(nn.Module):
         '''self.linear = IncrementalClassifier(
             in_features=self.in_features,
             initial_out_features=self.num_classes,
-            masking=False, #masking=True, #masking=False,
+            masking=True, #masking=False,
         )'''
 
         # Preserve your original Kaiming initialization.
@@ -261,6 +261,85 @@ class IncrementalClassifier(DynamicModule):
             out = out.masked_fill(mask=mask, value=self.mask_value)
         return out
 '''
+class IncrementalClassifier(DynamicModule):
+    """
+    Output layer that incrementally adds units whenever new classes are
+    encountered.
+
+    Typically used in class-incremental benchmarks where the number of
+    classes grows over time.
+    """
+
+    def __init__(
+        self,
+        in_features,
+        initial_out_features=2,
+        masking=True,
+        mask_value=-1000,
+        **kwargs,
+    ):
+        """
+        :param in_features: number of input features.
+        :param initial_out_features: initial number of classes (can be
+            dynamically expanded).
+        :param masking: whether unused units should be masked (default=True).
+        :param mask_value: the value used for masked units (default=-1000).
+        """
+        super().__init__(**kwargs)
+        self.masking = masking
+        self.mask_value = mask_value
+
+        self.classifier = torch.nn.Linear(in_features, initial_out_features)
+        au_init = torch.zeros(initial_out_features, dtype=torch.int8)
+        self.register_buffer("active_units", au_init)
+
+    @torch.no_grad()
+    def adaptation(self, experience: CLExperience):
+        """If `dataset` contains unseen classes the classifier is expanded.
+
+        :param experience: data from the current experience.
+        :return:
+        """
+        super().adaptation(experience)
+        device = self._adaptation_device
+        in_features = self.classifier.in_features
+        old_nclasses = self.classifier.out_features
+        curr_classes = experience.classes_in_this_experience
+        new_nclasses = max(self.classifier.out_features, max(curr_classes) + 1)
+
+        # update active_units mask
+        if self.masking:
+            if old_nclasses != new_nclasses:  # expand active_units mask
+                old_act_units = self.active_units
+                self.active_units = torch.zeros(
+                    new_nclasses, dtype=torch.int8, device=device
+                )
+                self.active_units[: old_act_units.shape[0]] = old_act_units
+            # update with new active classes
+            if self.training:
+                self.active_units[list(curr_classes)] = 1
+
+        # update classifier weights
+        if old_nclasses == new_nclasses:
+            return
+        old_w, old_b = self.classifier.weight, self.classifier.bias
+        self.classifier = torch.nn.Linear(in_features, new_nclasses).to(device)
+        self.classifier.weight[:old_nclasses] = old_w
+        self.classifier.bias[:old_nclasses] = old_b
+
+    def forward(self, x, **kwargs):
+        """compute the output given the input `x`. This module does not use
+        the task label.
+
+        :param x:
+        :return:
+        """
+        out = self.classifier(x)
+        if self.masking:
+            mask = torch.logical_not(self.active_units)
+            out = out.masked_fill(mask=mask, value=self.mask_value)
+        return out
+
 
 if __name__ == "__main__":
     dummy_resnet20_dm_global_model = ResNet20_DynamicModel(num_classes=100)
