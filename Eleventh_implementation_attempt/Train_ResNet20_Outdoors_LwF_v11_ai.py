@@ -582,7 +582,7 @@ class LwFTrainer(SupervisedTemplate):
         ###################################################################
         self._eval_streams: Optional[List[List[CLExperience]]] = None
 
-    def distillation_loss(self, student_logits, teacher_logits):
+    def distillation_loss(self, student_logits, teacher_logits, scale):
 
         T = self.temperature
 
@@ -601,7 +601,7 @@ class LwFTrainer(SupervisedTemplate):
 
         if MATCH_AUTHOR_DISTILL:
 
-            scale = student_logits.size(1)
+            print(f"  scale used in dist_loss: {scale}")
             kl_divergence = F.kl_div(student_log_probs,teacher_probs,reduction="batchmean") * scale #reduction="mean",
 
         if MATCH_AUTHOR_DISTILL == False:
@@ -652,12 +652,12 @@ class LwFTrainer(SupervisedTemplate):
             #self.model.expand_classifier(self.experience) #TODO: temporarily commented-out to test if by placing this line before self._before_training(**kwargs) or in eval, issue is fixed
             # IMPORTANT:
             # recreate optimizer after classifier expansion
-            self.optimizer = torch.optim.SGD(
+            '''self.optimizer = torch.optim.SGD(
                 self.model.parameters(),
                 lr=self.lr,
                 momentum=self.momentum,
                 weight_decay=self.weight_decay,
-            )
+            )'''
             self.train_experience(self.experience, eval_streams, **kwargs)
             # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
             self.evaluate_all_experiences(self.experience, eval_streams)
@@ -693,7 +693,7 @@ class LwFTrainer(SupervisedTemplate):
                 self.unpack_minibatch()
                 targets = self.map_labels_expanding_classifier()
 
-                self._before_training_iteration(**kwargs) #TODO: NEW, in testing
+                #self._before_training_iteration(**kwargs) #TODO: NEW, in testing
 
                 #batch = batch.to(self.device)
                 #remap_targets(self, targets)
@@ -754,13 +754,27 @@ class LwFTrainer(SupervisedTemplate):
                             device=self.device,
                             dtype=torch.long
                         )
+                        #print(f"  Classes (original): {sorted(classes)}")
+                        #print(f"  Class indices (mapped): {class_indices.tolist()}")
+                        #print(f"  Student output shape: {self.mb_output.shape}")
+                        #print(f"  Teacher output shape: {teacher_logits.shape}")
+
                         student_old = self.mb_output.index_select(1, class_indices)  # student_logits.index_select(1, classes)
                         teacher_old = teacher_logits.index_select(1, class_indices)
 
+                        #print(f"  Student old shape: {student_old.shape}")
+                        #print(f"  scale used in dist_loss: {student_old.size(1)}")
+                        #print(f"  Teacher old shape: {teacher_old.shape}")
+
+                        scale = self.mb_output.size(1)
+
                         dist_loss += self.distillation_loss(
                             student_old, #student logits does not work
-                            teacher_old
+                            teacher_old,
+                            scale=scale
                         )
+                        # Debug: check distillation loss value
+                        #print(f"  Distillation loss (teacher {classes}): {dist_loss.item():.6f}")
                     #dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + self.alpha * dist_loss
@@ -776,7 +790,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 loss.backward()
 
-                '''if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                     # Freeze shared layers
                     for module in self.model.modules():
@@ -805,7 +819,7 @@ class LwFTrainer(SupervisedTemplate):
                         if self.model.linear.bias.grad is not None:
                             self.model.linear.bias.grad[
                                 :old_num_classes
-                            ].zero_()'''
+                            ].zero_()
 
                 self.optimizer.step()
 
@@ -819,7 +833,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 n += 1 #n = len(self.dataloader)
 
-                self._after_training_iteration(**kwargs) #TODO: NEW, in testing
+                #self._after_training_iteration(**kwargs) #TODO: NEW, in testing
 
             print(
                 f"Epoch {_}/{self.train_epochs} | "
@@ -865,8 +879,10 @@ class LwFTrainer(SupervisedTemplate):
             f"Teacher updated. "
             f"Old classes = {sorted(self.old_classes)}"
         )
+        #self.alpha += 0.025
+        #print(f"Alpha has been increased by 0.05. It is now {self.alpha}")
 
-    def expand_classifier(self, model: nn.Module, experience: CLExperience): #def expand_classifier(self, model: nn.Module, experiences_list: Iterable[TExperienceType]): # experience: CLExperience):
+    '''def expand_classifier(self, model: nn.Module, experience: CLExperience): #def expand_classifier(self, model: nn.Module, experiences_list: Iterable[TExperienceType]): # experience: CLExperience):
         """
         Expand the classifier to accommodate new classes.
 
@@ -893,7 +909,7 @@ class LwFTrainer(SupervisedTemplate):
             print(f"Expanding classifier from {old_num_classes} to {new_num_classes} classes")
 
             # Get device and dtype from old classifier
-            #device = model.linear.weight.device #TODO: may be the problem
+            device = model.linear.weight.device #TODO: may be the problem
             dtype = model.linear.weight.dtype
 
             # Create new classifier
@@ -901,7 +917,7 @@ class LwFTrainer(SupervisedTemplate):
                 in_features=int(model.in_features),
                 out_features=int(new_num_classes),
                 bias=True
-            ).to(device=self.device, dtype=dtype)#).to(device=device, dtype=dtype)
+            ).to(device=device, dtype=dtype) ##TODO: may be the problem #).to(device=self.device, dtype=dtype)
 
             # Copy old weights and biases to new classifier
             with torch.no_grad():
@@ -922,8 +938,97 @@ class LwFTrainer(SupervisedTemplate):
             model.linear = new_classifier
             model.num_classes = new_num_classes
 
+            new_parameters = new_classifier.parameters()
+
+            #self.optimizer.add_param_group({"params": new_parameters})
+            self.optimizer = torch.optim.SGD(
+                model.parameters(),
+                lr=self.lr,
+                momentum=self.momentum,
+                weight_decay=self.weight_decay,
+            )
+
             print(f"Classifier expanded successfully. New output size: {new_num_classes}")
-            return True
+            return True'''
+
+    def expand_classifier(self, model: nn.Module, experience: CLExperience):
+        """Expand the classifier AND expand all previous teachers."""
+
+        experience_classes = set(experience.dataset.targets.uniques)
+        num_new_classes = len(experience_classes - self.old_classes)
+
+        if num_new_classes <= 0:
+            print(f"No new classes. Classifier remains at {model.num_classes}")
+            return False
+
+        old_num_classes = model.num_classes
+        new_num_classes = old_num_classes + num_new_classes
+
+        print(f"Expanding classifier from {old_num_classes} to {new_num_classes} classes")
+
+        # Expand STUDENT classifier
+        device = model.linear.weight.device
+        dtype = model.linear.weight.dtype
+
+        new_classifier = nn.Linear(
+            in_features=int(model.in_features),
+            out_features=int(new_num_classes),
+            bias=True
+        ).to(device=device, dtype=dtype)
+
+        with torch.no_grad():
+            new_classifier.weight[:old_num_classes].copy_(model.linear.weight)
+            new_classifier.bias[:old_num_classes].copy_(model.linear.bias)
+            init.kaiming_normal_(new_classifier.weight[old_num_classes:])
+            nn.init.constant_(new_classifier.bias[old_num_classes:], 0.0)
+
+        model.linear = new_classifier
+        model.num_classes = new_num_classes
+
+        # ===== NEW: Expand all previous teachers to match =====
+        for i, teacher in enumerate(self.teachers):
+            old_teacher_size = teacher.num_classes
+
+            if old_teacher_size >= new_num_classes:
+                # Teacher is already large enough, skip
+                continue
+
+            print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
+
+            # Create new classifier for teacher
+            teacher_new_classifier = nn.Linear(
+                in_features=int(teacher.in_features),
+                out_features=int(new_num_classes),
+                bias=True
+            ).to(device=device, dtype=dtype)
+
+            with torch.no_grad():
+                # Copy old teacher weights (what it learned)
+                teacher_new_classifier.weight[:old_teacher_size].copy_(teacher.linear.weight)
+                teacher_new_classifier.bias[:old_teacher_size].copy_(teacher.linear.bias)
+
+                # Initialize new dimensions to 0 (teacher doesn't know about new classes)
+                nn.init.constant_(teacher_new_classifier.weight[old_teacher_size:], 0.0)
+                nn.init.constant_(teacher_new_classifier.bias[old_teacher_size:], 0.0)
+
+            # Replace teacher's classifier
+            teacher.linear = teacher_new_classifier
+            teacher.num_classes = new_num_classes
+
+            # Keep teacher frozen (no gradients)
+            for param in teacher.parameters():
+                param.requires_grad = False
+
+        # Recreate optimizer with expanded student
+        self.optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=self.lr,
+            momentum=self.momentum,
+            weight_decay=self.weight_decay,
+        )
+
+        print(f"Classifier and all teachers expanded successfully. New size: {new_num_classes}\n")
+        return True
 
     @torch.no_grad()
     def eval(
@@ -1198,8 +1303,7 @@ class LwFTrainer(SupervisedTemplate):
             dtype=torch.long
         )
 
-
-
+    '''
     def register_new_classes(self, experience: CLExperience):
 
         for class_id in sorted(experience.classes_in_this_experience):
@@ -1234,8 +1338,8 @@ class LwFTrainer(SupervisedTemplate):
             device=targets.device,
             dtype=torch.long
         )
-
-'''
+    '''
+    '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
             exclude = []
@@ -1301,8 +1405,7 @@ class LwFTrainer(SupervisedTemplate):
         #RNGManager.__setstate__(checkpoint["rng_manager"])
         print(f"Executing load_entire_checkpoint_inside_class from call made from within _train_exp()")
         return self
-
-'''
+    '''
 '''
 temperature=0.4, alpha=0.5, train_epochs=5 -- struggles to learn new experiences (definitely by more that 11D), but retains previous experiences way better than 11D (where loss is LwF loss instead of KD final loss)
 After training Experience 2:
@@ -1327,7 +1430,7 @@ After training Experience 2:
  
  
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-WITH self.alpha += 0.05 AFTER EVERY EXPERIENCE 
+WITH self.alpha += 0.05 AFTER EVERY EXPERIENCE, where MATCH_AUTHOR_DISTILL = False, MATCH_AUTHOR_LOSS = False , DYNAMIC_MODELS = False 
 lr=0.0001, temperature=0.2, alpha=0.1, train_mb_size=100, train_epochs=100, eval_mb_size=100, plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",
                                                                metric_name="Loss_Exp", mode="min", peval_mode="epoch",
                                                                margin=0.3, verbose=True)],
@@ -1349,22 +1452,149 @@ After training Experience 3:
   - Tested on Experience 1: 40.50%
   - Tested on Experience 2: 19.50%
   - Tested on Experience 3: 0.00%
+######################################################################################################################################################
+30/08/2026:
+Accuracy Results for temperature=0.2, alpha=0.5 without increase across experiences, MATCH_AUTHOR_DISTILL =True, MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded:
 
+After training Experience 0:
+  - Tested on Experience 0: 52.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 1.00%
+  - Tested on Experience 1: 54.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 0.50%
+  - Tested on Experience 1: 46.00%
+  - Tested on Experience 2: 14.00%
+
+After training Experience 3:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 14.50%
+  - Tested on Experience 2: 0.00%
+  - Tested on Experience 3: 42.50%
+
+
+Accuracy Results for temperature=0.2, alpha=0.1 increased by 0.05 across experiences, MATCH_AUTHOR_DISTILL =True, MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded:
+
+After training Experience 0:
+  - Tested on Experience 0: 52.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 0.50%
+  - Tested on Experience 1: 75.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 34.50%
+  - Tested on Experience 2: 63.00%
+
+After training Experience 3:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 2.50%
+  - Tested on Experience 2: 3.00%
+  - Tested on Experience 3: 50.50%
+
+
+
+Accuracy Results for temperature=0.2, alpha=0.1=05 increased by 0.05 across experiences, MATCH_AUTHOR_DISTILL =True, MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded:
+# slight improvement compared to the previous
+
+After training Experience 0:
+  - Tested on Experience 0: 52.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 0.50%
+  - Tested on Experience 1: 75.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 41.00%
+  - Tested on Experience 2: 58.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 2.50%
+  - Tested on Experience 2: 0.50%
+  - Tested on Experience 3: 53.50%
+  
+  
+Accuracy Results for temperature=0.2, alpha=0.1 increased by 0.05 across experiences, MATCH_AUTHOR_DISTILL =False, MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded:
+lr=0.0001, momentum=0.9, weight_decay=5e-4, train_mb_size=100, train_epochs=100, eval_mb_size=100,
+
+After training Experience 0:
+  - Tested on Experience 0: 52.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 0.50%
+  - Tested on Experience 1: 62.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 4.50%
+  - Tested on Experience 2: 69.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 0.00%
+  - Tested on Experience 2: 0.50%
+  - Tested on Experience 3: 55.50%
+
+
+Accuracy Results for temperature=2.0, alpha=1.0 without increase across experiences,  lr=0.001, train_mb_size=32, train_epochs=5, eval_mb_size=32, MATCH_AUTHOR_DISTILL =False, 
+MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded AND freezing layers:
+
+After training Experience 0:
+  - Tested on Experience 0: 77.50%
+
+After training Experience 1:
+  - Tested on Experience 0: 63.50%
+  - Tested on Experience 1: 12.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 42.50%
+  - Tested on Experience 1: 15.50%
+  - Tested on Experience 2: 2.00%
+
+After training Experience 3:
+  - Tested on Experience 0: 48.00%
+  - Tested on Experience 1: 15.50%
+  - Tested on Experience 2: 1.50%
+  - Tested on Experience 3: 0.50%
+  
+  
+Accuracy Results SAME SET-UP AS ABOVE, but WITHOUT expanding teacher, proving TEACHER needs to be expanded. Another experiement where freezing was removes proved freezing is needed too !!!:
+
+After training Experience 0:
+  - Tested on Experience 0: 72.50%
+
+After training Experience 1:
+  - Tested on Experience 0: 33.50%
+  - Tested on Experience 1: 38.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 25.00%
+  - Tested on Experience 1: 23.00%
+  - Tested on Experience 2: 0.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 4.50%
+  - Tested on Experience 1: 22.00%
+  - Tested on Experience 2: 1.00%
+  - Tested on Experience 3: 26.50%
 '''
-MATCH_AUTHOR_DISTILL =True
-MATCH_AUTHOR_LOSS =True #False
+MATCH_AUTHOR_DISTILL = False#True
+MATCH_AUTHOR_LOSS = False #True
 #DYNAMIC_MODELS = True
 
 if TRAINING_WITH_LOOP_LwF:
 
     #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-    lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.0001, momentum=0.9, weight_decay=5e-4,
-                             temperature=0.2, alpha=0.1,#temperature=4.0, alpha=5.0,
-                             train_mb_size=100, train_epochs=100, eval_mb_size=100, #eval_mb_size=32, #device=DEVICE,
-                             plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",
-                                                               metric_name="Loss_Exp", mode="min", peval_mode="epoch",
-                                                               margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True),
+    lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.001, momentum=0.9, weight_decay=5e-4,
+                             temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
+                             train_mb_size=32, train_epochs=5, eval_mb_size=32, #eval_mb_size=32, #device=DEVICE,
+                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
                                                         #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
                                                         loggers=InteractiveLogger(), collect_all=True),
@@ -1408,7 +1638,8 @@ if TRAINING_WITH_LOOP_LwF:
         print("print(lwf_trainer.plugins) AFTER call to .train()", lwf_trainer.plugins)
         # print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
         # print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
-print('Training completed WITH LwFTrainer')
+    print('Training completed WITH LwFTrainer')
+    #lwf_trainer.eval(outdoors_specialised_models_val_stream_class_il)#(seen_experiences_val)
 
 
 '''
