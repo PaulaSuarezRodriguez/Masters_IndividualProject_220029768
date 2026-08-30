@@ -774,7 +774,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 loss.backward()
 
-                if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                '''if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                     # Freeze shared layers
                     for module in self.model.modules():
@@ -803,7 +803,7 @@ class LwFTrainer(SupervisedTemplate):
                         if self.model.linear.bias.grad is not None:
                             self.model.linear.bias.grad[
                                 :old_num_classes
-                            ].zero_()
+                            ].zero_()'''
 
                 self.optimizer.step()
 
@@ -865,7 +865,7 @@ class LwFTrainer(SupervisedTemplate):
         )
 
 
-    '''def add_classes(self, model, num_new_classes: int):
+    def add_classes(self, model, num_new_classes: int):
         if DYNAMIC_MODELS == True:
             if num_new_classes <= 0:
                 return []
@@ -908,13 +908,12 @@ class LwFTrainer(SupervisedTemplate):
             model.linear = new_classifier # self.classifier = new_classifier
             model.num_classes = new_num_classes
 
-            return list(
-                new_classifier.parameters()
-            )
+            # return list(new_classifier.parameters())
 
         if DYNAMIC_MODELS == False:
-            return exit'''
+            return exit
 
+    '''
     def add_classes(self, model, num_new_classes):
         if DYNAMIC_MODELS == True:
             if num_new_classes <= 0:
@@ -924,21 +923,17 @@ class LwFTrainer(SupervisedTemplate):
             new_num_classes = old_num_classes + num_new_classes
 
             old_classifier = copy.deepcopy(model.linear) # WHICH GIVES EXACTLY THE SAME RESULTS AS old_classifier = model.linear
-            '''
-            old_w, old_b = old_classifier.weight, old_classifier.bias
+            
+            #old_w, old_b = old_classifier.weight, old_classifier.bias
 
-            new_classifier = nn.Linear(in_features=model.in_features,out_features=new_num_classes,bias=True).to(device=old_classifier.weight.device,dtype=old_classifier.weight.dtype)
-            '''
+            #new_classifier = nn.Linear(in_features=model.in_features,out_features=new_num_classes,bias=True).to(device=old_classifier.weight.device,dtype=old_classifier.weight.dtype)
+            
             with torch.no_grad():
 
-                '''if old_num_classes > 0:
-                    new_classifier.weight[:old_num_classes].copy_(
-                        old_classifier.weight
-                    )
+                #if old_num_classes > 0:
+                 #   new_classifier.weight[:old_num_classes].copy_(old_classifier.weight)
 
-                    new_classifier.bias[:old_num_classes].copy_(
-                        old_classifier.bias
-                    )'''
+                  #  new_classifier.bias[:old_num_classes].copy_(old_classifier.bias)
                 # update classifier weights
                 if old_num_classes == new_num_classes:
                     return
@@ -955,14 +950,11 @@ class LwFTrainer(SupervisedTemplate):
             model.linear = new_classifier
             model.num_classes = new_num_classes
 
-            '''return list(
-                new_classifier.parameters()
-            )'''
+            # return list(new_classifier.parameters())
 
         if DYNAMIC_MODELS == False:
             return exit
-
-
+        '''
 
     @torch.no_grad()
     def eval(
