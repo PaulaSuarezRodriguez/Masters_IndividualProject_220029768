@@ -89,7 +89,7 @@ from avalanche.training.supervised import Naive, EWC, LwF  # and many more!
 from avalanche.training.losses import MaskedCrossEntropy
 from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin, EWCPlugin, LwFPlugin
 from avalanche.training import LearningWithoutForgetting, RegularizationMethod
-
+import numpy as np
 import copy
 from collections import defaultdict
 from typing import List
@@ -448,12 +448,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset, _T_co
 from avalanche.benchmarks.utils import AvalancheDataset
 from avalanche.benchmarks.utils.dataset_definitions import T_co
-
 from avalanche.training.templates.base_sgd import PeriodicEval
 from avalanche.training.plugins.clock import Clock
-# class LwFTrainer(SGDStrategyProtocol):
-#class LwFTrainer(SGDStrategyProtocol[TSGDExperienceType, TMBInput, TMBOutput]):
-#class LwFTrainer():
+
 class LwFTrainer(SupervisedTemplate):
     def __init__(
         self,
@@ -461,6 +458,8 @@ class LwFTrainer(SupervisedTemplate):
         lr=0.001,
         momentum=0.9,
         weight_decay=5e-4,
+        lr_decay_factor: float = 0.1,
+        lr_decay_every: float = 1.0,
         temperature=2.0,
         alpha=1.0,
         train_mb_size: int = 1,
@@ -474,9 +473,8 @@ class LwFTrainer(SupervisedTemplate):
         eval_every=-1,
         peval_mode="epoch"
     ):
-        #self.plugins = plugins
         self.class_to_idx = {}
-        self.ft_shared_after = 5
+
         self.plugins: List[BasePlugin] = [] if plugins is None else list(plugins)
         """ List of `SupervisedPlugin`s. """
         self.adapted_dataset = None
@@ -486,9 +484,12 @@ class LwFTrainer(SupervisedTemplate):
         self.lr = lr
         self.momentum = momentum
         self.weight_decay = weight_decay
+        self.lr_decay_factor = lr_decay_factor #0.1  # 'Multiply lr by this much every step of decay'
+        self.lr_decay_every = lr_decay_every #1 # 'Step decay every this many epochs'
 
         self.temperature = temperature
         self.alpha = alpha
+        self.ft_shared_after = 5
 
         self.optimizer = torch.optim.SGD(
             self.model.parameters(),
@@ -506,8 +507,6 @@ class LwFTrainer(SupervisedTemplate):
 
         self.mb_output: Optional[TMBOutput] = None
         """ Model's output computed on the current mini-batch. """
-
-        ####self._stop_training = False
 
         self.train_epochs: int = train_epochs
         """ Number of training epochs. """
@@ -530,8 +529,6 @@ class LwFTrainer(SupervisedTemplate):
         self.evaluator: EvaluationPlugin = evaluator
         """ EvaluationPlugin used for logging and metric computations. """
 
-        #self.plugins.append(EarlyStoppingPlugin_mine)
-
         # Configure periodic evaluation.
         assert peval_mode in {"experience", "epoch", "iteration"}
         self.eval_every = eval_every
@@ -545,7 +542,6 @@ class LwFTrainer(SupervisedTemplate):
         self.plugins.append(self.clock)
 
         # Teacher from previous experience
-        #self.teacher = None
         self.teachers = []
         self.teacher_classes = []
 
@@ -595,11 +591,8 @@ class LwFTrainer(SupervisedTemplate):
             teacher_logits / T,
             dim=1,
         )
-        # Match authors' implementation:
-        #
-        # F.kl_div(...) * number_of_outputs
 
-        if MATCH_AUTHOR_DISTILL:
+        if MATCH_AUTHOR_DISTILL: # Match authors' implementation --> F.kl_div(...) * number_of_outputs
 
             print(f"  scale used in dist_loss: {scale}")
             kl_divergence = F.kl_div(student_log_probs,teacher_probs,reduction="batchmean") * scale #reduction="mean",
@@ -609,7 +602,6 @@ class LwFTrainer(SupervisedTemplate):
             kl_divergence = F.kl_div(student_log_probs,teacher_probs,reduction="batchmean") * (T ** 2)
 
         return kl_divergence
-
 
 
     def train(
@@ -641,23 +633,11 @@ class LwFTrainer(SupervisedTemplate):
             eval_streams = [experiences_list]
 
         self._eval_streams = _group_experiences_by_stream(eval_streams)
-        #self.expand_classifier(self.model, experiences_list) #TODO: Testing if by positioning it here, code will work?
         #self._before_training(**kwargs) #TODO: I do not think it matters if it remains commented-out as it does not trigger any essential callbacks, I believe. But try uncommenting it later on, see if the code works
 
         for self.experience in experiences_list:
             self._before_training_exp(**kwargs)
-            self.expand_classifier(self.model, self.experience)  # TODO: Testing if by positioning it here, code will work? # NO, expands them to early. Potential solution: start with num_classes = 0
-            #self.register_new_classes(self.experience)
-            #self.add_classes(self.model, len(self.experience.classes_in_this_experience)) #TODO: temporary commented-out while I test use of IncrementalClassifier
-            #self.model.expand_classifier(self.experience) #TODO: temporarily commented-out to test if by placing this line before self._before_training(**kwargs) or in eval, issue is fixed
-            # IMPORTANT:
-            # recreate optimizer after classifier expansion
-            '''self.optimizer = torch.optim.SGD(
-                self.model.parameters(),
-                lr=self.lr,
-                momentum=self.momentum,
-                weight_decay=self.weight_decay,
-            )'''
+            self.expand_classifier(self.model, self.experience)  # DEFINITE POSITION. # IMPORTANT: recreate optimizer after classifier expansion. This is now done from the body of expand_classifier()
             self.train_experience(self.experience, eval_streams, **kwargs)
             # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
             self.evaluate_all_experiences(self.experience, eval_streams)
@@ -679,8 +659,7 @@ class LwFTrainer(SupervisedTemplate):
                 break
 
             print(f"\n\n***** MY train_experience() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
-            '''self._before_training_exp(**kwargs)# mine which is currently commented-out --> self.before_training_exp(experience)'''
-            #self.register_new_classes(experience.classes_in_this_experience)
+            #self.optimizer = self.step_lr(_) # optimizer = self.step_lr( _, self.args.lr, self.args.lr_decay_every,self.args.lr_decay_factor,self.optimizer.param_groups)
 
             print(f"\n***** EXECUTING Epoch {_} OF Experience {experience.current_experience} --- from inside train_experience() *****\n")
             total_ce = 0.0
@@ -691,23 +670,19 @@ class LwFTrainer(SupervisedTemplate):
             for self.mbatch in self.dataloader:#self.train_dataloader: # for batch, targets in train_dataloader:
 
                 self.unpack_minibatch()
-                targets = self.map_labels_expanding_classifier()
+                targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
 
-                #self._before_training_iteration(**kwargs) #TODO: NEW, in testing
+                self._before_training_iteration(**kwargs) #TODO: NEW, in testing
 
-                #batch = batch.to(self.device)
-                #remap_targets(self, targets)
-                #targets = self.mb_y #targets = self.remap_targets(self.mb_y) #experience.dataset.targets #.uniques #TODO: RE-MAPPING OF TARGETS, BEING TESTED!!!! Remove later
+                #targets = self.mb_y #targets = self.remap_targets(self.mb_y) #experience.dataset.targets #.uniques #TODO: Removed beecause of re-mapping of targets
 
                 self.optimizer.zero_grad()
 
                 # ------------------------------------------------
                 # Current model
                 # ------------------------------------------------
-                #I think I added this myself -- self.mb_output = self.model(self.mbatch)
                 self._before_forward(**kwargs)
-                #student_logits is student output, which in a single-loss set-up would be " self.mb_output = self.forward() "
-                self.mb_output = self.model(self.mb_x)#student_logits = self.model(self.mb_x) #student_logits = self.model(self.mbatch) #student_logits = self.model(batch)
+                self.mb_output = self.model(self.mb_x) # student_logits is student output, which in a single-loss set-up would be " self.mb_output = self.forward()". This was previously "student_logits = self.model(self.mb_x)"
                 self._after_forward(**kwargs)
 
                 # ------------------------------------------------
@@ -727,24 +702,13 @@ class LwFTrainer(SupervisedTemplate):
                     0.0,
                     device=self.device
                 )
-                if len(self.teachers)>0:#if self.teachers is not None:
-                    for teacher, classes in zip(#for teacher, teacher_state_dict, classes in zip(
+                if len(self.teachers)>0:
+                    for teacher, classes in zip(
                             self.teachers,
-                            #self.teachers_state_dict,
                             self.teacher_classes
                     ):
                         with torch.no_grad():
-                            #teacher.load_state_dict(teacher_state_dict)#teacher_state_dict = teacher.load_state_dict(teacher_state_dict)
-                            teacher_logits = teacher(self.mb_x)#self.teacher(self.mb_x)
-
-                        '''classes = torch.tensor(
-                            sorted(classes),
-                            device=self.device,
-                            dtype=torch.long
-                        )
-                        #classes = self.map_labels_expanding_classifier()
-                        student_old = self.mb_output.index_select(1, classes)#student_logits.index_select(1, classes)
-                        teacher_old = teacher_logits.index_select(1, classes)'''
+                            teacher_logits = teacher(self.mb_x)
 
                         class_indices = torch.tensor(
                             [
@@ -754,28 +718,31 @@ class LwFTrainer(SupervisedTemplate):
                             device=self.device,
                             dtype=torch.long
                         )
-                        #print(f"  Classes (original): {sorted(classes)}")
-                        #print(f"  Class indices (mapped): {class_indices.tolist()}")
-                        #print(f"  Student output shape: {self.mb_output.shape}")
-                        #print(f"  Teacher output shape: {teacher_logits.shape}")
+                        if VERBOSE:
+                            print(f"  Classes (original): {sorted(classes)}")
+                            print(f"  Class indices (mapped): {class_indices.tolist()}")
+                            print(f"  Student output shape: {self.mb_output.shape}")
+                            print(f"  Teacher output shape: {teacher_logits.shape}")
 
                         student_old = self.mb_output.index_select(1, class_indices)  # student_logits.index_select(1, classes)
                         teacher_old = teacher_logits.index_select(1, class_indices)
 
-                        #print(f"  Student old shape: {student_old.shape}")
-                        #print(f"  scale used in dist_loss: {student_old.size(1)}")
-                        #print(f"  Teacher old shape: {teacher_old.shape}")
+                        if VERBOSE:
+                            print(f"  Student old shape: {student_old.shape}")
+                            print(f"  scale used in dist_loss: {student_old.size(1)}")
+                            print(f"  Teacher old shape: {teacher_old.shape}")
 
                         scale = self.mb_output.size(1)
 
                         dist_loss += self.distillation_loss(
-                            student_old, #student logits does not work
+                            student_old,
                             teacher_old,
                             scale=scale
                         )
-                        # Debug: check distillation loss value
-                        #print(f"  Distillation loss (teacher {classes}): {dist_loss.item():.6f}")
-                    #dist_loss = dist_loss + self.distillation_loss(student_old,teacher_old)
+                        if VERBOSE:
+                            # Debug: check distillation loss value
+                            print(f"  Distillation loss (teacher {classes}): {dist_loss.item():.6f}")
+
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + self.alpha * dist_loss
                     if MATCH_AUTHOR_LOSS == False:
@@ -833,7 +800,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 n += 1 #n = len(self.dataloader)
 
-                #self._after_training_iteration(**kwargs) #TODO: NEW, in testing
+                self._after_training_iteration(**kwargs) #TODO: NEW, in testing
 
             print(
                 f"Epoch {_}/{self.train_epochs} | "
@@ -851,6 +818,7 @@ class LwFTrainer(SupervisedTemplate):
             '''self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
             '''
+            self.evaluate_epoch(_, experience)
             self._after_training_epoch(**kwargs)
         # --------------------------------------------------------
         # IMPORTANT:
@@ -882,74 +850,14 @@ class LwFTrainer(SupervisedTemplate):
         #self.alpha += 0.025
         #print(f"Alpha has been increased by 0.05. It is now {self.alpha}")
 
-    '''def expand_classifier(self, model: nn.Module, experience: CLExperience): #def expand_classifier(self, model: nn.Module, experiences_list: Iterable[TExperienceType]): # experience: CLExperience):
-        """
-        Expand the classifier to accommodate new classes.
-
-        Args:
-            num_new_classes: Number of new classes to add
-        """
-
-        #self.register_new_classes(experience)
-        # Get new classes in this experience
-        experience_classes = set(experience.dataset.targets.uniques)
-        num_new_classes = len(experience_classes - self.old_classes)
-
-        if num_new_classes <= 0:
-            print(f"Warning: num_new_classes must be > 0. Got {num_new_classes}")
-            return False
-
-        # Expand classifier if there are new classes
-        if num_new_classes > 0:
-            print(f"\nNew classes detected: {sorted(experience_classes - self.old_classes)}")
-
-            old_num_classes = model.num_classes
-            new_num_classes = old_num_classes + num_new_classes
-
-            print(f"Expanding classifier from {old_num_classes} to {new_num_classes} classes")
-
-            # Get device and dtype from old classifier
-            device = model.linear.weight.device #TODO: may be the problem
-            dtype = model.linear.weight.dtype
-
-            # Create new classifier
-            new_classifier = nn.Linear(
-                in_features=int(model.in_features),
-                out_features=int(new_num_classes),
-                bias=True
-            ).to(device=device, dtype=dtype) ##TODO: may be the problem #).to(device=self.device, dtype=dtype)
-
-            # Copy old weights and biases to new classifier
-            with torch.no_grad():
-                # Copy old weights
-                new_classifier.weight[:old_num_classes].copy_(model.linear.weight)
-
-                # Copy old biases
-                new_classifier.bias[:old_num_classes].copy_(model.linear.bias)
-
-                # Initialize new weights with small random values (Kaiming normal)
-                # This helps prevent saturation and allows new classes to learn
-                init.kaiming_normal_(new_classifier.weight[old_num_classes:])
-
-                # Initialize new biases to small values (e.g., -0.5 for less confident predictions)
-                nn.init.constant_(new_classifier.bias[old_num_classes:], 0.0)
-
-            # Replace the old classifier
-            model.linear = new_classifier
-            model.num_classes = new_num_classes
-
-            new_parameters = new_classifier.parameters()
-
-            #self.optimizer.add_param_group({"params": new_parameters})
-            self.optimizer = torch.optim.SGD(
-                model.parameters(),
-                lr=self.lr,
-                momentum=self.momentum,
-                weight_decay=self.weight_decay,
-            )
-
-            print(f"Classifier expanded successfully. New output size: {new_num_classes}")
-            return True'''
+    def step_lr(self, epoch):#def step_lr(self, epoch, lr_decay_every, lr_decay_factor):#def step_lr(self, epoch, base_lr, lr_decay_every, lr_decay_factor, optimizer):
+        """Handles step decay of learning rate."""
+        factor = np.power(self.lr_decay_factor, np.floor((epoch - 1) / self.lr_decay_every))#factor = np.power(lr_decay_factor, np.floor((epoch - 1) / lr_decay_every))
+        new_lr = self.lr * factor#new_lr = base_lr * factor
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = new_lr
+        print('Set lr to ', new_lr)
+        return self.optimizer
 
     def expand_classifier(self, model: nn.Module, experience: CLExperience):
         """Expand the classifier AND expand all previous teachers."""
@@ -1056,10 +964,7 @@ class LwFTrainer(SupervisedTemplate):
         self._before_eval(**kwargs)
         for self.experience in experiences_list:
             self._before_eval_exp(**kwargs)
-            #self.add_classes(self.model, len(self.experience.classes_in_this_experience))
-            #new_parameters=self.add_classes(self.model, len(self.experience.classes_in_this_experience))
-            #self.optimizer.add_param_group({"params": new_parameters})
-            self.eval_experience()#self._eval_exp(**kwargs)
+            self.eval_experience() # self._eval_exp(**kwargs)
             self._after_eval_exp(**kwargs)
 
         self._after_eval(**kwargs)
@@ -1122,13 +1027,12 @@ class LwFTrainer(SupervisedTemplate):
         """Evaluation loop over the current `self.dataloader`."""
         for self.mbatch in self.dataloader:#self.eval_dataloader:
             self.unpack_minibatch()
-            targets = self.map_labels_expanding_classifier()
+            targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
             self._before_eval_iteration(**kwargs) # formerly commented-out
 
             self._before_eval_forward(**kwargs)# formerly commented-out
             self.mb_output = self.model(self.mb_x)#self.mb_output = self.forward()
             self._after_eval_forward(**kwargs)# formerly commented-out
-            #targets = self.remap_targets(self.mb_y) #TODO: RE-MAPPING OF TARGETS, BEING TESTED!!!! Remove later
             self.loss = self.criterion(self.mb_output, targets) #self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
 
             self._after_eval_iteration(**kwargs) # formerly commented-out
@@ -1174,15 +1078,13 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.map_labels_expanding_classifier()
-                        #targets = self.mb_y #targets = self.remap_targets(self.mb_y) #TODO: RE-MAPPING OF TARGETS, BEING TESTED!!!! Remove later
+                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
 
                         student_logits = self.model(self.mb_x)
                         loss = self.criterion(student_logits, targets)
 
                         total_loss += loss.item() * targets.size(0)
                         predictions = torch.argmax(student_logits, dim=1)
-                        #targets = self.map_targets_to_original(self.mb_y) #TODO: Just invented this function, brand new!!
                         total_correct += (predictions == targets).sum().item()
                         total_samples += targets.size(0)
 
@@ -1264,6 +1166,64 @@ class LwFTrainer(SupervisedTemplate):
 
         return bwt_per_task
 
+    def evaluate_epoch(self, epoch, experience: CLExperience, eval_streams: Optional[
+        Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
+        """Evaluate on all experiences seen so far."""
+        print(f"\n{'...' * 60}")
+        print(f"EVALUATING Epoch {epoch} OF Experience {experience.current_experience}")
+
+        current_exp_id = experience.current_experience
+
+        if current_exp_id not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id] = {}
+            self.experience_losses[current_exp_id] = {}
+
+        if eval_streams is None:
+            eval_streams = [experience]
+
+        self.model.eval()
+
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
+
+            for exp in eval_stream:
+                exp_id = exp.current_experience
+
+                # Don't evaluate future experiences
+                if exp_id > current_exp_id:
+                    break
+
+                # Prepare eval data
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
+
+                total_loss = 0.0
+                total_correct = 0
+                total_samples = 0
+
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+
+                        student_logits = self.model(self.mb_x)
+                        loss = self.criterion(student_logits, targets)
+
+                        total_loss += loss.item() * targets.size(0)
+                        predictions = torch.argmax(student_logits, dim=1)
+                        total_correct += (predictions == targets).sum().item()
+                        total_samples += targets.size(0)
+
+                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
+                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+
+                print(
+                    f"Experience {current_exp_id}, "
+                    f"Epoch {epoch}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                    f"\n{'...' * 60}\n"
+                )
+
     def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
             # experiences: Union[TExperienceType, Iterable[TExperienceType]],
             eval_adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
@@ -1303,42 +1263,20 @@ class LwFTrainer(SupervisedTemplate):
             dtype=torch.long
         )
 
-    '''
-    def register_new_classes(self, experience: CLExperience):
+        '''for fine_label in sorted(self.experience.targets.uniques):
+            if fine_label not in self.class_to_idx.keys():
+                self.class_to_idx[fine_label] = len(self.class_to_idx)'''
 
-        for class_id in sorted(experience.classes_in_this_experience):
-
-            if class_id not in self.class_to_idx:
-                self.class_to_idx[class_id] = len(self.class_to_idx)
-
-
-    def remap_targets(self, targets):
-
+    '''def map_targets(self):
         return torch.tensor(
             [
-                self.class_to_idx[int(target.item())]
-                for target in targets
+                self.class_to_idx[int(fine_label.item())]
+                for fine_label in self.mb_y
             ],
-            device=targets.device,
+            device=self.mb_y.device, #fine_label.device,
             dtype=torch.long
-        )
+        )'''
 
-    def map_targets_to_original(self, targets):
-
-        idx_to_class = {
-            idx: class_id
-            for class_id, idx in self.class_to_idx.items()
-        }
-
-        return torch.tensor(
-            [
-                idx_to_class[int(target.item())]
-                for target in targets
-            ],
-            device=targets.device,
-            dtype=torch.long
-        )
-    '''
     '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
@@ -1585,6 +1523,7 @@ After training Experience 3:
 '''
 MATCH_AUTHOR_DISTILL = False#True
 MATCH_AUTHOR_LOSS = False #True
+VERBOSE=False
 #DYNAMIC_MODELS = True
 
 if TRAINING_WITH_LOOP_LwF:
@@ -1593,8 +1532,8 @@ if TRAINING_WITH_LOOP_LwF:
     lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.001, momentum=0.9, weight_decay=5e-4,
                              temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                              train_mb_size=32, train_epochs=5, eval_mb_size=32, #eval_mb_size=32, #device=DEVICE,
-                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
+                             plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                             evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
                                                         #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
                                                         loggers=InteractiveLogger(), collect_all=True),
