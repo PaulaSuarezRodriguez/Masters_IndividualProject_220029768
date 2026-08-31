@@ -1598,7 +1598,7 @@ After training Experience 3:
   - Tested on Experience 2: 0.50%
   - Tested on Experience 3: 55.50%
 
-
+Results of Train_ResNet20_Outdoors_LwF_v11_ai_ORIGINAL.py
 Accuracy Results for temperature=2.0, alpha=1.0 without increase across experiences,  lr=0.001, train_mb_size=32, train_epochs=5, eval_mb_size=32, MATCH_AUTHOR_DISTILL =False, 
 MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded AND freezing layers:
 
