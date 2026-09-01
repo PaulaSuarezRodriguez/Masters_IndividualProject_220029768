@@ -477,6 +477,7 @@ class LwFTrainer(SupervisedTemplate):
     ):
         self.patience = patience
         self.original_alpha = alpha
+        self.original_lr = lr
         self.class_to_idx = {}
 
         self.plugins: List[BasePlugin] = [] if plugins is None else list(plugins)
@@ -880,7 +881,7 @@ class LwFTrainer(SupervisedTemplate):
                     break'''
             '''if epoch_loss < prev_epoch_loss:
                 loss_c+=1
-                if c >= self.patience:
+                if loss_c >= self.patience:
                     print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
                     self.lr = self.lr * self.lr_decay_factor
                     print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
@@ -898,15 +899,18 @@ class LwFTrainer(SupervisedTemplate):
                 if c >= self.patience:
                     print(
                         f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                    self.lr = self.original_lr
                     break
             elif prev_epoch_acc>=75:
                 print(
                     f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
-                c = self.patience
+                #c = self.patience
+                self.lr = self.original_lr
                 break
 
             prev_epoch_loss = epoch_loss
-            prev_epoch_acc = epoch_acc'''
+            prev_epoch_acc = epoch_acc
+            self.lr = self.original_lr'''
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
@@ -1839,6 +1843,57 @@ After training Experience 3:
   - Tested on Experience 1: 22.50%
   - Tested on Experience 2: 21.50%
   - Tested on Experience 3: 24.00%
+  
+##############################################################################################################################################################################
+if epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+    # Both metrics improved - reset patience counter
+    #prev_epoch_loss = epoch_loss
+    #prev_epoch_acc = epoch_acc
+    c = 0
+elif epoch_acc < prev_epoch_acc:
+    # No improvement - increment patience counter
+    c += 1
+    print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
+
+    if c >= self.patience:
+        print(
+            f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+        break
+elif prev_epoch_acc>=75:
+    print(
+        f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+    c = self.patience
+    break
+
+prev_epoch_loss = epoch_loss
+prev_epoch_acc = epoch_acc  
+
+    lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.001, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
+                             temperature=2.0, alpha=1.0, 
+                             train_mb_size=32, train_epochs=10, eval_mb_size=32,
+                             patience=5, ft_shared_after=7,
+                             
+# No increasing of lr -- lr is NOT part of the early stopping that was manually implemented                              
+                             
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 77.50%
+
+After training Experience 1:
+  - Tested on Experience 0: 44.00%
+  - Tested on Experience 1: 44.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 30.50%
+  - Tested on Experience 1: 36.00%
+  - Tested on Experience 2: 33.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 23.00%
+  - Tested on Experience 1: 25.50%
+  - Tested on Experience 2: 15.50%
+  - Tested on Experience 3: 38.50%
 '''
 MATCH_AUTHOR_DISTILL = True#False#True
 MATCH_AUTHOR_LOSS = True#False #True
@@ -1852,7 +1907,7 @@ if TRAINING_WITH_LOOP_LwF:
     lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.001, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                              train_mb_size=32, train_epochs=5, eval_mb_size=32, #eval_mb_size=32, #device=DEVICE,
-                             patience=5, ft_shared_after=5,
+                             patience=3, ft_shared_after=5,
                              #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
