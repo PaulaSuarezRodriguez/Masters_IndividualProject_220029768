@@ -1919,8 +1919,6 @@ if TRAINING_WITH_LOOP_LwF:
 
     print('Starting experiment WITH LwFTrainer')
     results = []
-    #seen_experiences = [outdoors_specialised_models_train_stream_class_il[0]]
-    #seen_experiences_val = [outdoors_specialised_models_val_stream_class_il[0]]
     seen_experiences = []
     seen_experiences_val = []
     checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
