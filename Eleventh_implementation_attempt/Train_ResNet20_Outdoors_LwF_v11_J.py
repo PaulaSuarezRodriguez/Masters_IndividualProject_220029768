@@ -659,7 +659,7 @@ class LwFTrainer(SupervisedTemplate):
                 break
 
             print(f"\n\n***** MY train_experience() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
-            self.optimizer = self.step_lr(_) # optimizer = self.step_lr( _, self.args.lr, self.args.lr_decay_every,self.args.lr_decay_factor,self.optimizer.param_groups)
+            #self.optimizer = self.step_lr(_) # optimizer = self.step_lr( _, self.args.lr, self.args.lr_decay_every,self.args.lr_decay_factor,self.optimizer.param_groups)
 
             print(f"\n***** EXECUTING Epoch {_} OF Experience {experience.current_experience} --- from inside train_experience() *****\n")
             total_ce = 0.0
@@ -697,22 +697,65 @@ class LwFTrainer(SupervisedTemplate):
                 # ------------------------------------------------
                 # LwF -- single teacher
                 # ------------------------------------------------
+                #print("dist_loss = torch.tensor(0.0,device=self.device)")
+                '''dist_loss = torch.tensor(
+                    0.0,
+                    device=self.device
+                )'''
+                '''print("dist_loss = torch.tensor(total_dist,device=self.device)")
+                dist_loss = torch.tensor(
+                    total_dist,
+                    device=self.device
+                )'''
                 if self.teacher is not None:
+                    #for classes in self.teacher_classes:
                     with torch.no_grad():
-                        teacher_logits = self.teacher(
-                            self.mb_x)  # self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
+                        teacher_logits = self.teacher(self.mb_x)  # self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
 
-                    # Only old classes
-                    old_classes = sorted(self.old_classes)
+                        # Only old classes
+                        #classes = sorted(self.teacher_classes)
+                    for classes in self.teacher_classes:
+                        class_indices = torch.tensor(
+                            [
+                                self.class_to_idx[c]
+                                for c in sorted(classes)#(self.teacher_classes)
+                            ],
+                            device=self.device,
+                            dtype=torch.long
+                        )
+                    if VERBOSE:
+                        #print(f"  Classes (original): {sorted(classes)}")#{sorted(self.teacher_classes)}")
+                        print(f"  Class indices (mapped): {class_indices.tolist()}")
+                        print(f"  Student output shape: {self.mb_output.shape}")
+                        print(f"  Teacher output shape: {teacher_logits.shape}")
 
-                    student_old = self.mb_output[:, old_classes]#student_logits[:, old_classes]
-                    teacher_old = teacher_logits[:, old_classes]
+                    #student_old = self.mb_output[:, class_indices]#student_logits[:, old_classes]
+                    #teacher_old = teacher_logits[:, class_indices]
 
-                    dist_loss = self.distillation_loss(
+                    # ALTERNATE CODE to achieve the same thing -- try if you suspect the above two lines do not work as intended
+                    #student_old = self.mb_output.index_select(1,class_indices)  # student_logits.index_select(1, classes)
+                    #teacher_old = teacher_logits.index_select(1, class_indices)
+
+                    if VERBOSE:
+                        #print(f"  Student old shape: {student_old.shape}")
+                        print(f"  scale used in dist_loss: {self.mb_output.size(1)}")#{student_old.size(1)}
+                        #print(f"  Teacher old shape: {teacher_old.shape}")
+
+                    scale = self.mb_output.size(1)
+
+                    '''dist_loss = self.distillation_loss(
                         student_old,
                         teacher_old,
-                        scale=self.mb_output.size(1)
+                        scale=scale
+                    )'''
+                    dist_loss = self.distillation_loss(
+                        self.mb_output,
+                        teacher_logits,
+                        scale=scale
                     )
+                    if VERBOSE:
+                        # Debug: check distillation loss value
+                        print(f"  Distillation loss (teacher {self.teacher_classes}): {dist_loss.item():.6f}")#print(f"  Distillation loss (teacher {classes}): {dist_loss.item():.6f}")
 
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + self.alpha * dist_loss
@@ -721,62 +764,11 @@ class LwFTrainer(SupervisedTemplate):
 
                 else:
                     loss = ce_loss
-                # ------------------------------------------------
-                # LwF -- multiple teachers
-                # ------------------------------------------------
-                    '''#print("dist_loss = torch.tensor(0.0,device=self.device)")
+
                     dist_loss = torch.tensor(
                         0.0,
-                        device=self.device
+                        device=self.device,
                     )
-                    if len(self.teachers)>0:
-                        for teacher, classes in zip(
-                                self.teachers,
-                                self.teacher_classes
-                        ):
-                            with torch.no_grad():
-                                teacher_logits = teacher(self.mb_x)
-    
-                            class_indices = torch.tensor(
-                                [
-                                    self.class_to_idx[c]
-                                    for c in sorted(classes)
-                                ],
-                                device=self.device,
-                                dtype=torch.long
-                            )
-                            if VERBOSE:
-                                print(f"  Classes (original): {sorted(classes)}")
-                                print(f"  Class indices (mapped): {class_indices.tolist()}")
-                                print(f"  Student output shape: {self.mb_output.shape}")
-                                print(f"  Teacher output shape: {teacher_logits.shape}")
-    
-                            student_old = self.mb_output.index_select(1, class_indices)  # student_logits.index_select(1, classes)
-                            teacher_old = teacher_logits.index_select(1, class_indices)
-    
-                            if VERBOSE:
-                                print(f"  Student old shape: {student_old.shape}")
-                                print(f"  scale used in dist_loss: {student_old.size(1)}")
-                                print(f"  Teacher old shape: {teacher_old.shape}")
-    
-                            scale = self.mb_output.size(1)
-    
-                            dist_loss += self.distillation_loss(
-                                student_old,
-                                teacher_old,
-                                scale=scale
-                            )
-                            if VERBOSE:
-                                # Debug: check distillation loss value
-                                print(f"  Distillation loss (teacher {classes}): {dist_loss.item():.6f}")
-    
-                        if MATCH_AUTHOR_LOSS:
-                            loss = ce_loss + self.alpha * dist_loss
-                        if MATCH_AUTHOR_LOSS == False:
-                            loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss))#loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
-    
-                    else:
-                        loss = ce_loss'''
 
                 # ------------------------------------------------
                 # Backpropagation
@@ -922,7 +914,7 @@ class LwFTrainer(SupervisedTemplate):
         model.linear = new_classifier
         model.num_classes = new_num_classes
 
-        ''''# ===== NEW: Expand all previous teachers to match =====
+        '''# ===== NEW: Expand all previous teachers to match =====
         for i, teacher in enumerate(self.teachers):
             old_teacher_size = teacher.num_classes
 
@@ -963,6 +955,49 @@ class LwFTrainer(SupervisedTemplate):
             momentum=self.momentum,
             weight_decay=self.weight_decay,
         )'''
+        # ===== NEW: Expand SINGLE teacher to match student in SINGLE-TEACHER LwF =====
+        if self.teacher is None:
+            return False
+        if self.teacher is not None:
+            old_teacher_size = self.teacher.num_classes
+
+            if old_teacher_size >= new_num_classes:
+                # Teacher is already large enough, skip
+                return False
+
+            print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
+
+            # Create new classifier for teacher
+            teacher_new_classifier = nn.Linear(
+                in_features=int(self.teacher.in_features),
+                out_features=int(new_num_classes),
+                bias=True
+            ).to(device=device, dtype=dtype)
+
+            with torch.no_grad():
+                # Copy old teacher weights (what it learned)
+                teacher_new_classifier.weight[:old_teacher_size].copy_(self.teacher.linear.weight)
+                teacher_new_classifier.bias[:old_teacher_size].copy_(self.teacher.linear.bias)
+
+                # Initialize new dimensions to 0 (teacher doesn't know about new classes)
+                nn.init.constant_(teacher_new_classifier.weight[old_teacher_size:], 0.0)
+                nn.init.constant_(teacher_new_classifier.bias[old_teacher_size:], 0.0)
+
+            # Replace teacher's classifier
+            self.teacher.linear = teacher_new_classifier
+            self.teacher.num_classes = new_num_classes
+
+            # Keep teacher frozen (no gradients)
+            for param in self.teacher.parameters():
+                param.requires_grad = False
+
+        # Recreate optimizer with expanded student
+        self.optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=self.lr,
+            momentum=self.momentum,
+            weight_decay=self.weight_decay,
+        )
 
         print(f"Classifier and all teachers expanded successfully. New size: {new_num_classes}\n")
         return True
@@ -1552,7 +1587,7 @@ After training Experience 3:
 '''
 MATCH_AUTHOR_DISTILL = False#True
 MATCH_AUTHOR_LOSS = False #True
-VERBOSE=False
+VERBOSE=True
 #DYNAMIC_MODELS = True
 
 if TRAINING_WITH_LOOP_LwF:
