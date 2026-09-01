@@ -1469,6 +1469,69 @@ class LwFTrainer(SupervisedTemplate):
         return self
     '''
 '''
+######################################################################################################################################################
+#### Train_ResNet20_Outdoors_Naive_Baseline_v11 ###
+######################################################################################################################################################
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 51.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 84.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 0.00%
+  - Tested on Experience 2: 65.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 0.00%
+  - Tested on Experience 2: 0.00%
+  - Tested on Experience 3: 47.00%
+
+After training Experience 4:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 0.00%
+  - Tested on Experience 2: 0.00%
+  - Tested on Experience 3: 0.00%
+  - Tested on Experience 4: 68.00%
+######################################################################################################################################################
+#### Train_ResNet20_Outdoors_LwF_v11D ###
+######################################################################################################################################################
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 49.50%
+
+After training Experience 1:
+  - Tested on Experience 0: 23.50%
+  - Tested on Experience 1: 33.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 16.50%
+  - Tested on Experience 1: 13.50%
+  - Tested on Experience 2: 43.50%
+
+After training Experience 3:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 0.00%
+  - Tested on Experience 2: 0.50%
+  - Tested on Experience 3: 58.50%
+
+After training Experience 4:
+  - Tested on Experience 0: 0.00%
+  - Tested on Experience 1: 0.00%
+  - Tested on Experience 2: 0.00%
+  - Tested on Experience 3: 6.50%
+  - Tested on Experience 4: 65.50%
+
+######################################################################################################################################################
+#### Train_ResNet20_Outdoors_LwF_v11F ###
+######################################################################################################################################################
+
 temperature=0.4, alpha=0.5, train_epochs=5 -- struggles to learn new experiences (definitely by more that 11D), but retains previous experiences way better than 11D (where loss is LwF loss instead of KD final loss)
 After training Experience 2:
   - Tested on Experience 0: 44.50%
