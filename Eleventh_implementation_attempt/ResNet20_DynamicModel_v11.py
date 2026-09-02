@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 #from avalanche.models.dynamic_modules import IncrementalClassifier, DynamicModule
-from avalanche.models.dynamic_modules import DynamicModule
+#from avalanche.models.dynamic_modules import DynamicModule
 
 def _weights_init(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
@@ -101,11 +101,6 @@ class ResNet20_DynamicModel(nn.Module):
         # Dynamic classifier
         # ---------------------------------------------------------
         self.linear = nn.Linear(in_features=self.in_features,out_features=self.num_classes)
-        '''self.linear = IncrementalClassifier(
-            in_features=self.in_features,
-            initial_out_features=self.num_classes,
-            masking=True, #masking=False,
-        )'''
 
         # Preserve your original Kaiming initialization.
         self.apply(_weights_init)
@@ -261,7 +256,7 @@ class IncrementalClassifier(DynamicModule):
             out = out.masked_fill(mask=mask, value=self.mask_value)
         return out
 '''
-class IncrementalClassifier(DynamicModule):
+'''class IncrementalClassifier(DynamicModule):
     """
     Output layer that incrementally adds units whenever new classes are
     encountered.
@@ -338,7 +333,7 @@ class IncrementalClassifier(DynamicModule):
         if self.masking:
             mask = torch.logical_not(self.active_units)
             out = out.masked_fill(mask=mask, value=self.mask_value)
-        return out
+        return out'''
 
 
 if __name__ == "__main__":

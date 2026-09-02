@@ -233,6 +233,25 @@ avl_train = make_avalanche_dataset(nature_specialised_models_train_subset.datase
 avl_val = make_avalanche_dataset(nature_specialised_models_val_subset.dataset)
 avl_test = make_avalanche_dataset(nature_specialised_models_test_subset.dataset)
 
+#class_to_index={}
+def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
+    """
+    Map labels using provided mapping, or build a new one.
+    Allows caller to control state management.
+    """
+    if class_to_idx_new is None:
+        class_to_idx_new = {}
+
+    for fine_label in sorted(ds.targets):
+        fine_label_item = fine_label
+        if fine_label_item not in class_to_idx_new.keys():
+            class_to_idx_new[fine_label_item] = len(class_to_idx_new)
+
+    return class_to_idx_new
+
+class_to_idx_new = map_labels_expanding_classifier_benchmark(nature_specialised_models_train_subset.dataset)
+print("class_to_idx_new:", class_to_idx_new)
+
 if DEBUG:
     print("type(nature_specialised_models_train_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_train", type(avl_train))
     print("type(nature_specialised_models_val_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_val", type(avl_val))
@@ -453,6 +472,8 @@ from avalanche.benchmarks.utils import AvalancheDataset
 from avalanche.benchmarks.utils.dataset_definitions import T_co
 from avalanche.training.templates.base_sgd import PeriodicEval
 from avalanche.training.plugins.clock import Clock
+import hashlib
+import json
 
 class LwFTrainer(SupervisedTemplate):
     def __init__(
@@ -481,7 +502,7 @@ class LwFTrainer(SupervisedTemplate):
         self.patience = patience
         self.original_alpha = alpha
         self.original_lr = lr
-        self.class_to_idx = {}
+        #self.class_to_idx = {}
 
         self.plugins: List[BasePlugin] = [] if plugins is None else list(plugins)
         """ List of `SupervisedPlugin`s. """
@@ -648,7 +669,8 @@ class LwFTrainer(SupervisedTemplate):
             self.expand_classifier(self.model, self.experience)  # DEFINITE POSITION. # IMPORTANT: recreate optimizer after classifier expansion. This is now done from the body of expand_classifier()
             self.train_experience(self.experience, eval_streams, **kwargs)
             # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
-            self.evaluate_all_experiences(self.experience, eval_streams)
+            self.evaluate_all_experiences_DEBUG(self.experience, eval_streams)#self.evaluate_all_experiences(self.experience, eval_streams)
+            self.debug_experience_accuracies()
             self._after_training_exp(**kwargs)
         self._after_training(**kwargs)
         self._train_cleanup()
@@ -691,7 +713,7 @@ class LwFTrainer(SupervisedTemplate):
             for self.mbatch in self.dataloader:#self.train_dataloader: # for batch, targets in train_dataloader:
 
                 self.unpack_minibatch()
-                targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
+                targets = self.map_targets() #targets = self.map_labels_expanding_classifier()
 
                 self._before_training_iteration(**kwargs) #TODO: NEW, in testing
 
@@ -736,10 +758,18 @@ class LwFTrainer(SupervisedTemplate):
                         # Only old classes
                         #classes = sorted(self.teacher_classes)
                     for classes in self.teacher_classes:
-                        class_indices = torch.tensor(
+                        '''class_indices = torch.tensor(
                             [
                                 self.class_to_idx[c]
                                 for c in sorted(classes)#(self.teacher_classes)
+                            ],
+                            device=self.device,
+                            dtype=torch.long
+                        )'''
+                        class_indices = torch.tensor(
+                            [
+                                class_to_idx_new[c]
+                                for c in sorted(classes)  # (self.teacher_classes)
                             ],
                             device=self.device,
                             dtype=torch.long
@@ -1037,8 +1067,8 @@ class LwFTrainer(SupervisedTemplate):
         #print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
         #print("self.evaluate_single_experience() AFTER LOADING:")
         #self.evaluate_single_experience(experience, eval_streams)
-        #print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
-        #self.evaluate_single_experience(experience)
+        print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
+        self.evaluate_single_experience(experience, eval_streams)
         self.teacher = copy.deepcopy(self.model)
         self.teacher.eval()
 
@@ -1253,7 +1283,7 @@ class LwFTrainer(SupervisedTemplate):
         """Evaluation loop over the current `self.dataloader`."""
         for self.mbatch in self.dataloader:#self.eval_dataloader:
             self.unpack_minibatch()
-            targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
+            targets = self.map_targets() #targets = self.map_labels_expanding_classifier()
             self._before_eval_iteration(**kwargs) # formerly commented-out
 
             self._before_eval_forward(**kwargs)# formerly commented-out
@@ -1264,14 +1294,19 @@ class LwFTrainer(SupervisedTemplate):
             self._after_eval_iteration(**kwargs) # formerly commented-out
 
 
-    def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
+    '''def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
         Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
         """Evaluate on all experiences seen so far."""
         print(f"\n{'=' * 60}")
         print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
         print(f"{'=' * 60}\n")
+        print("print(self.model.training) -- evaluate_all_experiences before self.model.eval()",self.model.training)
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
+        prev_train_state = self._save_train_state()
+        self.is_training = False
+        self.model.eval()
+        print("print(self.model.training)-- evaluate_all_experiences after self.model.eval()", self.model.training)
 
         current_exp_id_all_experiences = experience.current_experience
 
@@ -1306,7 +1341,7 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets_all_experiences = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_all_experiences = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
                         student_logits_all_experiences = self.model(self.mb_x)
                         loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
@@ -1330,14 +1365,173 @@ class LwFTrainer(SupervisedTemplate):
 
         # Compute backward transfer AFTER all evaluations
         self._compute_backward_transfer_internal()
+        self._load_train_state(prev_train_state)
         self.model.train()
-        #self.model.to(self.device) # TODO: may be the problem
+        print("print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function", self.model.training)
+        #self.model.to(self.device) # TODO: may be the problem'''
+
+    # Replace your evaluate_all_experiences function with this debug version:
+
+    def evaluate_all_experiences_DEBUG(self, experience, eval_streams=None):
+        """Evaluate on all experiences - WITH COMPREHENSIVE DEBUGGING."""
+        print(f"\n{'=' * 60}")
+        print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
+        print(f"{'=' * 60}\n")
+
+        current_exp_id_all_experiences = experience.current_experience
+
+        if current_exp_id_all_experiences not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id_all_experiences] = {}
+            self.experience_losses[current_exp_id_all_experiences] = {}
+
+        if eval_streams is None:
+            eval_streams = [experience]
+
+        self.model.eval()
+
+        # ===== DEBUG 1: Log model state =====
+        print(f"\n[DEBUG 1] Model state at start of evaluate_all_experiences:")
+        print(f"  - model.training = {self.model.training}")
+        print(f"  - Number of eval_streams = {len(eval_streams)}")
+        for i, stream in enumerate(eval_streams):
+            if isinstance(stream, list):
+                print(f"  - Stream {i}: {len(stream)} experiences")
+            else:
+                print(f"  - Stream {i}: Single experience")
+
+        # ===== DEBUG 2: Check RNG state =====
+        print(f"\n[DEBUG 2] RNG state:")
+        print(f"  - torch.seed() = {torch.initial_seed()}")  # Gets the initial seed
+        print(f"  - numpy.random.get_state()[1][0] = {np.random.get_state()[1][0]}")  # First element of state
+
+        # ===== DEBUG 3: Log model weights hash (to detect changes) =====
+        print(f"\n[DEBUG 3] Model weights hash (first layer):")
+        first_layer_weights = self.model.conv1.weight.data.cpu().numpy()
+        weights_hash = hashlib.md5(first_layer_weights.tobytes()).hexdigest()
+        print(f"  - conv1.weight hash = {weights_hash}")
+
+        # ===== DEBUG 4: Log BatchNorm statistics =====
+        print(f"\n[DEBUG 4] BatchNorm statistics (if available):")
+        bn_layer = self.model.bn1
+        print(f"  - bn1.running_mean[0:5] = {bn_layer.running_mean[0:5]}")
+        print(f"  - bn1.running_var[0:5] = {bn_layer.running_var[0:5]}")
+        print(f"  - bn1.num_batches_tracked = {bn_layer.num_batches_tracked}")
+
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
+
+            for exp in eval_stream:
+                exp_id_all_experiences = exp.current_experience
+
+                if exp_id_all_experiences > current_exp_id_all_experiences:
+                    break
+
+                # ===== DEBUG 5: Log dataset information =====
+                print(f"\n[DEBUG 5] Evaluating experience {exp_id_all_experiences} from stream {stream_idx}:")
+                eval_adapted_dataset = exp.dataset.eval()
+                print(f"  - Dataset size = {len(eval_adapted_dataset)}")
+                print(f"  - Dataset type = {type(eval_adapted_dataset)}")
+
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(
+                    eval_adapted_dataset, self.eval_mb_size)
+
+                print(f"  - Dataloader length = {len(eval_dataloader)}")
+                print(f"  - Dataloader batch size = {self.eval_mb_size}")
+
+                total_loss_all_experiences = 0.0
+                total_correct_all_experiences = 0
+                total_samples_all_experiences = 0
+
+                # ===== DEBUG 6: Log per-batch information =====
+                batch_count = 0
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets_all_experiences = self.map_targets()
+
+                        student_logits_all_experiences = self.model(self.mb_x)
+                        loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
+
+                        total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
+                        predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
+                        total_correct_all_experiences += (
+                                    predictions_all_experiences == targets_all_experiences).sum().item()
+                        total_samples_all_experiences += targets_all_experiences.size(0)
+
+                        # Log first batch info
+                        if batch_count == 0:
+                            print(f"  [DEBUG 6] First batch info:")
+                            print(f"    - Batch size = {targets_all_experiences.size(0)}")
+                            print(f"    - Loss value = {loss_all_experiences.item()}")
+                            print(f"    - Predictions (first 5) = {predictions_all_experiences[:5]}")
+                            print(f"    - Targets (first 5) = {targets_all_experiences[:5]}")
+                            print(f"    - Logits shape = {student_logits_all_experiences.shape}")
+                            print(f"    - Logits sum = {student_logits_all_experiences.sum().item()}")
+
+                        batch_count += 1
+
+                avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
+                accuracy_all_experiences = (
+                            total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
+
+                # ===== DEBUG 7: Log final computed values =====
+                print(f"\n[DEBUG 7] Computed metrics for Exp {exp_id_all_experiences}:")
+                print(f"  - Total batches = {batch_count}")
+                print(f"  - Total samples = {total_samples_all_experiences}")
+                print(f"  - Total correct = {total_correct_all_experiences}")
+                print(f"  - Average loss = {avg_loss_all_experiences:.10f}")  # High precision!
+                print(f"  - Accuracy = {accuracy_all_experiences:.10f}%")  # High precision!
+
+                # Check if we're overwriting a previous value
+                if exp_id_all_experiences in self.experience_accuracies[current_exp_id_all_experiences]:
+                    old_acc = self.experience_accuracies[current_exp_id_all_experiences][exp_id_all_experiences]
+                    print(f"\n[WARNING] Overwriting previous accuracy!")
+                    print(f"  - Old accuracy = {old_acc:.10f}%")
+                    print(f"  - New accuracy = {accuracy_all_experiences:.10f}%")
+                    print(f"  - Difference = {abs(accuracy_all_experiences - old_acc):.10f}%")
+
+                # Store results
+                self.experience_accuracies[current_exp_id_all_experiences][
+                    exp_id_all_experiences] = accuracy_all_experiences
+                self.experience_losses[current_exp_id_all_experiences][
+                    exp_id_all_experiences] = avg_loss_all_experiences
+
+                print(
+                    f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
+                    f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
+                )
+
+        # Compute backward transfer AFTER all evaluations
+        self._compute_backward_transfer_internal()
+        self.model.train()
+
+    # ============================================================================
+    # ADDITIONAL DEBUGGING: Add this at the END of your training loop
+    # ============================================================================
+
+    def debug_experience_accuracies(self):
+        """Print the complete state of experience_accuracies for debugging."""
+        print(f"\n\n{'#' * 80}")
+        print("COMPLETE STATE OF self.experience_accuracies")
+        print(f"{'#' * 80}\n")
+
+        for trained_exp_id in sorted(self.experience_accuracies.keys()):
+            print(f"After training Experience {trained_exp_id}:")
+            for test_exp_id in sorted(self.experience_accuracies[trained_exp_id].keys()):
+                acc = self.experience_accuracies[trained_exp_id][test_exp_id]
+                print(f"  Test Exp {test_exp_id}: {acc:.10f}%")  # High precision
+            print()
+
+    # Call this after each evaluate_all_experiences() call to see what's stored:
+    # debug_experience_accuracies()
 
     def _compute_backward_transfer_internal(self):
         """Compute and print backward transfer after evaluation."""
         print(f"\n{'=' * 80}")
         print(f"BACKWARD TRANSFER ANALYSIS")
         print(f"{'=' * 80}\n")
+        print("print(self.model.training) -- _compute_backward_transfer_internal", self.model.training)
 
         exp_ids = sorted(self.experience_accuracies.keys())
 
@@ -1403,6 +1597,10 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING Epoch {epoch} OF Experience {experience.current_experience}")
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
+        prev_train_state = self._save_train_state()
+        self.is_training = False
+        self.model.eval()
+        print("print(self.model.training) -- evaluate_epoch after self.model.eval()", self.model.training)
 
         current_exp_id_epoch = experience.current_experience
 
@@ -1437,7 +1635,7 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets_epoch = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_epoch = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
                         student_logits_epoch = self.model(self.mb_x)
                         loss_epoch = self.criterion(student_logits_epoch, targets_epoch)
@@ -1455,6 +1653,7 @@ class LwFTrainer(SupervisedTemplate):
                     f"Epoch {epoch}: Loss = {avg_loss_epoch:.6f} | Accuracy = {accuracy_epoch:.2f}%"
                     f"\n{'...' * 60}\n"
                 )
+        self._load_train_state(prev_train_state)
         self.model.train()
         #self.model.to(self.device)  # TODO: may be the problem
         return avg_loss_epoch, accuracy_epoch
@@ -1466,6 +1665,10 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING Experience {experience.current_experience}")
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
+        prev_train_state = self._save_train_state()
+        self.is_training = False
+        self.model.eval()
+        print("print(self.model.training) -- evaluate_single_experience after self.model.eval()", self.model.training)
 
         current_exp_id_single_exp = experience.current_experience
 
@@ -1500,7 +1703,7 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets_single_exp = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_single_exp = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
                         student_logits_single_exp = self.model(self.mb_x)
                         loss_single_exp = self.criterion(student_logits_single_exp, targets_single_exp)
@@ -1518,6 +1721,7 @@ class LwFTrainer(SupervisedTemplate):
                     f"Loss = {avg_loss_single_exp:.6f} | Accuracy = {accuracy_single_exp:.2f}%"
                     f"\n{'...' * 60}\n"
                 )
+        self._load_train_state(prev_train_state)
         self.model.train()
         #self.model.to(self.device)  # TODO: may be the problem
         return avg_loss_single_exp, accuracy_single_exp
@@ -1527,7 +1731,7 @@ class LwFTrainer(SupervisedTemplate):
             eval_adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
             batch_size: int,
             num_workers=0,
-            shuffle=True,
+            shuffle=False,
             pin_memory=None,
             persistent_workers=False,
             drop_last=False,
@@ -1545,7 +1749,7 @@ class LwFTrainer(SupervisedTemplate):
                                 drop_last=drop_last, )
         return eval_dataloader
 
-    def map_labels_expanding_classifier(self):
+    '''def map_labels_expanding_classifier(self):
         for fine_label in sorted(self.mb_y): #self.mb_task_id:#for fine_label in nature_specialised_models_train_stream_class_il.dataset.targets.uniques:
             #self.mb_y.
             fine_label_item = fine_label.item()
@@ -1561,12 +1765,12 @@ class LwFTrainer(SupervisedTemplate):
             dtype=torch.long
         )
 
-        '''for fine_label in sorted(self.experience.targets.uniques):
-            if fine_label not in self.class_to_idx.keys():
-                self.class_to_idx[fine_label] = len(self.class_to_idx)'''
+        #for fine_label in sorted(self.experience.targets.uniques):
+         #   if fine_label not in self.class_to_idx.keys():
+          #      self.class_to_idx[fine_label] = len(self.class_to_idx)'''
 
-    '''def map_targets(self):
-        return torch.tensor(
+    def map_targets(self):
+        '''return torch.tensor(
             [
                 self.class_to_idx[int(fine_label.item())]
                 for fine_label in self.mb_y
@@ -1574,6 +1778,12 @@ class LwFTrainer(SupervisedTemplate):
             device=self.mb_y.device, #fine_label.device,
             dtype=torch.long
         )'''
+        targets_tensor = torch.tensor([class_to_idx_new[int(fine_label.item())]for fine_label in self.mb_y],
+            device=self.mb_y.device, #fine_label.device,
+            dtype=torch.long
+        )
+        #print("print(targets_tensor)",targets_tensor)
+        return targets_tensor
 
     def evaluate_all_experiences_post_training(self, eval_streams: Optional[
         Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
@@ -1604,7 +1814,7 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets_all_experiences_post_training = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_all_experiences_post_training = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
                         student_logits_all_experiences_post_training = self.model(self.mb_x)
                         loss_all_experiences_post_training = self.criterion(student_logits_all_experiences_post_training, targets_all_experiences_post_training)
@@ -1621,7 +1831,7 @@ class LwFTrainer(SupervisedTemplate):
                     f"Performance on Exp {exp_id_all_experiences_post_training}: Loss = {avg_loss_all_experiences_post_training:.6f} | Accuracy = {accuracy_all_experiences_post_training:.2f}%"
                 )
 
-    def map_labels_expanding_classifier_v2(self, class_to_idx=None):
+    '''def map_labels_expanding_classifier_v2(self, class_to_idx=None):
         """
         Map labels using provided mapping, or build a new one.
         Allows caller to control state management.
@@ -1638,7 +1848,7 @@ class LwFTrainer(SupervisedTemplate):
             [class_to_idx[int(fine_label.item())] for fine_label in self.mb_y],
             device=fine_label.device,
             dtype=torch.long
-        )
+        )'''
 
     '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
@@ -1980,7 +2190,7 @@ if TRAINING_WITH_LOOP_LwF:
         '''if i > 0:
             lwf_trainer.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")'''
-        lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
+        lwf_trainer.train(experience, [seen_experiences]) #lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
         print("Temperature:" ,lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
         #lwf_trainer.train(experience, nature_specialised_models_val_stream_class_il)
         #lwf_trainer.train_experience(experience, nature_specialised_models_val_stream_class_il)
