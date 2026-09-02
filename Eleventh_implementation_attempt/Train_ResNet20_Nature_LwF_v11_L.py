@@ -777,7 +777,7 @@ class LwFTrainer(SupervisedTemplate):
                     difference_ce_dist = (ce_loss.item() - dist_loss.item())
                     if difference_ce_dist > 0:
                         div = (difference_ce_dist / 0.10)#div = (difference_ce_dist / 0.20)
-                        print(f"self.alpha BEFORE INCREASE: {self.alpha}\n") #NEVER TESTED if VERBOSE else None
+                        #print(f"self.alpha BEFORE INCREASE: {self.alpha}\n") #NEVER TESTED if VERBOSE else None
                         self.alpha = self.original_alpha + (0.10 * div)
                         if VERBOSE:
                             print(f"difference_ce_dist = (ce_loss - dist_loss) = {difference_ce_dist},\n "
@@ -807,7 +807,7 @@ class LwFTrainer(SupervisedTemplate):
                 loss.backward()
                 print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
 
-                if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                '''if (self.teacher is not None) and (_ <= self.ft_shared_after):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                     # Freeze shared layers
                     for module in self.model.modules():
@@ -821,9 +821,9 @@ class LwFTrainer(SupervisedTemplate):
 
                                 if module.bias is not None:
                                     if module.bias.grad is not None:
-                                        module.bias.grad.zero_()
+                                        module.bias.grad.zero_()'''
 
-                    # Freeze old classifier rows
+                '''# Freeze old classifier rows
                     if len(self.old_classes) > 0:
 
                         old_num_classes = len(self.old_classes)
@@ -836,7 +836,21 @@ class LwFTrainer(SupervisedTemplate):
                         if self.model.linear.bias.grad is not None:
                             self.model.linear.bias.grad[
                                 :old_num_classes
-                            ].zero_()
+                            ].zero_()'''
+
+                '''if (self.teacher is not None) and len(self.old_classes) > 0 and (_ <= self.ft_shared_after-2):
+                    # Freeze old classifier rows
+                    old_num_classes = len(self.old_classes)
+
+                    if self.model.linear.weight.grad is not None:
+                        self.model.linear.weight.grad[
+                            :old_num_classes
+                        ].zero_()
+
+                    if self.model.linear.bias.grad is not None:
+                        self.model.linear.bias.grad[
+                            :old_num_classes
+                        ].zero_()'''
 
                 self.optimizer.step()
 
@@ -874,7 +888,7 @@ class LwFTrainer(SupervisedTemplate):
             epoch_loss, epoch_acc = self.evaluate_epoch(_, experience)
             #self.alpha = self.original_alpha
             #print(f"Alpha has been reset to {self.original_alpha}. It is now {self.alpha}")
-            self._after_training_epoch(**kwargs)
+            #self._after_training_epoch(**kwargs) #TODO: Changing locations (now after early stopping loop). NEW LOCATION BEING TESTED! CHANGE BACK IF IT DOES NOT WORK!
             '''while prev_epoch_loss > epoch_loss and prev_epoch_acc > epoch_acc:
                 print(f"WARNING: Loss and accuracy did not improve during the previous epoch. This may be due to the fact that the loss function is not monotonically decreasing. The current epoch will be skipped.")
                 prev_epoch_loss = epoch_loss
@@ -883,18 +897,20 @@ class LwFTrainer(SupervisedTemplate):
                 if c >= self.patience:
                     print(f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
                     break'''
-            if epoch_loss < prev_epoch_loss:
+            if epoch_loss >= prev_epoch_loss:
                 loss_c+=1
-                if loss_c >= self.patience:
+                if loss_c == self.patience-1: # and c == self.patience-1:
                     print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
                     self.lr = self.lr * self.lr_decay_factor
                     print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    c=0
 
             if epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
                 # Both metrics improved - reset patience counter
                 #prev_epoch_loss = epoch_loss
                 #prev_epoch_acc = epoch_acc
                 c = 0
+                loss_c=0
             elif epoch_acc < prev_epoch_acc:
                 # No improvement - increment patience counter
                 c += 1
@@ -904,17 +920,22 @@ class LwFTrainer(SupervisedTemplate):
                     print(
                         f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
                     self.lr = self.original_lr
+                    c=0
+                    loss_c = 0
                     break
-            elif prev_epoch_acc>=75:
+            elif epoch_acc>=75:#elif prev_epoch_acc>=75:
                 print(
                     f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
                 #c = self.patience
                 self.lr = self.original_lr
+                c = 0
+                loss_c = 0
                 break
 
             prev_epoch_loss = epoch_loss
             prev_epoch_acc = epoch_acc
             self.lr = self.original_lr
+            self._after_training_epoch(**kwargs) #TODO: NEW LOCATION BEING TESTED! Change back if it harms results
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
@@ -1554,12 +1575,42 @@ Mean Backward Transfer (BWT): -16.11%
 Temperature: 2.0 Alpha: 3.4419757425785065
 print(lwf_trainer.plugins) AFTER call to .train() [<avalanche.training.plugins.evaluation.EvaluationPlugin object at 0x000001DA7F2DBD90>, <avalanche.training.templates.base_sgd.PeriodicEval object at 0x000001DA09F43890>, <avalanche.training.plugins.clock.Clock object at 0x000001DA39D7F590>]
 Training completed WITH LwFTrainer
+
+
+
+
+
+
+print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
+if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2)
+
+lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
+                         temperature=2.0, alpha=1.0, 
+                         train_mb_size=43, train_epochs=10, eval_mb_size=43,
+                         patience=5, ft_shared_after=8,
+                         
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 79.67%
+
+After training Experience 1:
+  - Tested on Experience 0: 39.67%
+  - Tested on Experience 1: 48.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 24.67%
+  - Tested on Experience 1: 34.67%
+  - Tested on Experience 2: 21.67%
+  
+-- >> End of training phase << --
+Temperature: 2.0 Alpha: 3.2631507962942123
 ######################################################################################################################################################
 
 '''
 MATCH_AUTHOR_DISTILL = True#False#True
 MATCH_AUTHOR_LOSS = True#False #True
-VERBOSE=True #False
+VERBOSE=False
 #DYNAMIC_MODELS = True
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
@@ -1569,7 +1620,7 @@ if TRAINING_WITH_LOOP_LwF:
     lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                              train_mb_size=43, train_epochs=10, eval_mb_size=43, #eval_mb_size=32, #device=DEVICE,
-                             patience=5, ft_shared_after=10,
+                             patience=3, ft_shared_after=10,
                              #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
