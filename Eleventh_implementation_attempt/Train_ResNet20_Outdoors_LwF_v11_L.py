@@ -1329,7 +1329,7 @@ class LwFTrainer(SupervisedTemplate):
             eval_adapted_dataset: Optional[Dataset],  # AvalancheDataset[T_co],
             batch_size: int,
             num_workers=0,
-            shuffle=True,
+            shuffle=False,
             pin_memory=None,
             persistent_workers=False,
             drop_last=False,
