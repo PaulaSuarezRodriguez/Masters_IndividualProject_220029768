@@ -1270,6 +1270,8 @@ class LwFTrainer(SupervisedTemplate):
         print(f"\n{'=' * 60}")
         print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
         print(f"{'=' * 60}\n")
+        # ✓ FIX: Reset state at the beginning
+        #self.class_to_idx = {}
 
         current_exp_id_all_experiences = experience.current_experience
 
@@ -1399,6 +1401,8 @@ class LwFTrainer(SupervisedTemplate):
         """Evaluate on all experiences seen so far."""
         print(f"\n{'...' * 60}")
         print(f"EVALUATING Epoch {epoch} OF Experience {experience.current_experience}")
+        # ✓ FIX: Reset state at the beginning
+        #self.class_to_idx = {}
 
         current_exp_id_epoch = experience.current_experience
 
@@ -1460,6 +1464,8 @@ class LwFTrainer(SupervisedTemplate):
         """Evaluate on all experiences seen so far."""
         print(f"\n{'...' * 60}")
         print(f"EVALUATING Experience {experience.current_experience}")
+        # ✓ FIX: Reset state at the beginning
+        #self.class_to_idx = {}
 
         current_exp_id_single_exp = experience.current_experience
 
@@ -1514,7 +1520,7 @@ class LwFTrainer(SupervisedTemplate):
                 )
         self.model.train()
         #self.model.to(self.device)  # TODO: may be the problem
-                #return avg_loss_single_exp, accuracy_single_exp
+        return avg_loss_single_exp, accuracy_single_exp
 
     def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
             # experiences: Union[TExperienceType, Iterable[TExperienceType]],
@@ -1568,6 +1574,71 @@ class LwFTrainer(SupervisedTemplate):
             device=self.mb_y.device, #fine_label.device,
             dtype=torch.long
         )'''
+
+    def evaluate_all_experiences_post_training(self, eval_streams: Optional[
+        Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
+        """Evaluate on all experiences seen so far."""
+        print(f"\n{'=' * 60}")
+        print(f"EVALUATING ALL EXPERIENCES")
+        print(f"{'=' * 60}\n")
+        # ✓ FIX: Reset state at the beginning
+        #self.class_to_idx = {}
+
+        self.model.eval()
+
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
+
+            for exp in eval_stream:
+                exp_id_all_experiences_post_training = exp.current_experience
+
+                # Prepare eval data
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
+
+                total_loss_all_experiences_post_training = 0.0
+                total_correct_all_experiences_post_training = 0
+                total_samples_all_experiences_post_training = 0
+
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets_all_experiences_post_training = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+
+                        student_logits_all_experiences_post_training = self.model(self.mb_x)
+                        loss_all_experiences_post_training = self.criterion(student_logits_all_experiences_post_training, targets_all_experiences_post_training)
+
+                        total_loss_all_experiences_post_training += loss_all_experiences_post_training.item() * targets_all_experiences_post_training.size(0)
+                        predictions_all_experiences = torch.argmax(student_logits_all_experiences_post_training, dim=1)
+                        total_correct_all_experiences_post_training += (predictions_all_experiences == targets_all_experiences_post_training).sum().item()
+                        total_samples_all_experiences_post_training += targets_all_experiences_post_training.size(0)
+
+                avg_loss_all_experiences_post_training = total_loss_all_experiences_post_training / total_samples_all_experiences_post_training if total_samples_all_experiences_post_training > 0 else 0.0
+                accuracy_all_experiences_post_training = (total_correct_all_experiences_post_training / total_samples_all_experiences_post_training * 100) if total_samples_all_experiences_post_training > 0 else 0.0
+
+                print(
+                    f"Performance on Exp {exp_id_all_experiences_post_training}: Loss = {avg_loss_all_experiences_post_training:.6f} | Accuracy = {accuracy_all_experiences_post_training:.2f}%"
+                )
+
+    def map_labels_expanding_classifier_v2(self, class_to_idx=None):
+        """
+        Map labels using provided mapping, or build a new one.
+        Allows caller to control state management.
+        """
+        if class_to_idx is None:
+            class_to_idx = {}
+
+        for fine_label in sorted(self.mb_y):
+            fine_label_item = fine_label.item()
+            if fine_label_item not in class_to_idx.keys():
+                class_to_idx[fine_label_item] = len(class_to_idx)
+
+        return torch.tensor(
+            [class_to_idx[int(fine_label.item())] for fine_label in self.mb_y],
+            device=fine_label.device,
+            dtype=torch.long
+        )
 
     '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
@@ -1918,7 +1989,8 @@ if TRAINING_WITH_LOOP_LwF:
         # print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
         # print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
     print('Training completed WITH LwFTrainer')
-    #lwf_trainer.eval(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
+    print("lwf_trainer.evaluate_all_experiences(nature_specialised_models_val_stream_class_il)")
+    lwf_trainer.evaluate_all_experiences_post_training(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
 
 
 '''
