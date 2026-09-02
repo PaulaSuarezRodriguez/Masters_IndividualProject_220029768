@@ -658,7 +658,7 @@ class LwFTrainer(SupervisedTemplate):
         loss_c = 0
         prev_epoch_loss = 100
         prev_epoch_acc = 0
-        best_acc_so_far = 0
+        #best_acc_so_far = 0
         accuracies = []
 
         if eval_streams is None:
@@ -668,6 +668,8 @@ class LwFTrainer(SupervisedTemplate):
                 eval_streams[i] = [exp]
         for _ in range(self.train_epochs):
             self._before_training_epoch(**kwargs)
+            self.model.train()
+            self.model.to(self.device)  # TODO: may be the problem
 
             if self._stop_training:  # Early stopping
                 self._stop_training = False
@@ -895,29 +897,107 @@ class LwFTrainer(SupervisedTemplate):
             print(f"accuracies: {accuracies}")
             #self.alpha = self.original_alpha
             #print(f"Alpha has been reset to {self.original_alpha}. It is now {self.alpha}")
-            self._after_training_epoch(**kwargs) #TODO: Changing locations (now after early stopping loop). NEW LOCATION BEING TESTED! CHANGE BACK IF IT DOES NOT WORK!
+            self._after_training_epoch(**kwargs) #This is the correct location! DO NOT CHANGE LOCATION OF THIS LINE! If placed after early stopping loop, it does not execute whenever break executes, confusing Avalanche into thinking it is still training the past epoch at the same time as the next experience starts
+            if epoch_loss >= prev_epoch_loss:
+                loss_c += 1
+                if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                    print(
+                        f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    self.lr = self.lr * self.lr_decay_factor
+                    print(
+                        f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    c = 0
+
+            if epoch_acc > prev_epoch_acc and prev_epoch_acc < 75:  # if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+                # Both metrics improved - reset patience counter
+                # prev_epoch_loss = epoch_loss
+                # prev_epoch_acc = epoch_acc
+                c = 0
+                loss_c = 0
+            elif epoch_acc <= prev_epoch_acc:
+                # No improvement - increment patience counter
+                c += 1
+                print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
+
+                if c >= self.patience:
+                    print(
+                        f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                    self.lr = self.original_lr
+                    c = 0
+                    loss_c = 0
+                    break
+            elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
+                print(
+                    f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+                # c = self.patience
+                self.lr = self.original_lr
+                c = 0
+                loss_c = 0
+                break
+
+            prev_epoch_loss = epoch_loss
+            prev_epoch_acc = epoch_acc
+            '''if epoch_loss >= prev_epoch_loss:
+                loss_c += 1
+                if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                    print(
+                        f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    self.lr = self.lr * self.lr_decay_factor
+                    print(
+                        f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    c = 0
+
+            if epoch_acc > prev_epoch_acc and prev_epoch_acc < 75:  # if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+                # Both metrics improved - reset patience counter
+                # prev_epoch_loss = epoch_loss
+                # prev_epoch_acc = epoch_acc
+                c = 0
+                loss_c = 0
+            elif epoch_acc <= prev_epoch_acc:
+                # No improvement - increment patience counter
+                c += 1
+                print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
+
+                if c >= self.patience:
+                    print(
+                        f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                    self.lr = self.original_lr
+                    c = 0
+                    loss_c = 0
+                    break
+            elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
+                print(
+                    f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+                # c = self.patience
+                self.lr = self.original_lr
+                c = 0
+                loss_c = 0
+                break
+
+            prev_epoch_loss = epoch_loss
+            prev_epoch_acc = epoch_acc'''
+            #self.lr = self.original_lr
             # for acc in accuracies:
-            if epoch_acc >= accuracies[0]:
+            '''if epoch_acc >= accuracies[0]:
                 best_acc_so_far = epoch_acc
                 print(f"New best accuracy: {best_acc_so_far:.2f}%")
-                self.save_entire_checkpoint(
-                    f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
-                print("Best checkpoint saved.")
-            if epoch_loss >= prev_epoch_loss:
+                self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
+                print("Best checkpoint saved.")'''
+            '''if epoch_loss >= prev_epoch_loss:
                 loss_c+=1
-            if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
-                print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                self.lr = self.lr * self.lr_decay_factor
-                print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                c=0
+                if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                    print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    self.lr = self.lr * self.lr_decay_factor
+                    print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                    c=0
 
-            if epoch_acc > prev_epoch_acc:#if epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+            if epoch_acc > prev_epoch_acc and epoch_acc<75:#if epoch_acc > prev_epoch_acc:#           #if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
                 # Both metrics improved - reset patience counter
                 #prev_epoch_loss = epoch_loss
                 #prev_epoch_acc = epoch_acc
                 c = 0
                 loss_c=0
-            elif epoch_acc <= prev_epoch_acc:
+            elif epoch_acc <= prev_epoch_acc and epoch_acc < 75: #elif epoch_acc <= prev_epoch_acc:
                 # No improvement - increment patience counter
                 c += 1
                 print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
@@ -929,7 +1009,7 @@ class LwFTrainer(SupervisedTemplate):
                     c=0
                     loss_c = 0
                     break
-            elif epoch_acc>=75:#elif prev_epoch_acc>=75:
+            elif epoch_acc>=75:#if epoch_acc>=75:#if prev_epoch_acc>=75:#elif epoch_acc>=75:
                 print(
                     f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
                 #c = self.patience
@@ -939,15 +1019,20 @@ class LwFTrainer(SupervisedTemplate):
                 break
 
             prev_epoch_loss = epoch_loss
-            prev_epoch_acc = epoch_acc
+            prev_epoch_acc = epoch_acc'''
             #self.lr = self.original_lr
-            #self._after_training_epoch(**kwargs) #TODO: NEW LOCATION BEING TESTED! Change back if it harms results
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
         # --------------------------------------------------------
         #teacher = copy.deepcopy(self.model)
         #teacher.eval()
+        #self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
+        #print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
+        #print("self.evaluate_single_experience() AFTER LOADING:")
+        #self.evaluate_single_experience(experience, eval_streams)
+        print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
+        self.evaluate_single_experience(experience)
         self.teacher = copy.deepcopy(self.model)
         self.teacher.eval()
 
@@ -978,10 +1063,10 @@ class LwFTrainer(SupervisedTemplate):
         #self.lr-=0.01*self.lr
         #print(f"lr has been decreased by {self.lr_decay_factor}. It is now {self.lr}")
 
-        # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
+        '''# TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
         self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
         print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
-
+        '''
 
     def step_lr(self, epoch):#def step_lr(self, epoch, lr_decay_every, lr_decay_factor):#def step_lr(self, epoch, base_lr, lr_decay_every, lr_decay_factor, optimizer):
         """Handles step decay of learning rate."""
@@ -1237,6 +1322,8 @@ class LwFTrainer(SupervisedTemplate):
 
         # Compute backward transfer AFTER all evaluations
         self._compute_backward_transfer_internal()
+        self.model.train()
+        self.model.to(self.device) # TODO: may be the problem
 
     def _compute_backward_transfer_internal(self):
         """Compute and print backward transfer after evaluation."""
@@ -1358,6 +1445,69 @@ class LwFTrainer(SupervisedTemplate):
                     f"Epoch {epoch}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
                     f"\n{'...' * 60}\n"
                 )
+                self.model.train()
+                self.model.to(self.device)  # TODO: may be the problem
+                return avg_loss, accuracy
+
+    def evaluate_single_experience(self, experience: CLExperience, eval_streams: Optional[
+        Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
+        """Evaluate on all experiences seen so far."""
+        print(f"\n{'...' * 60}")
+        print(f"EVALUATING Experience {experience.current_experience}")
+
+        current_exp_id = experience.current_experience
+
+        '''if current_exp_id not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id] = {}
+            self.experience_losses[current_exp_id] = {}'''
+
+        if eval_streams is None:
+            eval_streams = [experience]
+
+        self.model.eval()
+
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
+
+            for exp in eval_stream:
+                exp_id = exp.current_experience
+
+                # Don't evaluate future experiences
+                if exp_id > current_exp_id:
+                    break
+
+                # Prepare eval data
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
+
+                total_loss = 0.0
+                total_correct = 0
+                total_samples = 0
+
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+
+                        student_logits = self.model(self.mb_x)
+                        loss = self.criterion(student_logits, targets)
+
+                        total_loss += loss.item() * targets.size(0)
+                        predictions = torch.argmax(student_logits, dim=1)
+                        total_correct += (predictions == targets).sum().item()
+                        total_samples += targets.size(0)
+
+                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
+                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+
+                print(
+                    f"Experience {current_exp_id}, "
+                    f"Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                    f"\n{'...' * 60}\n"
+                )
+                self.model.train()
+                self.model.to(self.device)  # TODO: may be the problem
                 return avg_loss, accuracy
 
     def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
@@ -1413,7 +1563,7 @@ class LwFTrainer(SupervisedTemplate):
             dtype=torch.long
         )'''
 
-
+    '''
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
             exclude = []
@@ -1426,19 +1576,19 @@ class LwFTrainer(SupervisedTemplate):
         checkpoint = {
             "strategy": strategy,
             "rng_manager_state": RNGManager.__getstate__(),#"rng_manager": RNGManager, #.set_random_seeds(SEED),
-            "exp_counter": ended_experience_counter,
+            #"exp_counter": ended_experience_counter,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             #"loss": self.loss,
             #"ce_loss" : self.ce_loss,
             #"_criterion" : self._criterion,
-            "clock_train_exp_counter": self.clock.train_exp_counter,
-            "clock_train_epoch_counter": self.clock.train_exp_epochs,
-            #"teacher_state_dict": (
-             #   self.teacher.state_dict()
-              #  if self.teacher is not None
-               # else None
-            #),
+            #"clock_train_exp_counter": self.clock.train_exp_counter,
+            #"clock_train_epoch_counter": self.clock.train_exp_epochs,
+            "teacher_state_dict": (
+                self.teacher.state_dict()
+                if self.teacher is not None
+                else None
+            ),
         }
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
@@ -1452,34 +1602,33 @@ class LwFTrainer(SupervisedTemplate):
         saved_strategy = checkpoint["strategy"] # NOT self, that would be wrong. Not used within function, but kept in case saved_strategy needs to be retrieved at some point, perhaps
                                                 # even through an external call on an instance / object of class EWCStrategy
 
-        self.model.load_state_dict(checkpoint["model_state_dict"])
+        #self.model.load_state_dict(checkpoint["model_state_dict"])
         # strategy.model.to(device)
-        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        #self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         #self.ce_loss = checkpoint["ce_loss"]
         #self.loss = checkpoint["loss"]
         #self._criterion = checkpoint["_criterion"]
-        self.clock = checkpoint["strategy"].clock
-        self.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
-        self.clock.train_exp_epochs = checkpoint["clock_train_epoch_counter"]
-        self.train_mb_size = checkpoint["strategy"].train_mb_size
-        self.train_epochs = checkpoint["strategy"].train_epochs
-        self.eval_mb_size = checkpoint["strategy"].eval_mb_size
-        self.device = checkpoint["strategy"].device
-        self.plugins = checkpoint["strategy"].plugins
-        self.evaluator = checkpoint["strategy"].evaluator
-        self.eval_every = checkpoint["strategy"].eval_every
-        self.dataloader = checkpoint["strategy"].dataloader
-        self.experience = checkpoint["strategy"].experience
-        self.teacher=checkpoint["strategy"].teacher
-        (self.teacher.load_state_dict(checkpoint["teacher_state_dict"])
-         if self.teacher is not None
-                else None),
-        self.old_classes = checkpoint["strategy"].old_classes
-        RNGManager.__setstate__(checkpoint["rng_manager_state"])
+        #self.clock = checkpoint["strategy"].clock
+        #self.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
+        #self.clock.train_exp_epochs = checkpoint["clock_train_epoch_counter"]
+        #self.train_mb_size = checkpoint["strategy"].train_mb_size
+        #self.train_epochs = checkpoint["strategy"].train_epochs
+        #self.eval_mb_size = checkpoint["strategy"].eval_mb_size
+        #self.device = checkpoint["strategy"].device
+        #self.plugins = checkpoint["strategy"].plugins
+        #self.evaluator = checkpoint["strategy"].evaluator
+        #self.eval_every = checkpoint["strategy"].eval_every
+        #self.dataloader = checkpoint["strategy"].dataloader
+        #self.experience = checkpoint["strategy"].experience
+        #self.teacher=checkpoint["strategy"].teacher
+        #(self.teacher.load_state_dict(checkpoint["teacher_state_dict"])
+         #if self.teacher is not None
+          #  else None),
+        #self.old_classes = checkpoint["strategy"].old_classes
+        #RNGManager.__setstate__(checkpoint["rng_manager_state"])
         #RNGManager.__setstate__(checkpoint["rng_manager"])
         print(f"Executing load_entire_checkpoint_inside_class from call made from within _train_exp()")
-        return self
-
+        return checkpoint#return self'''
 '''
 ######################################################################################################################################################
 #### Train_ResNet20_Nature_LwF_v11_L ###
@@ -1591,9 +1740,8 @@ Training completed WITH LwFTrainer
 
 ######################################################################################################################################################################################################################################
 # Same set-up as above (the one that gave BEST PERFORMING Nature model SO FAR!!!!), BUT WITH FIXED Early Stopping Loop!!! 
-Although, IMPORTANT!!!! What seems to cause the change in performance shown here is the change of position for line self._after_training_epoch(), now in the appropriate place,
-NOT the fixed early stopping logic. Regardless, the early stopping logic is fixed, as I tested it in a different set-up (that did not give good results and hence the results were not 
-copy-pasted into this list, but it served to test the new early stopping logic) and the self._after_training_epoch() is in the appropriate place, hence, since these changes are to be 
+The early stopping logic is fixed, as I tested it in a different set-up (that did not give good results and hence the results were not 
+copy-pasted into this list, but it served to test the new early stopping logic) and since this change is to be 
 kept across set-ups, take this to be the BEST PERFORMING Nature model SO FAR!!!!
 
 # BEST PERFORMING Nature model SO FAR (same as the one originally labelled best performing Nature model so far, but with updates that do not affect the results or parts of the code 
@@ -1637,7 +1785,7 @@ elif epoch_acc>=75:#elif prev_epoch_acc>=75:
 prev_epoch_loss = epoch_loss
 prev_epoch_acc = epoch_acc
 self.lr = self.original_lr
-self._after_training_epoch(**kwargs) #TODO: NEW LOCATION BEING TESTED! Change back if it harms results
+
 
 difference_ce_dist = (ce_loss.item() - dist_loss.item())
 if difference_ce_dist > 0:
@@ -1701,7 +1849,7 @@ Temperature: 2.0 Alpha: 3.2631507962942123
 '''
 MATCH_AUTHOR_DISTILL = True#False#True
 MATCH_AUTHOR_LOSS = True#False #True
-VERBOSE=False
+VERBOSE=False#True
 #DYNAMIC_MODELS = True
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
@@ -1749,6 +1897,9 @@ if TRAINING_WITH_LOOP_LwF:
         print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
         seen_experiences.append(experience)
         seen_experiences_val.append(nature_specialised_models_val_stream_class_il[i])
+        '''if i > 0:
+            lwf_trainer.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl")
+            print(f"Loaded {f'./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")'''
         lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
         print("Temperature:" ,lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
         #lwf_trainer.train(experience, nature_specialised_models_val_stream_class_il)
