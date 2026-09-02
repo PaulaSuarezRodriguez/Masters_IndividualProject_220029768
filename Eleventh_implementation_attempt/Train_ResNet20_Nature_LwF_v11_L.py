@@ -656,8 +656,10 @@ class LwFTrainer(SupervisedTemplate):
     def train_experience(self, experience: CLExperience, eval_streams=None, **kwargs):
         c = 0
         loss_c = 0
-        prev_epoch_loss = 0
+        prev_epoch_loss = 100
         prev_epoch_acc = 0
+        best_acc_so_far = 0
+        accuracies = []
 
         if eval_streams is None:
             eval_streams = [experience]
@@ -788,7 +790,8 @@ class LwFTrainer(SupervisedTemplate):
 
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + (self.alpha * dist_loss)
-                        print(f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
+                        if VERBOSE:
+                            print(f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
                     if MATCH_AUTHOR_LOSS == False:
                         loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss # loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
 
@@ -805,9 +808,10 @@ class LwFTrainer(SupervisedTemplate):
                 # ------------------------------------------------
 
                 loss.backward()
-                print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
+                if VERBOSE:
+                    print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
 
-                '''if (self.teacher is not None) and (_ <= self.ft_shared_after):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                     # Freeze shared layers
                     for module in self.model.modules():
@@ -821,9 +825,9 @@ class LwFTrainer(SupervisedTemplate):
 
                                 if module.bias is not None:
                                     if module.bias.grad is not None:
-                                        module.bias.grad.zero_()'''
+                                        module.bias.grad.zero_()
 
-                '''# Freeze old classifier rows
+                    # Freeze old classifier rows
                     if len(self.old_classes) > 0:
 
                         old_num_classes = len(self.old_classes)
@@ -836,7 +840,7 @@ class LwFTrainer(SupervisedTemplate):
                         if self.model.linear.bias.grad is not None:
                             self.model.linear.bias.grad[
                                 :old_num_classes
-                            ].zero_()'''
+                            ].zero_()
 
                 '''if (self.teacher is not None) and len(self.old_classes) > 0 and (_ <= self.ft_shared_after-2):
                     # Freeze old classifier rows
@@ -886,32 +890,34 @@ class LwFTrainer(SupervisedTemplate):
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
             '''
             epoch_loss, epoch_acc = self.evaluate_epoch(_, experience)
+            accuracies.append(epoch_acc)
+            accuracies.sort(reverse=True)
+            print(f"accuracies: {accuracies}")
             #self.alpha = self.original_alpha
             #print(f"Alpha has been reset to {self.original_alpha}. It is now {self.alpha}")
-            #self._after_training_epoch(**kwargs) #TODO: Changing locations (now after early stopping loop). NEW LOCATION BEING TESTED! CHANGE BACK IF IT DOES NOT WORK!
-            '''while prev_epoch_loss > epoch_loss and prev_epoch_acc > epoch_acc:
-                print(f"WARNING: Loss and accuracy did not improve during the previous epoch. This may be due to the fact that the loss function is not monotonically decreasing. The current epoch will be skipped.")
-                prev_epoch_loss = epoch_loss
-                prev_epoch_acc = epoch_acc
-                c += 1
-                if c >= self.patience:
-                    print(f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
-                    break'''
+            self._after_training_epoch(**kwargs) #TODO: Changing locations (now after early stopping loop). NEW LOCATION BEING TESTED! CHANGE BACK IF IT DOES NOT WORK!
+            # for acc in accuracies:
+            if epoch_acc >= accuracies[0]:
+                best_acc_so_far = epoch_acc
+                print(f"New best accuracy: {best_acc_so_far:.2f}%")
+                self.save_entire_checkpoint(
+                    f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
+                print("Best checkpoint saved.")
             if epoch_loss >= prev_epoch_loss:
                 loss_c+=1
-                if loss_c == self.patience-1: # and c == self.patience-1:
-                    print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                    self.lr = self.lr * self.lr_decay_factor
-                    print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                    c=0
+            if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                self.lr = self.lr * self.lr_decay_factor
+                print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                c=0
 
-            if epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+            if epoch_acc > prev_epoch_acc:#if epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
                 # Both metrics improved - reset patience counter
                 #prev_epoch_loss = epoch_loss
                 #prev_epoch_acc = epoch_acc
                 c = 0
                 loss_c=0
-            elif epoch_acc < prev_epoch_acc:
+            elif epoch_acc <= prev_epoch_acc:
                 # No improvement - increment patience counter
                 c += 1
                 print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
@@ -934,8 +940,8 @@ class LwFTrainer(SupervisedTemplate):
 
             prev_epoch_loss = epoch_loss
             prev_epoch_acc = epoch_acc
-            self.lr = self.original_lr
-            self._after_training_epoch(**kwargs) #TODO: NEW LOCATION BEING TESTED! Change back if it harms results
+            #self.lr = self.original_lr
+            #self._after_training_epoch(**kwargs) #TODO: NEW LOCATION BEING TESTED! Change back if it harms results
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
@@ -971,6 +977,11 @@ class LwFTrainer(SupervisedTemplate):
         #print(f"lr before being increased at Experience {experience.current_experience}: {self.lr}")
         #self.lr-=0.01*self.lr
         #print(f"lr has been decreased by {self.lr_decay_factor}. It is now {self.lr}")
+
+        # TODO: this method is being tested!!!! Remember to remove if Training WITHOUT LOOP
+        self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
+        print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
+
 
     def step_lr(self, epoch):#def step_lr(self, epoch, lr_decay_every, lr_decay_factor):#def step_lr(self, epoch, base_lr, lr_decay_every, lr_decay_factor, optimizer):
         """Handles step decay of learning rate."""
@@ -1298,9 +1309,9 @@ class LwFTrainer(SupervisedTemplate):
 
         current_exp_id = experience.current_experience
 
-        if current_exp_id not in self.experience_accuracies:
+        '''if current_exp_id not in self.experience_accuracies:
             self.experience_accuracies[current_exp_id] = {}
-            self.experience_losses[current_exp_id] = {}
+            self.experience_losses[current_exp_id] = {}'''
 
         if eval_streams is None:
             eval_streams = [experience]
@@ -1402,7 +1413,7 @@ class LwFTrainer(SupervisedTemplate):
             dtype=torch.long
         )'''
 
-    '''
+
     def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
             exclude = []
@@ -1418,16 +1429,16 @@ class LwFTrainer(SupervisedTemplate):
             "exp_counter": ended_experience_counter,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
-            "loss": self.loss,
+            #"loss": self.loss,
             #"ce_loss" : self.ce_loss,
             #"_criterion" : self._criterion,
             "clock_train_exp_counter": self.clock.train_exp_counter,
             "clock_train_epoch_counter": self.clock.train_exp_epochs,
-            "teacher_state_dict": (
-                self.teacher.state_dict()
-                if self.teacher is not None
-                else None
-            ),
+            #"teacher_state_dict": (
+             #   self.teacher.state_dict()
+              #  if self.teacher is not None
+               # else None
+            #),
         }
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
@@ -1468,7 +1479,7 @@ class LwFTrainer(SupervisedTemplate):
         #RNGManager.__setstate__(checkpoint["rng_manager"])
         print(f"Executing load_entire_checkpoint_inside_class from call made from within _train_exp()")
         return self
-    '''
+
 '''
 ######################################################################################################################################################
 #### Train_ResNet20_Nature_LwF_v11_L ###
@@ -1578,9 +1589,89 @@ Training completed WITH LwFTrainer
 
 
 
+######################################################################################################################################################################################################################################
+# Same set-up as above (the one that gave BEST PERFORMING Nature model SO FAR!!!!), BUT WITH FIXED Early Stopping Loop!!! 
+Although, IMPORTANT!!!! What seems to cause the change in performance shown here is the change of position for line self._after_training_epoch(), now in the appropriate place,
+NOT the fixed early stopping logic. Regardless, the early stopping logic is fixed, as I tested it in a different set-up (that did not give good results and hence the results were not 
+copy-pasted into this list, but it served to test the new early stopping logic) and the self._after_training_epoch() is in the appropriate place, hence, since these changes are to be 
+kept across set-ups, take this to be the BEST PERFORMING Nature model SO FAR!!!!
+
+# BEST PERFORMING Nature model SO FAR (same as the one originally labelled best performing Nature model so far, but with updates that do not affect the results or parts of the code 
+relevant in producing these results)!!!!
+
+if epoch_loss >= prev_epoch_loss:
+    loss_c+=1
+    if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+        print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+        self.lr = self.lr * self.lr_decay_factor
+        print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+        c=0
+
+if epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+    # Both metrics improved - reset patience counter
+    #prev_epoch_loss = epoch_loss
+    #prev_epoch_acc = epoch_acc
+    c = 0
+    loss_c=0
+elif epoch_acc <= prev_epoch_acc:
+    # No improvement - increment patience counter
+    c += 1
+    print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
+
+    if c >= self.patience:
+        print(
+            f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+        self.lr = self.original_lr
+        c=0
+        loss_c = 0
+        break
+elif epoch_acc>=75:#elif prev_epoch_acc>=75:
+    print(
+        f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+    #c = self.patience
+    self.lr = self.original_lr
+    c = 0
+    loss_c = 0
+    break
+
+prev_epoch_loss = epoch_loss
+prev_epoch_acc = epoch_acc
+self.lr = self.original_lr
+self._after_training_epoch(**kwargs) #TODO: NEW LOCATION BEING TESTED! Change back if it harms results
+
+difference_ce_dist = (ce_loss.item() - dist_loss.item())
+if difference_ce_dist > 0:
+    div = (difference_ce_dist / 0.10)
+    #print(f"self.alpha BEFORE INCREASE: {self.alpha}\n") #NEVER TESTED if VERBOSE else None
+    self.alpha = self.original_alpha + (0.10 * div)
+    if VERBOSE:
+        print(f"difference_ce_dist = (ce_loss - dist_loss) = {difference_ce_dist},\n "
+              f"div = (difference_ce_dist/0.10) = {div},\n "
+              f"Alpha has been increased by {(0.10 * div)} --> self.alpha = self.alpha + (0.10 * div) = {self.alpha},\n"
+              f"self.alpha AFTER INCREASE: {self.alpha}\n"
+              f"(self.alpha * dist_loss): {self.alpha * dist_loss}\n")
+
+lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
+                             temperature=2.0, alpha=1.0, 
+                             train_mb_size=43, train_epochs=10, eval_mb_size=43,
+                             patience=5, ft_shared_after=10,
+
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 79.67%
+
+After training Experience 1:
+  - Tested on Experience 0: 40.33%
+  - Tested on Experience 1: 41.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 40.00%
+  - Tested on Experience 1: 36.33%
+  - Tested on Experience 2: 8.33%
 
 
-
+######################################################################################################################################################################################################################################
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2)
 
@@ -1620,7 +1711,7 @@ if TRAINING_WITH_LOOP_LwF:
     lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                              train_mb_size=43, train_epochs=10, eval_mb_size=43, #eval_mb_size=32, #device=DEVICE,
-                             patience=3, ft_shared_after=10,
+                             patience=5, ft_shared_after=8,
                              #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
@@ -1639,7 +1730,7 @@ if TRAINING_WITH_LOOP_LwF:
     checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
     for experience in nature_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of nature_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-        if i == 3:
+        if i == 4:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
         print("Start of experience -- current VAL experience: ",nature_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
