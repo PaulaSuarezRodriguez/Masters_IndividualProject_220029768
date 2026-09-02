@@ -654,6 +654,8 @@ class LwFTrainer(SupervisedTemplate):
         self._train_cleanup()
 
     def train_experience(self, experience: CLExperience, eval_streams=None, **kwargs):
+        #self.model.train()
+        # self.model.to(self.device)  # TODO: may be the problem
         c = 0
         loss_c = 0
         prev_epoch_loss = 100
@@ -667,9 +669,9 @@ class LwFTrainer(SupervisedTemplate):
             if not isinstance(exp, Iterable):
                 eval_streams[i] = [exp]
         for _ in range(self.train_epochs):
-            self._before_training_epoch(**kwargs)
             self.model.train()
-            self.model.to(self.device)  # TODO: may be the problem
+            #self.model.to(self.device)  # TODO: may be the problem
+            self._before_training_epoch(**kwargs)
 
             if self._stop_training:  # Early stopping
                 self._stop_training = False
@@ -898,129 +900,133 @@ class LwFTrainer(SupervisedTemplate):
             #self.alpha = self.original_alpha
             #print(f"Alpha has been reset to {self.original_alpha}. It is now {self.alpha}")
             self._after_training_epoch(**kwargs) #This is the correct location! DO NOT CHANGE LOCATION OF THIS LINE! If placed after early stopping loop, it does not execute whenever break executes, confusing Avalanche into thinking it is still training the past epoch at the same time as the next experience starts
-            if epoch_loss >= prev_epoch_loss:
-                loss_c += 1
-                if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
-                    print(
-                        f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                    self.lr = self.lr * self.lr_decay_factor
-                    print(
-                        f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+            if EARLY_STOPPING_LOOP_1:
+                if epoch_loss >= prev_epoch_loss:
+                    loss_c += 1
+                    if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                        print(
+                            f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        self.lr = self.lr * self.lr_decay_factor
+                        print(
+                            f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        c = 0
+
+                if epoch_acc > prev_epoch_acc and prev_epoch_acc < 75:  # if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+                    # Both metrics improved - reset patience counter
+                    # prev_epoch_loss = epoch_loss
+                    # prev_epoch_acc = epoch_acc
                     c = 0
+                    loss_c = 0
+                elif epoch_acc <= prev_epoch_acc:
+                    # No improvement - increment patience counter
+                    c += 1
+                    print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
 
-            if epoch_acc > prev_epoch_acc and prev_epoch_acc < 75:  # if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
-                # Both metrics improved - reset patience counter
-                # prev_epoch_loss = epoch_loss
-                # prev_epoch_acc = epoch_acc
-                c = 0
-                loss_c = 0
-            elif epoch_acc <= prev_epoch_acc:
-                # No improvement - increment patience counter
-                c += 1
-                print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
-
-                if c >= self.patience:
+                    if c >= self.patience:
+                        print(
+                            f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        self.lr = self.original_lr
+                        c = 0
+                        loss_c = 0
+                        break
+                elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
                     print(
-                        f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+                    # c = self.patience
                     self.lr = self.original_lr
                     c = 0
                     loss_c = 0
                     break
-            elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
-                print(
-                    f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
-                # c = self.patience
-                self.lr = self.original_lr
-                c = 0
-                loss_c = 0
-                break
 
-            prev_epoch_loss = epoch_loss
-            prev_epoch_acc = epoch_acc
-            '''if epoch_loss >= prev_epoch_loss:
-                loss_c += 1
-                if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
-                    print(
-                        f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                    self.lr = self.lr * self.lr_decay_factor
-                    print(
-                        f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                prev_epoch_loss = epoch_loss
+                prev_epoch_acc = epoch_acc
+
+            if EARLY_STOPPING_LOOP_2:
+                if epoch_loss >= prev_epoch_loss:
+                    loss_c += 1
+                    if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                        print(
+                            f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        self.lr = self.lr * self.lr_decay_factor
+                        print(
+                            f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        c = 0
+
+                if epoch_acc > prev_epoch_acc and prev_epoch_acc < 75:  # if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+                    # Both metrics improved - reset patience counter
+                    # prev_epoch_loss = epoch_loss
+                    # prev_epoch_acc = epoch_acc
                     c = 0
+                    loss_c = 0
+                elif epoch_acc <= prev_epoch_acc:
+                    # No improvement - increment patience counter
+                    c += 1
+                    print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
 
-            if epoch_acc > prev_epoch_acc and prev_epoch_acc < 75:  # if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
-                # Both metrics improved - reset patience counter
-                # prev_epoch_loss = epoch_loss
-                # prev_epoch_acc = epoch_acc
-                c = 0
-                loss_c = 0
-            elif epoch_acc <= prev_epoch_acc:
-                # No improvement - increment patience counter
-                c += 1
-                print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
-
-                if c >= self.patience:
+                    if c >= self.patience:
+                        print(
+                            f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        self.lr = self.original_lr
+                        c = 0
+                        loss_c = 0
+                        break
+                elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
                     print(
-                        f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+                    # c = self.patience
                     self.lr = self.original_lr
                     c = 0
                     loss_c = 0
                     break
-            elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
-                print(
-                    f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
-                # c = self.patience
-                self.lr = self.original_lr
-                c = 0
-                loss_c = 0
-                break
 
-            prev_epoch_loss = epoch_loss
-            prev_epoch_acc = epoch_acc'''
-            #self.lr = self.original_lr
-            # for acc in accuracies:
-            '''if epoch_acc >= accuracies[0]:
-                best_acc_so_far = epoch_acc
-                print(f"New best accuracy: {best_acc_so_far:.2f}%")
-                self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
-                print("Best checkpoint saved.")'''
-            '''if epoch_loss >= prev_epoch_loss:
-                loss_c+=1
-                if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
-                    print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                    self.lr = self.lr * self.lr_decay_factor
-                    print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
-                    c=0
+                prev_epoch_loss = epoch_loss
+                prev_epoch_acc = epoch_acc
+                #self.lr = self.original_lr
+            if EARLY_STOPPING_LOOP_3:
+                # for acc in accuracies:
+                '''if epoch_acc >= accuracies[0]:
+                    best_acc_so_far = epoch_acc
+                    print(f"New best accuracy: {best_acc_so_far:.2f}%")
+                    self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
+                    print("Best checkpoint saved.")'''
+                if epoch_loss >= prev_epoch_loss:
+                    loss_c+=1
+                    if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                        print(f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        self.lr = self.lr * self.lr_decay_factor
+                        print(f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        c=0
 
-            if epoch_acc > prev_epoch_acc and epoch_acc<75:#if epoch_acc > prev_epoch_acc:#           #if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
-                # Both metrics improved - reset patience counter
-                #prev_epoch_loss = epoch_loss
-                #prev_epoch_acc = epoch_acc
-                c = 0
-                loss_c=0
-            elif epoch_acc <= prev_epoch_acc and epoch_acc < 75: #elif epoch_acc <= prev_epoch_acc:
-                # No improvement - increment patience counter
-                c += 1
-                print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
+                if epoch_acc > prev_epoch_acc and epoch_acc<75:#if epoch_acc > prev_epoch_acc:#           #if epoch_loss < prev_epoch_loss and epoch_acc > prev_epoch_acc and prev_epoch_acc<75:#and c >= self.patience:
+                    # Both metrics improved - reset patience counter
+                    #prev_epoch_loss = epoch_loss
+                    #prev_epoch_acc = epoch_acc
+                    c = 0
+                    loss_c=0
+                elif epoch_acc <= prev_epoch_acc and epoch_acc < 75: #elif epoch_acc <= prev_epoch_acc:
+                    # No improvement - increment patience counter
+                    c += 1
+                    print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
 
-                if c >= self.patience:
+                    if c >= self.patience:
+                        print(
+                            f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        self.lr = self.original_lr
+                        c=0
+                        loss_c = 0
+                        break
+                elif epoch_acc>=75:#if epoch_acc>=75:#if prev_epoch_acc>=75:#elif epoch_acc>=75:
                     print(
-                        f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+                    #c = self.patience
                     self.lr = self.original_lr
-                    c=0
+                    c = 0
                     loss_c = 0
                     break
-            elif epoch_acc>=75:#if epoch_acc>=75:#if prev_epoch_acc>=75:#elif epoch_acc>=75:
-                print(
-                    f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
-                #c = self.patience
-                self.lr = self.original_lr
-                c = 0
-                loss_c = 0
-                break
 
-            prev_epoch_loss = epoch_loss
-            prev_epoch_acc = epoch_acc'''
-            #self.lr = self.original_lr
+                prev_epoch_loss = epoch_loss
+                prev_epoch_acc = epoch_acc
+                #self.lr = self.original_lr
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
@@ -1031,8 +1037,8 @@ class LwFTrainer(SupervisedTemplate):
         #print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
         #print("self.evaluate_single_experience() AFTER LOADING:")
         #self.evaluate_single_experience(experience, eval_streams)
-        print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
-        self.evaluate_single_experience(experience)
+        #print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
+        #self.evaluate_single_experience(experience)
         self.teacher = copy.deepcopy(self.model)
         self.teacher.eval()
 
@@ -1265,11 +1271,11 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
         print(f"{'=' * 60}\n")
 
-        current_exp_id = experience.current_experience
+        current_exp_id_all_experiences = experience.current_experience
 
-        if current_exp_id not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id] = {}
-            self.experience_losses[current_exp_id] = {}
+        if current_exp_id_all_experiences not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id_all_experiences] = {}
+            self.experience_losses[current_exp_id_all_experiences] = {}
 
         if eval_streams is None:
             eval_streams = [experience]
@@ -1281,49 +1287,49 @@ class LwFTrainer(SupervisedTemplate):
                 eval_stream = [eval_stream]
 
             for exp in eval_stream:
-                exp_id = exp.current_experience
+                exp_id_all_experiences = exp.current_experience
 
                 # Don't evaluate future experiences
-                if exp_id > current_exp_id:
+                if exp_id_all_experiences > current_exp_id_all_experiences:
                     break
 
                 # Prepare eval data
                 eval_adapted_dataset = exp.dataset.eval()
                 eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-                total_loss = 0.0
-                total_correct = 0
-                total_samples = 0
+                total_loss_all_experiences = 0.0
+                total_correct_all_experiences = 0
+                total_samples_all_experiences = 0
 
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_all_experiences = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
 
-                        student_logits = self.model(self.mb_x)
-                        loss = self.criterion(student_logits, targets)
+                        student_logits_all_experiences = self.model(self.mb_x)
+                        loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
 
-                        total_loss += loss.item() * targets.size(0)
-                        predictions = torch.argmax(student_logits, dim=1)
-                        total_correct += (predictions == targets).sum().item()
-                        total_samples += targets.size(0)
+                        total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
+                        predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
+                        total_correct_all_experiences += (predictions_all_experiences == targets_all_experiences).sum().item()
+                        total_samples_all_experiences += targets_all_experiences.size(0)
 
-                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
-                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+                avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
+                accuracy_all_experiences = (total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
 
                 # Store results
-                self.experience_accuracies[current_exp_id][exp_id] = accuracy
-                self.experience_losses[current_exp_id][exp_id] = avg_loss
+                self.experience_accuracies[current_exp_id_all_experiences][exp_id_all_experiences] = accuracy_all_experiences
+                self.experience_losses[current_exp_id_all_experiences][exp_id_all_experiences] = avg_loss_all_experiences
 
                 print(
-                    f"AFTER TRAINING ON Exp {current_exp_id}, "
-                    f"performance on Exp {exp_id}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                    f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
+                    f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
                 )
 
         # Compute backward transfer AFTER all evaluations
         self._compute_backward_transfer_internal()
         self.model.train()
-        self.model.to(self.device) # TODO: may be the problem
+        #self.model.to(self.device) # TODO: may be the problem
 
     def _compute_backward_transfer_internal(self):
         """Compute and print backward transfer after evaluation."""
@@ -1394,7 +1400,7 @@ class LwFTrainer(SupervisedTemplate):
         print(f"\n{'...' * 60}")
         print(f"EVALUATING Epoch {epoch} OF Experience {experience.current_experience}")
 
-        current_exp_id = experience.current_experience
+        current_exp_id_epoch = experience.current_experience
 
         '''if current_exp_id not in self.experience_accuracies:
             self.experience_accuracies[current_exp_id] = {}
@@ -1410,44 +1416,44 @@ class LwFTrainer(SupervisedTemplate):
                 eval_stream = [eval_stream]
 
             for exp in eval_stream:
-                exp_id = exp.current_experience
+                exp_id_epoch = exp.current_experience
 
                 # Don't evaluate future experiences
-                if exp_id > current_exp_id:
+                if exp_id_epoch > current_exp_id_epoch:
                     break
 
                 # Prepare eval data
                 eval_adapted_dataset = exp.dataset.eval()
                 eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-                total_loss = 0.0
-                total_correct = 0
-                total_samples = 0
+                total_loss_epoch = 0.0
+                total_correct_epoch = 0
+                total_samples_epoch = 0
 
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_epoch = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
 
-                        student_logits = self.model(self.mb_x)
-                        loss = self.criterion(student_logits, targets)
+                        student_logits_epoch = self.model(self.mb_x)
+                        loss_epoch = self.criterion(student_logits_epoch, targets_epoch)
 
-                        total_loss += loss.item() * targets.size(0)
-                        predictions = torch.argmax(student_logits, dim=1)
-                        total_correct += (predictions == targets).sum().item()
-                        total_samples += targets.size(0)
+                        total_loss_epoch += loss_epoch.item() * targets_epoch.size(0)
+                        predictions_epoch = torch.argmax(student_logits_epoch, dim=1)
+                        total_correct_epoch += (predictions_epoch == targets_epoch).sum().item()
+                        total_samples_epoch += targets_epoch.size(0)
 
-                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
-                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+                avg_loss_epoch = total_loss_epoch / total_samples_epoch if total_samples_epoch > 0 else 0.0
+                accuracy_epoch = (total_correct_epoch / total_samples_epoch * 100) if total_samples_epoch > 0 else 0.0
 
                 print(
-                    f"Experience {current_exp_id}, "
-                    f"Epoch {epoch}: Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                    f"Experience {current_exp_id_epoch}, "
+                    f"Epoch {epoch}: Loss = {avg_loss_epoch:.6f} | Accuracy = {accuracy_epoch:.2f}%"
                     f"\n{'...' * 60}\n"
                 )
-                self.model.train()
-                self.model.to(self.device)  # TODO: may be the problem
-                return avg_loss, accuracy
+        self.model.train()
+        #self.model.to(self.device)  # TODO: may be the problem
+        return avg_loss_epoch, accuracy_epoch
 
     def evaluate_single_experience(self, experience: CLExperience, eval_streams: Optional[
         Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
@@ -1455,7 +1461,7 @@ class LwFTrainer(SupervisedTemplate):
         print(f"\n{'...' * 60}")
         print(f"EVALUATING Experience {experience.current_experience}")
 
-        current_exp_id = experience.current_experience
+        current_exp_id_single_exp = experience.current_experience
 
         '''if current_exp_id not in self.experience_accuracies:
             self.experience_accuracies[current_exp_id] = {}
@@ -1471,44 +1477,44 @@ class LwFTrainer(SupervisedTemplate):
                 eval_stream = [eval_stream]
 
             for exp in eval_stream:
-                exp_id = exp.current_experience
+                exp_id_single_exp = exp.current_experience
 
                 # Don't evaluate future experiences
-                if exp_id > current_exp_id:
+                if exp_id_single_exp > current_exp_id_single_exp:
                     break
 
                 # Prepare eval data
                 eval_adapted_dataset = exp.dataset.eval()
                 eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-                total_loss = 0.0
-                total_correct = 0
-                total_samples = 0
+                total_loss_single_exp = 0.0
+                total_correct_single_exp = 0
+                total_samples_single_exp = 0
 
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        targets_single_exp = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
 
-                        student_logits = self.model(self.mb_x)
-                        loss = self.criterion(student_logits, targets)
+                        student_logits_single_exp = self.model(self.mb_x)
+                        loss_single_exp = self.criterion(student_logits_single_exp, targets_single_exp)
 
-                        total_loss += loss.item() * targets.size(0)
-                        predictions = torch.argmax(student_logits, dim=1)
-                        total_correct += (predictions == targets).sum().item()
-                        total_samples += targets.size(0)
+                        total_loss_single_exp += loss_single_exp.item() * targets_single_exp.size(0)
+                        predictions_single_exp = torch.argmax(student_logits_single_exp, dim=1)
+                        total_correct_single_exp += (predictions_single_exp == targets_single_exp).sum().item()
+                        total_samples_single_exp += targets_single_exp.size(0)
 
-                avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
-                accuracy = (total_correct / total_samples * 100) if total_samples > 0 else 0.0
+                avg_loss_single_exp = total_loss_single_exp / total_samples_single_exp if total_samples_single_exp > 0 else 0.0
+                accuracy_single_exp = (total_correct_single_exp / total_samples_single_exp * 100) if total_samples_single_exp > 0 else 0.0
 
                 print(
-                    f"Experience {current_exp_id}, "
-                    f"Loss = {avg_loss:.6f} | Accuracy = {accuracy:.2f}%"
+                    f"Experience {current_exp_id_single_exp}, "
+                    f"Loss = {avg_loss_single_exp:.6f} | Accuracy = {accuracy_single_exp:.2f}%"
                     f"\n{'...' * 60}\n"
                 )
-                self.model.train()
-                self.model.to(self.device)  # TODO: may be the problem
-                return avg_loss, accuracy
+        self.model.train()
+        #self.model.to(self.device)  # TODO: may be the problem
+                #return avg_loss_single_exp, accuracy_single_exp
 
     def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
             # experiences: Union[TExperienceType, Iterable[TExperienceType]],
@@ -1849,6 +1855,9 @@ Temperature: 2.0 Alpha: 3.2631507962942123
 '''
 MATCH_AUTHOR_DISTILL = True#False#True
 MATCH_AUTHOR_LOSS = True#False #True
+EARLY_STOPPING_LOOP_1= True
+EARLY_STOPPING_LOOP_2=False
+EARLY_STOPPING_LOOP_3=False
 VERBOSE=False#True
 #DYNAMIC_MODELS = True
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
