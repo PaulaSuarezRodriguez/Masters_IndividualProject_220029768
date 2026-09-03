@@ -669,8 +669,8 @@ class LwFTrainer(SupervisedTemplate):
             self.expand_classifier(self.model, self.experience)  # DEFINITE POSITION. # IMPORTANT: recreate optimizer after classifier expansion. This is now done from the body of expand_classifier()
             self.train_experience(self.experience, eval_streams, **kwargs)
             # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
-            '''self.evaluate_all_experiences_DEBUG(self.experience, eval_streams)#self.evaluate_all_experiences(self.experience, eval_streams)
-            self.debug_experience_accuracies()'''
+            self.evaluate_all_experiences(self.experience, eval_streams)#self.evaluate_all_experiences_DEBUG(self.experience, eval_streams)
+            #self.debug_experience_accuracies()
             self._after_training_exp(**kwargs)
         self._after_training(**kwargs)
         self._train_cleanup()
@@ -923,7 +923,7 @@ class LwFTrainer(SupervisedTemplate):
             '''self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
             '''
-            '''epoch_loss, epoch_acc = self.evaluate_epoch(_, experience)
+            epoch_loss, epoch_acc = self.evaluate_epoch(_, experience)
             accuracies.append(epoch_acc)
             accuracies.sort(reverse=True)
             print(f"accuracies: {accuracies}")
@@ -1014,11 +1014,11 @@ class LwFTrainer(SupervisedTemplate):
                 #self.lr = self.original_lr
             if EARLY_STOPPING_LOOP_3:
                 # for acc in accuracies:
-                ''''''if epoch_acc >= accuracies[0]:
+                '''if epoch_acc >= accuracies[0]:
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
-                    print("Best checkpoint saved.")''''''
+                    print("Best checkpoint saved.")'''
                 if epoch_loss >= prev_epoch_loss:
                     loss_c+=1
                     if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
@@ -1056,7 +1056,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 prev_epoch_loss = epoch_loss
                 prev_epoch_acc = epoch_acc
-                #self.lr = self.original_lr'''
+                #self.lr = self.original_lr
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
@@ -1294,7 +1294,7 @@ class LwFTrainer(SupervisedTemplate):
             self._after_eval_iteration(**kwargs) # formerly commented-out
 
 
-    '''def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
+    def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
         Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
         """Evaluate on all experiences seen so far."""
         print(f"\n{'=' * 60}")
@@ -1308,199 +1308,204 @@ class LwFTrainer(SupervisedTemplate):
         self.model.eval()
         print("print(self.model.training)-- evaluate_all_experiences after self.model.eval()", self.model.training)
 
-        current_exp_id_all_experiences = experience.current_experience
+        with BatchNormStateSaver(self.model) as bn_saver:
 
-        if current_exp_id_all_experiences not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id_all_experiences] = {}
-            self.experience_losses[current_exp_id_all_experiences] = {}
+            current_exp_id_all_experiences = experience.current_experience
 
-        if eval_streams is None:
-            eval_streams = [experience]
+            if current_exp_id_all_experiences not in self.experience_accuracies:
+                self.experience_accuracies[current_exp_id_all_experiences] = {}
+                self.experience_losses[current_exp_id_all_experiences] = {}
 
-        self.model.eval()
+            if eval_streams is None:
+                eval_streams = [experience]
 
-        for stream_idx, eval_stream in enumerate(eval_streams):
-            if not isinstance(eval_stream, Iterable):
-                eval_stream = [eval_stream]
+            self.model.eval()
 
-            for exp in eval_stream:
-                exp_id_all_experiences = exp.current_experience
+            for stream_idx, eval_stream in enumerate(eval_streams):
+                if not isinstance(eval_stream, Iterable):
+                    eval_stream = [eval_stream]
 
-                # Don't evaluate future experiences
-                if exp_id_all_experiences > current_exp_id_all_experiences:
-                    break
+                for exp in eval_stream:
+                    exp_id_all_experiences = exp.current_experience
 
-                # Prepare eval data
-                eval_adapted_dataset = exp.dataset.eval()
-                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
+                    # Don't evaluate future experiences
+                    if exp_id_all_experiences > current_exp_id_all_experiences:
+                        break
 
-                total_loss_all_experiences = 0.0
-                total_correct_all_experiences = 0
-                total_samples_all_experiences = 0
+                    # Prepare eval data
+                    eval_adapted_dataset = exp.dataset.eval()
+                    eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-                with torch.no_grad():
-                    for self.mbatch in eval_dataloader:
-                        self.unpack_minibatch()
-                        targets_all_experiences = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
+                    total_loss_all_experiences = 0.0
+                    total_correct_all_experiences = 0
+                    total_samples_all_experiences = 0
 
-                        student_logits_all_experiences = self.model(self.mb_x)
-                        loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
+                    with torch.no_grad():
+                        for self.mbatch in eval_dataloader:
+                            self.unpack_minibatch()
+                            targets_all_experiences = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
-                        total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
-                        predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
-                        total_correct_all_experiences += (predictions_all_experiences == targets_all_experiences).sum().item()
-                        total_samples_all_experiences += targets_all_experiences.size(0)
+                            student_logits_all_experiences = self.model(self.mb_x)
+                            loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
 
-                avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
-                accuracy_all_experiences = (total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
+                            total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
+                            predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
+                            total_correct_all_experiences += (predictions_all_experiences == targets_all_experiences).sum().item()
+                            total_samples_all_experiences += targets_all_experiences.size(0)
 
-                # Store results
-                self.experience_accuracies[current_exp_id_all_experiences][exp_id_all_experiences] = accuracy_all_experiences
-                self.experience_losses[current_exp_id_all_experiences][exp_id_all_experiences] = avg_loss_all_experiences
+                    avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
+                    accuracy_all_experiences = (total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
 
-                print(
-                    f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
-                    f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
-                )
+                    # Store results
+                    self.experience_accuracies[current_exp_id_all_experiences][exp_id_all_experiences] = accuracy_all_experiences
+                    self.experience_losses[current_exp_id_all_experiences][exp_id_all_experiences] = avg_loss_all_experiences
+
+                    print(
+                        f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
+                        f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
+                    )
 
         # Compute backward transfer AFTER all evaluations
         self._compute_backward_transfer_internal()
         self._load_train_state(prev_train_state)
         self.model.train()
         print("print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function", self.model.training)
-        #self.model.to(self.device) # TODO: may be the problem'''
+        #self.model.to(self.device) # TODO: may be the problem
 
     # Replace your evaluate_all_experiences function with this debug version:
 
-    def evaluate_all_experiences_DEBUG(self, experience, eval_streams=None):
+    '''def evaluate_all_experiences_DEBUG(self, experience, eval_streams=None):
         """Evaluate on all experiences - WITH COMPREHENSIVE DEBUGGING."""
         print(f"\n{'=' * 60}")
         print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
         print(f"{'=' * 60}\n")
 
-        current_exp_id_all_experiences = experience.current_experience
-
-        if current_exp_id_all_experiences not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id_all_experiences] = {}
-            self.experience_losses[current_exp_id_all_experiences] = {}
-
-        if eval_streams is None:
-            eval_streams = [experience]
-
-        self.model.eval()
-
-        # ===== DEBUG 1: Log model state =====
-        print(f"\n[DEBUG 1] Model state at start of evaluate_all_experiences:")
-        print(f"  - model.training = {self.model.training}")
-        print(f"  - Number of eval_streams = {len(eval_streams)}")
-        for i, stream in enumerate(eval_streams):
-            if isinstance(stream, list):
-                print(f"  - Stream {i}: {len(stream)} experiences")
-            else:
-                print(f"  - Stream {i}: Single experience")
-
-        # ===== DEBUG 2: Check RNG state =====
-        print(f"\n[DEBUG 2] RNG state:")
-        print(f"  - torch.seed() = {torch.initial_seed()}")  # Gets the initial seed
-        print(f"  - numpy.random.get_state()[1][0] = {np.random.get_state()[1][0]}")  # First element of state
-
-        # ===== DEBUG 3: Log model weights hash (to detect changes) =====
-        print(f"\n[DEBUG 3] Model weights hash (first layer):")
-        first_layer_weights = self.model.conv1.weight.data.cpu().numpy()
-        weights_hash = hashlib.md5(first_layer_weights.tobytes()).hexdigest()
-        print(f"  - conv1.weight hash = {weights_hash}")
-
-        # ===== DEBUG 4: Log BatchNorm statistics =====
-        print(f"\n[DEBUG 4] BatchNorm statistics (if available):")
-        bn_layer = self.model.bn1
-        print(f"  - bn1.running_mean[0:5] = {bn_layer.running_mean[0:5]}")
-        print(f"  - bn1.running_var[0:5] = {bn_layer.running_var[0:5]}")
-        print(f"  - bn1.num_batches_tracked = {bn_layer.num_batches_tracked}")
-
-        for stream_idx, eval_stream in enumerate(eval_streams):
-            if not isinstance(eval_stream, Iterable):
-                eval_stream = [eval_stream]
-
-            for exp in eval_stream:
-                exp_id_all_experiences = exp.current_experience
-
-                if exp_id_all_experiences > current_exp_id_all_experiences:
-                    break
-
-                # ===== DEBUG 5: Log dataset information =====
-                print(f"\n[DEBUG 5] Evaluating experience {exp_id_all_experiences} from stream {stream_idx}:")
-                eval_adapted_dataset = exp.dataset.eval()
-                print(f"  - Dataset size = {len(eval_adapted_dataset)}")
-                print(f"  - Dataset type = {type(eval_adapted_dataset)}")
-
-                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(
-                    eval_adapted_dataset, self.eval_mb_size)
-
-                print(f"  - Dataloader length = {len(eval_dataloader)}")
-                print(f"  - Dataloader batch size = {self.eval_mb_size}")
-
-                total_loss_all_experiences = 0.0
-                total_correct_all_experiences = 0
-                total_samples_all_experiences = 0
-
-                # ===== DEBUG 6: Log per-batch information =====
-                batch_count = 0
-                with torch.no_grad():
-                    for self.mbatch in eval_dataloader:
-                        self.unpack_minibatch()
-                        targets_all_experiences = self.map_targets()
-
-                        student_logits_all_experiences = self.model(self.mb_x)
-                        loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
-
-                        total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
-                        predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
-                        total_correct_all_experiences += (
-                                    predictions_all_experiences == targets_all_experiences).sum().item()
-                        total_samples_all_experiences += targets_all_experiences.size(0)
-
-                        # Log first batch info
-                        if batch_count == 0:
-                            print(f"  [DEBUG 6] First batch info:")
-                            print(f"    - Batch size = {targets_all_experiences.size(0)}")
-                            print(f"    - Loss value = {loss_all_experiences.item()}")
-                            print(f"    - Predictions (first 5) = {predictions_all_experiences[:5]}")
-                            print(f"    - Targets (first 5) = {targets_all_experiences[:5]}")
-                            print(f"    - Logits shape = {student_logits_all_experiences.shape}")
-                            print(f"    - Logits sum = {student_logits_all_experiences.sum().item()}")
-
-                        batch_count += 1
-
-                avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
-                accuracy_all_experiences = (
-                            total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
-
-                # ===== DEBUG 7: Log final computed values =====
-                print(f"\n[DEBUG 7] Computed metrics for Exp {exp_id_all_experiences}:")
-                print(f"  - Total batches = {batch_count}")
-                print(f"  - Total samples = {total_samples_all_experiences}")
-                print(f"  - Total correct = {total_correct_all_experiences}")
-                print(f"  - Average loss = {avg_loss_all_experiences:.10f}")  # High precision!
-                print(f"  - Accuracy = {accuracy_all_experiences:.10f}%")  # High precision!
-
-                # Check if we're overwriting a previous value
-                if exp_id_all_experiences in self.experience_accuracies[current_exp_id_all_experiences]:
-                    old_acc = self.experience_accuracies[current_exp_id_all_experiences][exp_id_all_experiences]
-                    print(f"\n[WARNING] Overwriting previous accuracy!")
-                    print(f"  - Old accuracy = {old_acc:.10f}%")
-                    print(f"  - New accuracy = {accuracy_all_experiences:.10f}%")
-                    print(f"  - Difference = {abs(accuracy_all_experiences - old_acc):.10f}%")
-
-                # Store results
-                self.experience_accuracies[current_exp_id_all_experiences][
-                    exp_id_all_experiences] = accuracy_all_experiences
-                self.experience_losses[current_exp_id_all_experiences][
-                    exp_id_all_experiences] = avg_loss_all_experiences
-
-                print(
-                    f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
-                    f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
-                )
+        with BatchNormStateSaver(self.model) as bn_saver:
+    
+            current_exp_id_all_experiences = experience.current_experience
+    
+            if current_exp_id_all_experiences not in self.experience_accuracies:
+                self.experience_accuracies[current_exp_id_all_experiences] = {}
+                self.experience_losses[current_exp_id_all_experiences] = {}
+    
+            if eval_streams is None:
+                eval_streams = [experience]
+    
+            self.model.eval()
+    
+            # ===== DEBUG 1: Log model state =====
+            print(f"\n[DEBUG 1] Model state at start of evaluate_all_experiences:")
+            print(f"  - model.training = {self.model.training}")
+            print(f"  - Number of eval_streams = {len(eval_streams)}")
+            for i, stream in enumerate(eval_streams):
+                if isinstance(stream, list):
+                    print(f"  - Stream {i}: {len(stream)} experiences")
+                else:
+                    print(f"  - Stream {i}: Single experience")
+    
+            # ===== DEBUG 2: Check RNG state =====
+            print(f"\n[DEBUG 2] RNG state:")
+            print(f"  - torch.seed() = {torch.initial_seed()}")  # Gets the initial seed
+            print(f"  - numpy.random.get_state()[1][0] = {np.random.get_state()[1][0]}")  # First element of state
+    
+            # ===== DEBUG 3: Log model weights hash (to detect changes) =====
+            print(f"\n[DEBUG 3] Model weights hash (first layer):")
+            first_layer_weights = self.model.conv1.weight.data.cpu().numpy()
+            weights_hash = hashlib.md5(first_layer_weights.tobytes()).hexdigest()
+            print(f"  - conv1.weight hash = {weights_hash}")
+    
+            # ===== DEBUG 4: Log BatchNorm statistics =====
+            print(f"\n[DEBUG 4] BatchNorm statistics (if available):")
+            bn_layer = self.model.bn1
+            print(f"  - bn1.running_mean[0:5] = {bn_layer.running_mean[0:5]}")
+            print(f"  - bn1.running_var[0:5] = {bn_layer.running_var[0:5]}")
+            print(f"  - bn1.num_batches_tracked = {bn_layer.num_batches_tracked}")
+    
+            for stream_idx, eval_stream in enumerate(eval_streams):
+                if not isinstance(eval_stream, Iterable):
+                    eval_stream = [eval_stream]
+    
+                for exp in eval_stream:
+                    exp_id_all_experiences = exp.current_experience
+    
+                    if exp_id_all_experiences > current_exp_id_all_experiences:
+                        break
+    
+                    # ===== DEBUG 5: Log dataset information =====
+                    print(f"\n[DEBUG 5] Evaluating experience {exp_id_all_experiences} from stream {stream_idx}:")
+                    eval_adapted_dataset = exp.dataset.eval()
+                    print(f"  - Dataset size = {len(eval_adapted_dataset)}")
+                    print(f"  - Dataset type = {type(eval_adapted_dataset)}")
+    
+                    eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(
+                        eval_adapted_dataset, self.eval_mb_size)
+    
+                    print(f"  - Dataloader length = {len(eval_dataloader)}")
+                    print(f"  - Dataloader batch size = {self.eval_mb_size}")
+    
+                    total_loss_all_experiences = 0.0
+                    total_correct_all_experiences = 0
+                    total_samples_all_experiences = 0
+    
+                    # ===== DEBUG 6: Log per-batch information =====
+                    batch_count = 0
+                    with torch.no_grad():
+                        for self.mbatch in eval_dataloader:
+                            self.unpack_minibatch()
+                            targets_all_experiences = self.map_targets()
+    
+                            student_logits_all_experiences = self.model(self.mb_x)
+                            loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
+    
+                            total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
+                            predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
+                            total_correct_all_experiences += (
+                                        predictions_all_experiences == targets_all_experiences).sum().item()
+                            total_samples_all_experiences += targets_all_experiences.size(0)
+    
+                            # Log first batch info
+                            if batch_count == 0:
+                                print(f"  [DEBUG 6] First batch info:")
+                                print(f"    - Batch size = {targets_all_experiences.size(0)}")
+                                print(f"    - Loss value = {loss_all_experiences.item()}")
+                                print(f"    - Predictions (first 5) = {predictions_all_experiences[:5]}")
+                                print(f"    - Targets (first 5) = {targets_all_experiences[:5]}")
+                                print(f"    - Logits shape = {student_logits_all_experiences.shape}")
+                                print(f"    - Logits sum = {student_logits_all_experiences.sum().item()}")
+    
+                            batch_count += 1
+    
+                    avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
+                    accuracy_all_experiences = (
+                                total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
+    
+                    # ===== DEBUG 7: Log final computed values =====
+                    print(f"\n[DEBUG 7] Computed metrics for Exp {exp_id_all_experiences}:")
+                    print(f"  - Total batches = {batch_count}")
+                    print(f"  - Total samples = {total_samples_all_experiences}")
+                    print(f"  - Total correct = {total_correct_all_experiences}")
+                    print(f"  - Average loss = {avg_loss_all_experiences:.10f}")  # High precision!
+                    print(f"  - Accuracy = {accuracy_all_experiences:.10f}%")  # High precision!
+    
+                    # Check if we're overwriting a previous value
+                    if exp_id_all_experiences in self.experience_accuracies[current_exp_id_all_experiences]:
+                        old_acc = self.experience_accuracies[current_exp_id_all_experiences][exp_id_all_experiences]
+                        print(f"\n[WARNING] Overwriting previous accuracy!")
+                        print(f"  - Old accuracy = {old_acc:.10f}%")
+                        print(f"  - New accuracy = {accuracy_all_experiences:.10f}%")
+                        print(f"  - Difference = {abs(accuracy_all_experiences - old_acc):.10f}%")
+    
+                    # Store results
+                    self.experience_accuracies[current_exp_id_all_experiences][
+                        exp_id_all_experiences] = accuracy_all_experiences
+                    self.experience_losses[current_exp_id_all_experiences][
+                        exp_id_all_experiences] = avg_loss_all_experiences
+    
+                    print(
+                        f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
+                        f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
+                    )
+                #pass
 
         # Compute backward transfer AFTER all evaluations
         self._compute_backward_transfer_internal()
@@ -1524,7 +1529,7 @@ class LwFTrainer(SupervisedTemplate):
             print()
 
     # Call this after each evaluate_all_experiences() call to see what's stored:
-    # debug_experience_accuracies()
+    # debug_experience_accuracies()'''
 
     def _compute_backward_transfer_internal(self):
         """Compute and print backward transfer after evaluation."""
@@ -1602,57 +1607,59 @@ class LwFTrainer(SupervisedTemplate):
         self.model.eval()
         print("print(self.model.training) -- evaluate_epoch after self.model.eval()", self.model.training)
 
-        current_exp_id_epoch = experience.current_experience
+        with BatchNormStateSaver(self.model) as bn_saver:
 
-        '''if current_exp_id not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id] = {}
-            self.experience_losses[current_exp_id] = {}'''
+            current_exp_id_epoch = experience.current_experience
 
-        if eval_streams is None:
-            eval_streams = [experience]
+            '''if current_exp_id not in self.experience_accuracies:
+                self.experience_accuracies[current_exp_id] = {}
+                self.experience_losses[current_exp_id] = {}'''
 
-        self.model.eval()
+            if eval_streams is None:
+                eval_streams = [experience]
 
-        for stream_idx, eval_stream in enumerate(eval_streams):
-            if not isinstance(eval_stream, Iterable):
-                eval_stream = [eval_stream]
+            self.model.eval()
 
-            for exp in eval_stream:
-                exp_id_epoch = exp.current_experience
+            for stream_idx, eval_stream in enumerate(eval_streams):
+                if not isinstance(eval_stream, Iterable):
+                    eval_stream = [eval_stream]
 
-                # Don't evaluate future experiences
-                if exp_id_epoch > current_exp_id_epoch:
-                    break
+                for exp in eval_stream:
+                    exp_id_epoch = exp.current_experience
 
-                # Prepare eval data
-                eval_adapted_dataset = exp.dataset.eval()
-                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
+                    # Don't evaluate future experiences
+                    if exp_id_epoch > current_exp_id_epoch:
+                        break
 
-                total_loss_epoch = 0.0
-                total_correct_epoch = 0
-                total_samples_epoch = 0
+                    # Prepare eval data
+                    eval_adapted_dataset = exp.dataset.eval()
+                    eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-                with torch.no_grad():
-                    for self.mbatch in eval_dataloader:
-                        self.unpack_minibatch()
-                        targets_epoch = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
+                    total_loss_epoch = 0.0
+                    total_correct_epoch = 0
+                    total_samples_epoch = 0
 
-                        student_logits_epoch = self.model(self.mb_x)
-                        loss_epoch = self.criterion(student_logits_epoch, targets_epoch)
+                    with torch.no_grad():
+                        for self.mbatch in eval_dataloader:
+                            self.unpack_minibatch()
+                            targets_epoch = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
-                        total_loss_epoch += loss_epoch.item() * targets_epoch.size(0)
-                        predictions_epoch = torch.argmax(student_logits_epoch, dim=1)
-                        total_correct_epoch += (predictions_epoch == targets_epoch).sum().item()
-                        total_samples_epoch += targets_epoch.size(0)
+                            student_logits_epoch = self.model(self.mb_x)
+                            loss_epoch = self.criterion(student_logits_epoch, targets_epoch)
 
-                avg_loss_epoch = total_loss_epoch / total_samples_epoch if total_samples_epoch > 0 else 0.0
-                accuracy_epoch = (total_correct_epoch / total_samples_epoch * 100) if total_samples_epoch > 0 else 0.0
+                            total_loss_epoch += loss_epoch.item() * targets_epoch.size(0)
+                            predictions_epoch = torch.argmax(student_logits_epoch, dim=1)
+                            total_correct_epoch += (predictions_epoch == targets_epoch).sum().item()
+                            total_samples_epoch += targets_epoch.size(0)
 
-                print(
-                    f"Experience {current_exp_id_epoch}, "
-                    f"Epoch {epoch}: Loss = {avg_loss_epoch:.6f} | Accuracy = {accuracy_epoch:.2f}%"
-                    f"\n{'...' * 60}\n"
-                )
+                    avg_loss_epoch = total_loss_epoch / total_samples_epoch if total_samples_epoch > 0 else 0.0
+                    accuracy_epoch = (total_correct_epoch / total_samples_epoch * 100) if total_samples_epoch > 0 else 0.0
+
+                    print(
+                        f"Experience {current_exp_id_epoch}, "
+                        f"Epoch {epoch}: Loss = {avg_loss_epoch:.6f} | Accuracy = {accuracy_epoch:.2f}%"
+                        f"\n{'...' * 60}\n"
+                    )
         self._load_train_state(prev_train_state)
         self.model.train()
         #self.model.to(self.device)  # TODO: may be the problem
@@ -1670,57 +1677,59 @@ class LwFTrainer(SupervisedTemplate):
         self.model.eval()
         print("print(self.model.training) -- evaluate_single_experience after self.model.eval()", self.model.training)
 
-        current_exp_id_single_exp = experience.current_experience
+        with BatchNormStateSaver(self.model) as bn_saver:
 
-        '''if current_exp_id not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id] = {}
-            self.experience_losses[current_exp_id] = {}'''
+            current_exp_id_single_exp = experience.current_experience
 
-        if eval_streams is None:
-            eval_streams = [experience]
+            '''if current_exp_id not in self.experience_accuracies:
+                self.experience_accuracies[current_exp_id] = {}
+                self.experience_losses[current_exp_id] = {}'''
 
-        self.model.eval()
+            if eval_streams is None:
+                eval_streams = [experience]
 
-        for stream_idx, eval_stream in enumerate(eval_streams):
-            if not isinstance(eval_stream, Iterable):
-                eval_stream = [eval_stream]
+            self.model.eval()
 
-            for exp in eval_stream:
-                exp_id_single_exp = exp.current_experience
+            for stream_idx, eval_stream in enumerate(eval_streams):
+                if not isinstance(eval_stream, Iterable):
+                    eval_stream = [eval_stream]
 
-                # Don't evaluate future experiences
-                if exp_id_single_exp > current_exp_id_single_exp:
-                    break
+                for exp in eval_stream:
+                    exp_id_single_exp = exp.current_experience
 
-                # Prepare eval data
-                eval_adapted_dataset = exp.dataset.eval()
-                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
+                    # Don't evaluate future experiences
+                    if exp_id_single_exp > current_exp_id_single_exp:
+                        break
 
-                total_loss_single_exp = 0.0
-                total_correct_single_exp = 0
-                total_samples_single_exp = 0
+                    # Prepare eval data
+                    eval_adapted_dataset = exp.dataset.eval()
+                    eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset, self.eval_mb_size)
 
-                with torch.no_grad():
-                    for self.mbatch in eval_dataloader:
-                        self.unpack_minibatch()
-                        targets_single_exp = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
+                    total_loss_single_exp = 0.0
+                    total_correct_single_exp = 0
+                    total_samples_single_exp = 0
 
-                        student_logits_single_exp = self.model(self.mb_x)
-                        loss_single_exp = self.criterion(student_logits_single_exp, targets_single_exp)
+                    with torch.no_grad():
+                        for self.mbatch in eval_dataloader:
+                            self.unpack_minibatch()
+                            targets_single_exp = self.map_targets() #targets = self.map_labels_expanding_classifier() # targets = self.mb_y
 
-                        total_loss_single_exp += loss_single_exp.item() * targets_single_exp.size(0)
-                        predictions_single_exp = torch.argmax(student_logits_single_exp, dim=1)
-                        total_correct_single_exp += (predictions_single_exp == targets_single_exp).sum().item()
-                        total_samples_single_exp += targets_single_exp.size(0)
+                            student_logits_single_exp = self.model(self.mb_x)
+                            loss_single_exp = self.criterion(student_logits_single_exp, targets_single_exp)
 
-                avg_loss_single_exp = total_loss_single_exp / total_samples_single_exp if total_samples_single_exp > 0 else 0.0
-                accuracy_single_exp = (total_correct_single_exp / total_samples_single_exp * 100) if total_samples_single_exp > 0 else 0.0
+                            total_loss_single_exp += loss_single_exp.item() * targets_single_exp.size(0)
+                            predictions_single_exp = torch.argmax(student_logits_single_exp, dim=1)
+                            total_correct_single_exp += (predictions_single_exp == targets_single_exp).sum().item()
+                            total_samples_single_exp += targets_single_exp.size(0)
 
-                print(
-                    f"Experience {current_exp_id_single_exp}, "
-                    f"Loss = {avg_loss_single_exp:.6f} | Accuracy = {accuracy_single_exp:.2f}%"
-                    f"\n{'...' * 60}\n"
-                )
+                    avg_loss_single_exp = total_loss_single_exp / total_samples_single_exp if total_samples_single_exp > 0 else 0.0
+                    accuracy_single_exp = (total_correct_single_exp / total_samples_single_exp * 100) if total_samples_single_exp > 0 else 0.0
+
+                    print(
+                        f"Experience {current_exp_id_single_exp}, "
+                        f"Loss = {avg_loss_single_exp:.6f} | Accuracy = {accuracy_single_exp:.2f}%"
+                        f"\n{'...' * 60}\n"
+                    )
         self._load_train_state(prev_train_state)
         self.model.train()
         #self.model.to(self.device)  # TODO: may be the problem
@@ -1839,59 +1848,6 @@ class LwFTrainer(SupervisedTemplate):
                 print(
                     f"Performance on Exp {exp_id_all_experiences_post_training}: Loss = {avg_loss_all_experiences_post_training:.6f} | Accuracy = {accuracy_all_experiences_post_training:.2f}%"
                 )
-
-    @torch.no_grad()
-    def eval_outside_loop(
-        self,
-        experiences: Union[TExperienceType, CLStream[TExperienceType]],
-        **kwargs,
-    ):
-        if not self._distributed_check:
-            # Checks if the strategy elements are compatible with
-            # distributed training
-            self._check_distributed_training_compatibility()
-            self._distributed_check = True
-
-        # eval can be called inside the train method.
-        # Save the shared state here to restore before returning.
-        prev_train_state = self._save_train_state()
-        self.is_training = False
-        self.model.eval()
-
-        experiences_list: Iterable[TExperienceType] = (
-            _experiences_parameter_as_iterable(experiences)
-        )
-        self.current_eval_stream = experiences_list
-
-        self._before_eval(**kwargs)
-        for self.experience in experiences_list:
-            self._before_eval_exp(**kwargs)
-            self.eval_experience_outside_loop() # self._eval_exp(**kwargs)
-            self._after_eval_exp(**kwargs)
-
-        self._after_eval(**kwargs)
-        self._eval_cleanup()
-
-        # restore previous shared state.
-        self._load_train_state(prev_train_state)
-
-
-    def eval_experience_outside_loop(self, **kwargs):
-        self.eval_epoch_mine_outside_loop(**kwargs)
-
-    def eval_epoch_mine_outside_loop(self, **kwargs):
-        """Evaluation loop over the current `self.dataloader`."""
-        for self.mbatch in self.dataloader:#self.eval_dataloader:
-            self.unpack_minibatch()
-            targets = self.map_targets() #targets = self.map_labels_expanding_classifier()
-            self._before_eval_iteration(**kwargs) # formerly commented-out
-
-            self._before_eval_forward(**kwargs)# formerly commented-out
-            self.mb_output = self.model(self.mb_x)#self.mb_output = self.forward()
-            self._after_eval_forward(**kwargs)# formerly commented-out
-            self.loss = self.criterion(self.mb_output, targets) #self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
-
-            self._after_eval_iteration(**kwargs) # formerly commented-out
 
     '''def map_labels_expanding_classifier_v2(self, class_to_idx=None):
         """
@@ -2198,7 +2154,7 @@ Temperature: 2.0 Alpha: 3.2631507962942123
 '''
 MATCH_AUTHOR_DISTILL = True#False#True
 MATCH_AUTHOR_LOSS = True#False #True
-EARLY_STOPPING_LOOP_1= False#True
+EARLY_STOPPING_LOOP_1= True
 EARLY_STOPPING_LOOP_2=False
 EARLY_STOPPING_LOOP_3=False
 VERBOSE=False#True
@@ -2210,10 +2166,10 @@ if TRAINING_WITH_LOOP_LwF:
     #lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
-                             train_mb_size=43, train_epochs=10, eval_mb_size=43, #eval_mb_size=32, #device=DEVICE,
+                             train_mb_size=43, train_epochs=10, eval_mb_size=43,#train_mb_size=22, train_epochs=10, eval_mb_size=22, #eval_mb_size=32, #device=DEVICE,
                              patience=5, ft_shared_after=8,
-                             plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True),
+                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
                                                         #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
                                                         loggers=InteractiveLogger(), collect_all=True),
@@ -2264,9 +2220,6 @@ if TRAINING_WITH_LOOP_LwF:
     print('Training completed WITH LwFTrainer')
     #print("lwf_trainer.evaluate_all_experiences(nature_specialised_models_val_stream_class_il)")
     #lwf_trainer.evaluate_all_experiences_post_training(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
-    print("Computing accuracy on the whole val set OUTSIDE training LOOP -- lwf_trainer.eval(nature_specialised_models_val_stream_class_il)")
-    lwf_trainer.eval_outside_loop(seen_experiences_val)#(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
-
 
 '''
     checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
@@ -2282,372 +2235,203 @@ if TRAINING_WITH_LOOP_LwF:
     #results.append(cl_strategy.eval(nature_specialised_models_val_stream_class_il))
     #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
 
-
-
-
-################################################################################
-# Copyright (c) 2021 ContinualAI.                                              #
-# Copyrights licensed under the MIT License.                                   #
-# See the accompanying LICENSE file for terms.                                 #
-#                                                                              #
-# Date: 30-12-2020                                                             #
-# Author(s): Lorenzo Pellegrini                                                #
-# E-mail: contact@continualai.org                                              #
-# Website: www.continualai.org                                                 #
-################################################################################
-
-from typing import List, Optional, Union, Dict
+"""
+FINAL FIX: Save and restore BatchNorm running statistics
+This prevents BatchNorm state changes from evaluate_epoch() and 
+evaluate_single_experience() from affecting evaluate_all_experiences()
+"""
 
 import torch
-from torch import Tensor
-from avalanche.evaluation import Metric #, GenericPluginMetric
-from avalanche.evaluation.metrics.mean import Mean
-from collections import defaultdict
-
-from abc import ABC, abstractmethod
-from typing import (
-    Generic,
-    TypeVar,
-    Optional,
-    TYPE_CHECKING,
-    List,
-    Union,
-    overload,
-    Literal,
-    Protocol,
-)
-from avalanche.evaluation.metric_definitions import PluginMetric
-from avalanche.evaluation.metric_results import MetricValue, MetricType, AlternativeValues
-
-from avalanche.evaluation.metric_utils import (
-    get_metric_name,
-    generic_get_metric_name,
-    default_metric_name_template,
-)
-
-if TYPE_CHECKING:
-    from avalanche.evaluation.metric_results import MetricResult
-    from avalanche.training.templates import SupervisedTemplate
-
-TResult_co = TypeVar("TResult_co", covariant=True)
-TMetric = TypeVar("TMetric", bound="Metric")
+import torch.nn as nn
 
 
-class Accuracy(Metric[float]):
-    """Accuracy metric. This is a standalone metric.
+# Add this helper class to your LwFTrainer class:
 
-    The update method computes the accuracy incrementally
-    by keeping a running average of the <prediction, target> pairs
-    of Tensors provided over time.
+class BatchNormStateSaver:
+    """Context manager to save/restore all BatchNorm running statistics."""
 
-    The "prediction" and "target" tensors may contain plain labels or
-    one-hot/logit vectors.
+    def __init__(self, model):
+        self.model = model
+        self.saved_states = {}
 
-    Each time `result` is called, this metric emits the average accuracy
-    across all predictions made since the last `reset`.
+    def __enter__(self):
+        """Save all BatchNorm running statistics before evaluation."""
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                self.saved_states[name] = {
+                    'running_mean': module.running_mean.clone() if module.running_mean is not None else None,
+                    'running_var': module.running_var.clone() if module.running_var is not None else None,
+                    'num_batches_tracked': module.num_batches_tracked.clone() if module.num_batches_tracked is not None else None,
+                }
+        return self
 
-    The reset method will bring the metric to its initial state. By default
-    this metric in its initial state will return an accuracy value of 0.
-    """
-
-    def __init__(self):
-        """Creates an instance of the standalone Accuracy metric.
-
-        By default this metric in its initial state will return an accuracy
-        value of 0. The metric can be updated by using the `update` method
-        while the running accuracy can be retrieved using the `result` method.
-        """
-        self._mean_accuracy = Mean()
-        """The mean utility that will be used to store the running accuracy."""
-
-    @torch.no_grad()
-    def update(
-        self,
-        predicted_y: Tensor,
-        true_y: Tensor,
-    ) -> None:
-        """Update the running accuracy given the true and predicted labels.
-
-        :param predicted_y: The model prediction. Both labels and logit vectors
-            are supported.
-        :param true_y: The ground truth. Both labels and one-hot vectors
-            are supported.
-
-        :return: None.
-        """
-        #true_y = self.map_targets_back_to_original(strategy) # MY ADDITION!!!!!
-        original_targets_tensor = torch.tensor([true_y[int(fine_label)]for fine_label in class_to_idx_new], #torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
-            device=true_y.device, #fine_label.device,
-            dtype=torch.long
-        )
-        true_y = original_targets_tensor
-
-        true_y = torch.as_tensor(true_y)
-        predicted_y = torch.as_tensor(predicted_y)
-
-        if len(true_y) != len(predicted_y):
-            raise ValueError("Size mismatch for true_y and predicted_y tensors")
-
-        # Check if logits or labels
-        if len(predicted_y.shape) > 1:
-            # Logits -> transform to labels
-            predicted_y = torch.max(predicted_y, 1)[1]
-
-        if len(true_y.shape) > 1:
-            # Logits -> transform to labels
-            true_y = torch.max(true_y, 1)[1]
-
-        true_positives = float(torch.sum(torch.eq(predicted_y, true_y)))
-        total_patterns = len(true_y)
-        self._mean_accuracy.update(true_positives / total_patterns, total_patterns)
-
-    def result(self) -> float:
-        """Retrieves the running accuracy.
-
-        Calling this method will not change the internal state of the metric.
-
-        :return: The current running accuracy, which is a float value
-            between 0 and 1.
-        """
-        return self._mean_accuracy.result()
-
-    def reset(self) -> None:
-        """Resets the metric.
-
-        :return: None.
-        """
-        self._mean_accuracy.reset()
-
-    '''def map_targets_back_to_original(self, strategy):
-        original_targets_tensor = torch.tensor([strategy.mb_y[int(fine_label)]for fine_label in class_to_idx_new], #torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
-            device=strategy.mb_y.device, #fine_label.device,
-            dtype=torch.long
-        ) # if device=self.mb_y.device does not work, maybe try class_to_idx_new.device???
-
-        #print("print(original_targets_tensor)",original_targets_tensor)
-        return original_targets_tensor'''
+    def __exit__(self, *args):
+        """Restore all BatchNorm running statistics after evaluation."""
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                if name in self.saved_states:
+                    state = self.saved_states[name]
+                    if state['running_mean'] is not None:
+                        module.running_mean.copy_(state['running_mean'])
+                    if state['running_var'] is not None:
+                        module.running_var.copy_(state['running_var'])
+                    if state['num_batches_tracked'] is not None:
+                        module.num_batches_tracked.copy_(state['num_batches_tracked'])
 
 
+# ============================================================================
+# APPLY THIS FIX TO ALL THREE EVALUATION FUNCTIONS
+# ============================================================================
 
+# In evaluate_all_experiences(), wrap your evaluation loop:
+'''def evaluate_all_experiences(self, experience: CLExperience, eval_streams=None):
+    """Evaluate on all experiences seen so far."""
+    print(f"\n{'=' * 60}")
+    print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
+    print(f"{'=' * 60}\n")
 
-class GenericPluginMetric(PluginMetric[TResult_co], Generic[TResult_co, TMetric]):
-    """
-    This class provides a generic implementation of a Plugin Metric.
-    The user can subclass this class to easily implement custom plugin
-    metrics.
-    """
+    # ✓✓✓ ADD THIS: Save BatchNorm state before evaluation ✓✓✓
+    with BatchNormStateSaver(self.model) as bn_saver:
+        # ✓✓✓ All your existing evaluation code stays the same ✓✓✓
 
-    @overload
-    def __init__(
-        self,
-        metric: TMetric,
-        reset_at: Literal[
-            "iteration", "epoch", "experience", "stream", "never"
-        ] = "experience",
-        emit_at: Literal["iteration", "epoch", "experience", "stream"] = "experience",
-        mode: Literal["train"] = "train",
-    ): ...
+        current_exp_id_all_experiences = experience.current_experience
 
-    @overload
-    def __init__(
-        self,
-        metric: TMetric,
-        reset_at: Literal["iteration", "experience", "stream", "never"] = "experience",
-        emit_at: Literal["iteration", "experience", "stream"] = "experience",
-        mode: Literal["eval"] = "eval",
-    ): ...
+        if current_exp_id_all_experiences not in self.experience_accuracies:
+            self.experience_accuracies[current_exp_id_all_experiences] = {}
+            self.experience_losses[current_exp_id_all_experiences] = {}
 
-    def __init__(
-        self, metric: TMetric, reset_at="experience", emit_at="experience", mode="eval"
-    ):
-        super(GenericPluginMetric, self).__init__()
-        assert mode in {"train", "eval"}
-        if mode == "train":
-            assert reset_at in {
-                "iteration",
-                "epoch",
-                "experience",
-                "stream",
-                "never",
-            }
-            assert emit_at in {"iteration", "epoch", "experience", "stream"}
-        else:
-            assert reset_at in {"iteration", "experience", "stream", "never"}
-            assert emit_at in {"iteration", "experience", "stream"}
-        self._metric: TMetric = metric
-        self._reset_at = reset_at
-        self._emit_at = emit_at
-        self._mode = mode
+        if eval_streams is None:
+            eval_streams = [experience]
 
+        self.model.eval()
 
-    def reset(self) -> None:
-        self._metric.reset()
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
 
-    def result(self):
-        return self._metric.result()
+            for exp in eval_stream:
+                exp_id_all_experiences = exp.current_experience
 
-    '''def update(self, strategy: "SupervisedTemplate"):
-        pass'''
+                if exp_id_all_experiences > current_exp_id_all_experiences:
+                    break
 
-    @torch.no_grad()
-    def update(
-            self,
-            predicted_y: Tensor,
-            true_y: Tensor,
-    ) -> None:
-        """Update the running accuracy given the true and predicted labels.
+                # ... rest of your existing code ...
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(
+                    eval_adapted_dataset, self.eval_mb_size)
 
-        :param predicted_y: The model prediction. Both labels and logit vectors
-            are supported.
-        :param true_y: The ground truth. Both labels and one-hot vectors
-            are supported.
+                total_loss_all_experiences = 0.0
+                total_correct_all_experiences = 0
+                total_samples_all_experiences = 0
 
-        :return: None.
-        """
-        # true_y = self.map_targets_back_to_original(strategy) # MY ADDITION!!!!!
-        original_targets_tensor = torch.tensor([true_y[int(fine_label)] for fine_label in class_to_idx_new],
-                                               # torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
-                                               device=true_y.device,  # fine_label.device,
-                                               dtype=torch.long
-                                               )
-        true_y = original_targets_tensor
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets_all_experiences = self.map_targets()
 
-        true_y = torch.as_tensor(true_y)
-        predicted_y = torch.as_tensor(predicted_y)
+                        student_logits_all_experiences = self.model(self.mb_x)
+                        loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
 
-        if len(true_y) != len(predicted_y):
-            raise ValueError("Size mismatch for true_y and predicted_y tensors")
+                        total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
+                        predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
+                        total_correct_all_experiences += (
+                                    predictions_all_experiences == targets_all_experiences).sum().item()
+                        total_samples_all_experiences += targets_all_experiences.size(0)
 
-        # Check if logits or labels
-        if len(predicted_y.shape) > 1:
-            # Logits -> transform to labels
-            predicted_y = torch.max(predicted_y, 1)[1]
+                avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
+                accuracy_all_experiences = (
+                            total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
 
-        if len(true_y.shape) > 1:
-            # Logits -> transform to labels
-            true_y = torch.max(true_y, 1)[1]
+                self.experience_accuracies[current_exp_id_all_experiences][
+                    exp_id_all_experiences] = accuracy_all_experiences
+                self.experience_losses[current_exp_id_all_experiences][
+                    exp_id_all_experiences] = avg_loss_all_experiences
 
-        true_positives = float(torch.sum(torch.eq(predicted_y, true_y)))
-        total_patterns = len(true_y)
-        self._mean_accuracy.update(true_positives / total_patterns, total_patterns)
-
-    def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
-        metric_value = self.result()
-        add_exp = self._emit_at == "experience"
-        plot_x_position = strategy.clock.train_iterations
-
-        if isinstance(metric_value, dict):
-            metrics = []
-            for k, v in metric_value.items():
-                metric_name = get_metric_name(
-                    self, strategy, add_experience=add_exp, add_task=k
+                print(
+                    f"AFTER TRAINING ON Exp {current_exp_id_all_experiences}, "
+                    f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
                 )
-                metrics.append(MetricValue(self, metric_name, v, plot_x_position))
-            return metrics
-        else:
-            metric_name = get_metric_name(
-                self, strategy, add_experience=add_exp, add_task=True
-            )
-            return [MetricValue(self, metric_name, metric_value, plot_x_position)]
 
-    '''def reset(self) -> None:
-        self._metric.reset()
+        self._compute_backward_transfer_internal()
+        self.model.train()
 
-    def result(self, strategy):
-        return self._metric.result(strategy)
+    # ✓✓✓ Context manager exits here and restores BatchNorm state ✓✓✓
 
-    def update(self, strategy: "SupervisedTemplate"):
-        pass
 
-    def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
-        metric_value = self.result(strategy)
-        add_exp = self._emit_at == "experience"
-        plot_x_position = strategy.clock.train_iterations
+# Similarly, wrap evaluate_single_experience():
+def evaluate_single_experience(self, experience: CLExperience, eval_streams=None):
+    """Evaluate on current experience."""
+    print(f"\n{'...' * 60}")
+    print(f"EVALUATING Experience {experience.current_experience}")
 
-        if isinstance(metric_value, dict):
-            metrics = []
-            for k, v in metric_value.items():
-                metric_name = get_metric_name(
-                    self, strategy, add_experience=add_exp, add_task=k
+    # ✓✓✓ ADD THIS: Save BatchNorm state before evaluation ✓✓✓
+    with BatchNormStateSaver(self.model) as bn_saver:
+        # ✓✓✓ All your existing evaluation code stays the same ✓✓✓
+
+        current_exp_id_single_exp = experience.current_experience
+
+        if eval_streams is None:
+            eval_streams = [experience]
+
+        self.model.eval()
+
+        for stream_idx, eval_stream in enumerate(eval_streams):
+            if not isinstance(eval_stream, Iterable):
+                eval_stream = [eval_stream]
+
+            for exp in eval_stream:
+                exp_id_single_exp = exp.current_experience
+
+                if exp_id_single_exp > current_exp_id_single_exp:
+                    break
+
+                # ... rest of your existing code ...
+                eval_adapted_dataset = exp.dataset.eval()
+                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(
+                    eval_adapted_dataset, self.eval_mb_size)
+
+                total_loss_single_exp = 0.0
+                total_correct_single_exp = 0
+                total_samples_single_exp = 0
+
+                with torch.no_grad():
+                    for self.mbatch in eval_dataloader:
+                        self.unpack_minibatch()
+                        targets_single_exp = self.map_targets()
+
+                        student_logits_single_exp = self.model(self.mb_x)
+                        loss_single_exp = self.criterion(student_logits_single_exp, targets_single_exp)
+
+                        total_loss_single_exp += loss_single_exp.item() * targets_single_exp.size(0)
+                        predictions_single_exp = torch.argmax(student_logits_single_exp, dim=1)
+                        total_correct_single_exp += (predictions_single_exp == targets_single_exp).sum().item()
+                        total_samples_single_exp += targets_single_exp.size(0)
+
+                avg_loss_single_exp = total_loss_single_exp / total_samples_single_exp if total_samples_single_exp > 0 else 0.0
+                accuracy_single_exp = (
+                            total_correct_single_exp / total_samples_single_exp * 100) if total_samples_single_exp > 0 else 0.0
+
+                print(
+                    f"Experience {current_exp_id_single_exp}, "
+                    f"Loss = {avg_loss_single_exp:.6f} | Accuracy = {accuracy_single_exp:.2f}%"
+                    f"\n{'...' * 60}\n"
                 )
-                metrics.append(MetricValue(self, metric_name, v, plot_x_position))
-            return metrics
-        else:
-            metric_name = get_metric_name(
-                self, strategy, add_experience=add_exp, add_task=True
-            )
-            return [MetricValue(self, metric_name, metric_value, plot_x_position)]'''
 
-    def before_training(self, strategy: "SupervisedTemplate"):
-        super().before_training(strategy)
-        if self._reset_at == "stream" and self._mode == "train":
-            self.reset()
+        self.model.train()
 
-    def before_training_exp(self, strategy: "SupervisedTemplate"):
-        super().before_training_exp(strategy)
-        if self._reset_at == "experience" and self._mode == "train":
-            self.reset()
+    # ✓✓✓ Context manager exits here and restores BatchNorm state ✓✓✓
 
-    def before_training_epoch(self, strategy: "SupervisedTemplate"):
-        super().before_training_epoch(strategy)
-        if self._reset_at == "epoch" and self._mode == "train":
-            self.reset()
 
-    def before_training_iteration(self, strategy: "SupervisedTemplate"):
-        super().before_training_iteration(strategy)
-        if self._reset_at == "iteration" and self._mode == "train":
-            self.reset()
+# Similarly, wrap evaluate_epoch():
+def evaluate_epoch(self, epoch, experience: CLExperience, eval_streams=None):
+    """Evaluate on current epoch."""
+    # ✓✓✓ ADD THIS: Save BatchNorm state before evaluation ✓✓✓
+    with BatchNormStateSaver(self.model) as bn_saver:
+        # ✓✓✓ All your existing evaluation code stays the same ✓✓✓
 
-    def after_training_iteration(self, strategy: "SupervisedTemplate"):
-        super().after_training_iteration(strategy)
-        if self._mode == "train":
-            self.update(strategy)
-        if self._emit_at == "iteration" and self._mode == "train":
-            return self._package_result(strategy)
+        # ... all your existing evaluation code ...
 
-    def after_training_epoch(self, strategy: "SupervisedTemplate"):
-        super().after_training_epoch(strategy)
-        if self._emit_at == "epoch" and self._mode == "train":
-            return self._package_result(strategy)
+        # Return whatever you normally return
+        return epoch_loss, epoch_acc
 
-    def after_training_exp(self, strategy: "SupervisedTemplate"):
-        super().after_training_exp(strategy)
-        if self._emit_at == "experience" and self._mode == "train":
-            return self._package_result(strategy)
-
-    def after_training(self, strategy: "SupervisedTemplate"):
-        super().after_training(strategy)
-        if self._emit_at == "stream" and self._mode == "train":
-            return self._package_result(strategy)
-
-    def before_eval(self, strategy: "SupervisedTemplate"):
-        super().before_eval(strategy)
-        if self._reset_at == "stream" and self._mode == "eval":
-            self.reset()
-
-    def before_eval_exp(self, strategy: "SupervisedTemplate"):
-        super().before_eval_exp(strategy)
-        if self._reset_at == "experience" and self._mode == "eval":
-            self.reset()
-
-    def after_eval_exp(self, strategy: "SupervisedTemplate"):
-        super().after_eval_exp(strategy)
-        if self._emit_at == "experience" and self._mode == "eval":
-            return self._package_result(strategy)
-
-    def after_eval(self, strategy: "SupervisedTemplate"):
-        super().after_eval(strategy)
-        if self._emit_at == "stream" and self._mode == "eval":
-            return self._package_result(strategy)
-
-    def after_eval_iteration(self, strategy: "SupervisedTemplate"):
-        super().after_eval_iteration(strategy)
-        if self._mode == "eval":
-            self.update(strategy)
-        if self._emit_at == "iteration" and self._mode == "eval":
-            return self._package_result(strategy)
-
-    def before_eval_iteration(self, strategy: "SupervisedTemplate"):
-        super().before_eval_iteration(strategy)
-        if self._reset_at == "iteration" and self._mode == "eval":
-            self.reset()
+    # ✓✓✓ Context manager exits here and restores BatchNorm state ✓✓✓'''
