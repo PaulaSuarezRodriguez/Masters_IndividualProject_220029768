@@ -669,8 +669,8 @@ class LwFTrainer(SupervisedTemplate):
             self.expand_classifier(self.model, self.experience)  # DEFINITE POSITION. # IMPORTANT: recreate optimizer after classifier expansion. This is now done from the body of expand_classifier()
             self.train_experience(self.experience, eval_streams, **kwargs)
             # After training each experience, evaluate on ALL previous experiences AND Compute and print backward transfer
-            self.evaluate_all_experiences_DEBUG(self.experience, eval_streams)#self.evaluate_all_experiences(self.experience, eval_streams)
-            self.debug_experience_accuracies()
+            '''self.evaluate_all_experiences_DEBUG(self.experience, eval_streams)#self.evaluate_all_experiences(self.experience, eval_streams)
+            self.debug_experience_accuracies()'''
             self._after_training_exp(**kwargs)
         self._after_training(**kwargs)
         self._train_cleanup()
@@ -923,7 +923,7 @@ class LwFTrainer(SupervisedTemplate):
             '''self.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
             '''
-            epoch_loss, epoch_acc = self.evaluate_epoch(_, experience)
+            '''epoch_loss, epoch_acc = self.evaluate_epoch(_, experience)
             accuracies.append(epoch_acc)
             accuracies.sort(reverse=True)
             print(f"accuracies: {accuracies}")
@@ -1014,11 +1014,11 @@ class LwFTrainer(SupervisedTemplate):
                 #self.lr = self.original_lr
             if EARLY_STOPPING_LOOP_3:
                 # for acc in accuracies:
-                '''if epoch_acc >= accuracies[0]:
+                ''''''if epoch_acc >= accuracies[0]:
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
-                    print("Best checkpoint saved.")'''
+                    print("Best checkpoint saved.")''''''
                 if epoch_loss >= prev_epoch_loss:
                     loss_c+=1
                     if loss_c == self.patience-1 : # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
@@ -1056,7 +1056,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 prev_epoch_loss = epoch_loss
                 prev_epoch_acc = epoch_acc
-                #self.lr = self.original_lr
+                #self.lr = self.original_lr'''
         # --------------------------------------------------------
         # IMPORTANT:
         # Save teacher AFTER completing the experience
@@ -1067,8 +1067,8 @@ class LwFTrainer(SupervisedTemplate):
         #print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
         #print("self.evaluate_single_experience() AFTER LOADING:")
         #self.evaluate_single_experience(experience, eval_streams)
-        print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
-        self.evaluate_single_experience(experience, eval_streams)
+        #print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
+        #self.evaluate_single_experience(experience, eval_streams)
         self.teacher = copy.deepcopy(self.model)
         self.teacher.eval()
 
@@ -1785,6 +1785,15 @@ class LwFTrainer(SupervisedTemplate):
         #print("print(targets_tensor)",targets_tensor)
         return targets_tensor
 
+    def map_targets_back_to_original(self):
+        original_targets_tensor = torch.tensor([self.mb_y[int(fine_label)]for fine_label in class_to_idx_new], #torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
+            device=self.mb_y.device, #fine_label.device,
+            dtype=torch.long
+        ) # if device=self.mb_y.device does not work, maybe try class_to_idx_new.device???
+
+        #print("print(original_targets_tensor)",original_targets_tensor)
+        return original_targets_tensor
+
     def evaluate_all_experiences_post_training(self, eval_streams: Optional[
         Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
         """Evaluate on all experiences seen so far."""
@@ -1830,6 +1839,59 @@ class LwFTrainer(SupervisedTemplate):
                 print(
                     f"Performance on Exp {exp_id_all_experiences_post_training}: Loss = {avg_loss_all_experiences_post_training:.6f} | Accuracy = {accuracy_all_experiences_post_training:.2f}%"
                 )
+
+    @torch.no_grad()
+    def eval_outside_loop(
+        self,
+        experiences: Union[TExperienceType, CLStream[TExperienceType]],
+        **kwargs,
+    ):
+        if not self._distributed_check:
+            # Checks if the strategy elements are compatible with
+            # distributed training
+            self._check_distributed_training_compatibility()
+            self._distributed_check = True
+
+        # eval can be called inside the train method.
+        # Save the shared state here to restore before returning.
+        prev_train_state = self._save_train_state()
+        self.is_training = False
+        self.model.eval()
+
+        experiences_list: Iterable[TExperienceType] = (
+            _experiences_parameter_as_iterable(experiences)
+        )
+        self.current_eval_stream = experiences_list
+
+        self._before_eval(**kwargs)
+        for self.experience in experiences_list:
+            self._before_eval_exp(**kwargs)
+            self.eval_experience_outside_loop() # self._eval_exp(**kwargs)
+            self._after_eval_exp(**kwargs)
+
+        self._after_eval(**kwargs)
+        self._eval_cleanup()
+
+        # restore previous shared state.
+        self._load_train_state(prev_train_state)
+
+
+    def eval_experience_outside_loop(self, **kwargs):
+        self.eval_epoch_mine_outside_loop(**kwargs)
+
+    def eval_epoch_mine_outside_loop(self, **kwargs):
+        """Evaluation loop over the current `self.dataloader`."""
+        for self.mbatch in self.dataloader:#self.eval_dataloader:
+            self.unpack_minibatch()
+            targets = self.map_targets() #targets = self.map_labels_expanding_classifier()
+            self._before_eval_iteration(**kwargs) # formerly commented-out
+
+            self._before_eval_forward(**kwargs)# formerly commented-out
+            self.mb_output = self.model(self.mb_x)#self.mb_output = self.forward()
+            self._after_eval_forward(**kwargs)# formerly commented-out
+            self.loss = self.criterion(self.mb_output, targets) #self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
+
+            self._after_eval_iteration(**kwargs) # formerly commented-out
 
     '''def map_labels_expanding_classifier_v2(self, class_to_idx=None):
         """
@@ -2136,7 +2198,7 @@ Temperature: 2.0 Alpha: 3.2631507962942123
 '''
 MATCH_AUTHOR_DISTILL = True#False#True
 MATCH_AUTHOR_LOSS = True#False #True
-EARLY_STOPPING_LOOP_1= True
+EARLY_STOPPING_LOOP_1= False#True
 EARLY_STOPPING_LOOP_2=False
 EARLY_STOPPING_LOOP_3=False
 VERBOSE=False#True
@@ -2150,8 +2212,8 @@ if TRAINING_WITH_LOOP_LwF:
                              temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                              train_mb_size=43, train_epochs=10, eval_mb_size=43, #eval_mb_size=32, #device=DEVICE,
                              patience=5, ft_shared_after=8,
-                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
+                             plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                             evaluator=EvaluationPlugin(accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
                                                         #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
                                                         loggers=InteractiveLogger(), collect_all=True),
@@ -2168,7 +2230,7 @@ if TRAINING_WITH_LOOP_LwF:
     checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Eleventh_implementation_attempt\checkpoints")
     for experience in nature_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of nature_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-        if i == 4:
+        if i == 3:#4:#3:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
         print("Start of experience -- current VAL experience: ",nature_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
@@ -2190,7 +2252,8 @@ if TRAINING_WITH_LOOP_LwF:
         '''if i > 0:
             lwf_trainer.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl")
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")'''
-        lwf_trainer.train(experience, [seen_experiences]) #lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
+        ####lwf_trainer.train(experience, [seen_experiences])
+        lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
         print("Temperature:" ,lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
         #lwf_trainer.train(experience, nature_specialised_models_val_stream_class_il)
         #lwf_trainer.train_experience(experience, nature_specialised_models_val_stream_class_il)
@@ -2199,8 +2262,10 @@ if TRAINING_WITH_LOOP_LwF:
         # print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
         # print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
     print('Training completed WITH LwFTrainer')
-    print("lwf_trainer.evaluate_all_experiences(nature_specialised_models_val_stream_class_il)")
-    lwf_trainer.evaluate_all_experiences_post_training(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
+    #print("lwf_trainer.evaluate_all_experiences(nature_specialised_models_val_stream_class_il)")
+    #lwf_trainer.evaluate_all_experiences_post_training(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
+    print("Computing accuracy on the whole val set OUTSIDE training LOOP -- lwf_trainer.eval(nature_specialised_models_val_stream_class_il)")
+    lwf_trainer.eval_outside_loop(seen_experiences_val)#(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
 
 
 '''
@@ -2220,3 +2285,369 @@ if TRAINING_WITH_LOOP_LwF:
 
 
 
+################################################################################
+# Copyright (c) 2021 ContinualAI.                                              #
+# Copyrights licensed under the MIT License.                                   #
+# See the accompanying LICENSE file for terms.                                 #
+#                                                                              #
+# Date: 30-12-2020                                                             #
+# Author(s): Lorenzo Pellegrini                                                #
+# E-mail: contact@continualai.org                                              #
+# Website: www.continualai.org                                                 #
+################################################################################
+
+from typing import List, Optional, Union, Dict
+
+import torch
+from torch import Tensor
+from avalanche.evaluation import Metric #, GenericPluginMetric
+from avalanche.evaluation.metrics.mean import Mean
+from collections import defaultdict
+
+from abc import ABC, abstractmethod
+from typing import (
+    Generic,
+    TypeVar,
+    Optional,
+    TYPE_CHECKING,
+    List,
+    Union,
+    overload,
+    Literal,
+    Protocol,
+)
+from avalanche.evaluation.metric_definitions import PluginMetric
+from avalanche.evaluation.metric_results import MetricValue, MetricType, AlternativeValues
+
+from avalanche.evaluation.metric_utils import (
+    get_metric_name,
+    generic_get_metric_name,
+    default_metric_name_template,
+)
+
+if TYPE_CHECKING:
+    from avalanche.evaluation.metric_results import MetricResult
+    from avalanche.training.templates import SupervisedTemplate
+
+TResult_co = TypeVar("TResult_co", covariant=True)
+TMetric = TypeVar("TMetric", bound="Metric")
+
+
+class Accuracy(Metric[float]):
+    """Accuracy metric. This is a standalone metric.
+
+    The update method computes the accuracy incrementally
+    by keeping a running average of the <prediction, target> pairs
+    of Tensors provided over time.
+
+    The "prediction" and "target" tensors may contain plain labels or
+    one-hot/logit vectors.
+
+    Each time `result` is called, this metric emits the average accuracy
+    across all predictions made since the last `reset`.
+
+    The reset method will bring the metric to its initial state. By default
+    this metric in its initial state will return an accuracy value of 0.
+    """
+
+    def __init__(self):
+        """Creates an instance of the standalone Accuracy metric.
+
+        By default this metric in its initial state will return an accuracy
+        value of 0. The metric can be updated by using the `update` method
+        while the running accuracy can be retrieved using the `result` method.
+        """
+        self._mean_accuracy = Mean()
+        """The mean utility that will be used to store the running accuracy."""
+
+    @torch.no_grad()
+    def update(
+        self,
+        predicted_y: Tensor,
+        true_y: Tensor,
+    ) -> None:
+        """Update the running accuracy given the true and predicted labels.
+
+        :param predicted_y: The model prediction. Both labels and logit vectors
+            are supported.
+        :param true_y: The ground truth. Both labels and one-hot vectors
+            are supported.
+
+        :return: None.
+        """
+        #true_y = self.map_targets_back_to_original(strategy) # MY ADDITION!!!!!
+        original_targets_tensor = torch.tensor([true_y[int(fine_label)]for fine_label in class_to_idx_new], #torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
+            device=true_y.device, #fine_label.device,
+            dtype=torch.long
+        )
+        true_y = original_targets_tensor
+
+        true_y = torch.as_tensor(true_y)
+        predicted_y = torch.as_tensor(predicted_y)
+
+        if len(true_y) != len(predicted_y):
+            raise ValueError("Size mismatch for true_y and predicted_y tensors")
+
+        # Check if logits or labels
+        if len(predicted_y.shape) > 1:
+            # Logits -> transform to labels
+            predicted_y = torch.max(predicted_y, 1)[1]
+
+        if len(true_y.shape) > 1:
+            # Logits -> transform to labels
+            true_y = torch.max(true_y, 1)[1]
+
+        true_positives = float(torch.sum(torch.eq(predicted_y, true_y)))
+        total_patterns = len(true_y)
+        self._mean_accuracy.update(true_positives / total_patterns, total_patterns)
+
+    def result(self) -> float:
+        """Retrieves the running accuracy.
+
+        Calling this method will not change the internal state of the metric.
+
+        :return: The current running accuracy, which is a float value
+            between 0 and 1.
+        """
+        return self._mean_accuracy.result()
+
+    def reset(self) -> None:
+        """Resets the metric.
+
+        :return: None.
+        """
+        self._mean_accuracy.reset()
+
+    '''def map_targets_back_to_original(self, strategy):
+        original_targets_tensor = torch.tensor([strategy.mb_y[int(fine_label)]for fine_label in class_to_idx_new], #torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
+            device=strategy.mb_y.device, #fine_label.device,
+            dtype=torch.long
+        ) # if device=self.mb_y.device does not work, maybe try class_to_idx_new.device???
+
+        #print("print(original_targets_tensor)",original_targets_tensor)
+        return original_targets_tensor'''
+
+
+
+
+class GenericPluginMetric(PluginMetric[TResult_co], Generic[TResult_co, TMetric]):
+    """
+    This class provides a generic implementation of a Plugin Metric.
+    The user can subclass this class to easily implement custom plugin
+    metrics.
+    """
+
+    @overload
+    def __init__(
+        self,
+        metric: TMetric,
+        reset_at: Literal[
+            "iteration", "epoch", "experience", "stream", "never"
+        ] = "experience",
+        emit_at: Literal["iteration", "epoch", "experience", "stream"] = "experience",
+        mode: Literal["train"] = "train",
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        metric: TMetric,
+        reset_at: Literal["iteration", "experience", "stream", "never"] = "experience",
+        emit_at: Literal["iteration", "experience", "stream"] = "experience",
+        mode: Literal["eval"] = "eval",
+    ): ...
+
+    def __init__(
+        self, metric: TMetric, reset_at="experience", emit_at="experience", mode="eval"
+    ):
+        super(GenericPluginMetric, self).__init__()
+        assert mode in {"train", "eval"}
+        if mode == "train":
+            assert reset_at in {
+                "iteration",
+                "epoch",
+                "experience",
+                "stream",
+                "never",
+            }
+            assert emit_at in {"iteration", "epoch", "experience", "stream"}
+        else:
+            assert reset_at in {"iteration", "experience", "stream", "never"}
+            assert emit_at in {"iteration", "experience", "stream"}
+        self._metric: TMetric = metric
+        self._reset_at = reset_at
+        self._emit_at = emit_at
+        self._mode = mode
+
+
+    def reset(self) -> None:
+        self._metric.reset()
+
+    def result(self):
+        return self._metric.result()
+
+    '''def update(self, strategy: "SupervisedTemplate"):
+        pass'''
+
+    @torch.no_grad()
+    def update(
+            self,
+            predicted_y: Tensor,
+            true_y: Tensor,
+    ) -> None:
+        """Update the running accuracy given the true and predicted labels.
+
+        :param predicted_y: The model prediction. Both labels and logit vectors
+            are supported.
+        :param true_y: The ground truth. Both labels and one-hot vectors
+            are supported.
+
+        :return: None.
+        """
+        # true_y = self.map_targets_back_to_original(strategy) # MY ADDITION!!!!!
+        original_targets_tensor = torch.tensor([true_y[int(fine_label)] for fine_label in class_to_idx_new],
+                                               # torch.tensor([self.mb_y[int(fine_label.item())]for fine_label in class_to_idx_new], --> AttributeError: 'int' object has no attribute 'item'
+                                               device=true_y.device,  # fine_label.device,
+                                               dtype=torch.long
+                                               )
+        true_y = original_targets_tensor
+
+        true_y = torch.as_tensor(true_y)
+        predicted_y = torch.as_tensor(predicted_y)
+
+        if len(true_y) != len(predicted_y):
+            raise ValueError("Size mismatch for true_y and predicted_y tensors")
+
+        # Check if logits or labels
+        if len(predicted_y.shape) > 1:
+            # Logits -> transform to labels
+            predicted_y = torch.max(predicted_y, 1)[1]
+
+        if len(true_y.shape) > 1:
+            # Logits -> transform to labels
+            true_y = torch.max(true_y, 1)[1]
+
+        true_positives = float(torch.sum(torch.eq(predicted_y, true_y)))
+        total_patterns = len(true_y)
+        self._mean_accuracy.update(true_positives / total_patterns, total_patterns)
+
+    def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
+        metric_value = self.result()
+        add_exp = self._emit_at == "experience"
+        plot_x_position = strategy.clock.train_iterations
+
+        if isinstance(metric_value, dict):
+            metrics = []
+            for k, v in metric_value.items():
+                metric_name = get_metric_name(
+                    self, strategy, add_experience=add_exp, add_task=k
+                )
+                metrics.append(MetricValue(self, metric_name, v, plot_x_position))
+            return metrics
+        else:
+            metric_name = get_metric_name(
+                self, strategy, add_experience=add_exp, add_task=True
+            )
+            return [MetricValue(self, metric_name, metric_value, plot_x_position)]
+
+    '''def reset(self) -> None:
+        self._metric.reset()
+
+    def result(self, strategy):
+        return self._metric.result(strategy)
+
+    def update(self, strategy: "SupervisedTemplate"):
+        pass
+
+    def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
+        metric_value = self.result(strategy)
+        add_exp = self._emit_at == "experience"
+        plot_x_position = strategy.clock.train_iterations
+
+        if isinstance(metric_value, dict):
+            metrics = []
+            for k, v in metric_value.items():
+                metric_name = get_metric_name(
+                    self, strategy, add_experience=add_exp, add_task=k
+                )
+                metrics.append(MetricValue(self, metric_name, v, plot_x_position))
+            return metrics
+        else:
+            metric_name = get_metric_name(
+                self, strategy, add_experience=add_exp, add_task=True
+            )
+            return [MetricValue(self, metric_name, metric_value, plot_x_position)]'''
+
+    def before_training(self, strategy: "SupervisedTemplate"):
+        super().before_training(strategy)
+        if self._reset_at == "stream" and self._mode == "train":
+            self.reset()
+
+    def before_training_exp(self, strategy: "SupervisedTemplate"):
+        super().before_training_exp(strategy)
+        if self._reset_at == "experience" and self._mode == "train":
+            self.reset()
+
+    def before_training_epoch(self, strategy: "SupervisedTemplate"):
+        super().before_training_epoch(strategy)
+        if self._reset_at == "epoch" and self._mode == "train":
+            self.reset()
+
+    def before_training_iteration(self, strategy: "SupervisedTemplate"):
+        super().before_training_iteration(strategy)
+        if self._reset_at == "iteration" and self._mode == "train":
+            self.reset()
+
+    def after_training_iteration(self, strategy: "SupervisedTemplate"):
+        super().after_training_iteration(strategy)
+        if self._mode == "train":
+            self.update(strategy)
+        if self._emit_at == "iteration" and self._mode == "train":
+            return self._package_result(strategy)
+
+    def after_training_epoch(self, strategy: "SupervisedTemplate"):
+        super().after_training_epoch(strategy)
+        if self._emit_at == "epoch" and self._mode == "train":
+            return self._package_result(strategy)
+
+    def after_training_exp(self, strategy: "SupervisedTemplate"):
+        super().after_training_exp(strategy)
+        if self._emit_at == "experience" and self._mode == "train":
+            return self._package_result(strategy)
+
+    def after_training(self, strategy: "SupervisedTemplate"):
+        super().after_training(strategy)
+        if self._emit_at == "stream" and self._mode == "train":
+            return self._package_result(strategy)
+
+    def before_eval(self, strategy: "SupervisedTemplate"):
+        super().before_eval(strategy)
+        if self._reset_at == "stream" and self._mode == "eval":
+            self.reset()
+
+    def before_eval_exp(self, strategy: "SupervisedTemplate"):
+        super().before_eval_exp(strategy)
+        if self._reset_at == "experience" and self._mode == "eval":
+            self.reset()
+
+    def after_eval_exp(self, strategy: "SupervisedTemplate"):
+        super().after_eval_exp(strategy)
+        if self._emit_at == "experience" and self._mode == "eval":
+            return self._package_result(strategy)
+
+    def after_eval(self, strategy: "SupervisedTemplate"):
+        super().after_eval(strategy)
+        if self._emit_at == "stream" and self._mode == "eval":
+            return self._package_result(strategy)
+
+    def after_eval_iteration(self, strategy: "SupervisedTemplate"):
+        super().after_eval_iteration(strategy)
+        if self._mode == "eval":
+            self.update(strategy)
+        if self._emit_at == "iteration" and self._mode == "eval":
+            return self._package_result(strategy)
+
+    def before_eval_iteration(self, strategy: "SupervisedTemplate"):
+        super().before_eval_iteration(strategy)
+        if self._reset_at == "iteration" and self._mode == "eval":
+            self.reset()
