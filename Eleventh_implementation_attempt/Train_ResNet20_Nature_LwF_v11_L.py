@@ -461,6 +461,51 @@ class EarlyStoppingPlugin_mine(SupervisedPlugin):
 
 
 ###################################################################################################################################################################################
+"""
+FINAL FIX: Save and restore BatchNorm running statistics
+This prevents BatchNorm state changes from evaluate_epoch() and 
+evaluate_single_experience() from affecting evaluate_all_experiences()
+"""
+
+import torch
+import torch.nn as nn
+
+
+# Add this helper class to your LwFTrainer class:
+
+class BatchNormStateSaver:
+    """Context manager to save/restore all BatchNorm running statistics."""
+
+    def __init__(self, model):
+        self.model = model
+        self.saved_states = {}
+
+    def __enter__(self):
+        """Save all BatchNorm running statistics before evaluation."""
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                self.saved_states[name] = {
+                    'running_mean': module.running_mean.clone() if module.running_mean is not None else None,
+                    'running_var': module.running_var.clone() if module.running_var is not None else None,
+                    'num_batches_tracked': module.num_batches_tracked.clone() if module.num_batches_tracked is not None else None,
+                }
+        return self
+
+    def __exit__(self, *args):
+        """Restore all BatchNorm running statistics after evaluation."""
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                if name in self.saved_states:
+                    state = self.saved_states[name]
+                    if state['running_mean'] is not None:
+                        module.running_mean.copy_(state['running_mean'])
+                    if state['running_var'] is not None:
+                        module.running_var.copy_(state['running_var'])
+                    if state['num_batches_tracked'] is not None:
+                        module.num_batches_tracked.copy_(state['num_batches_tracked'])
+
+
+###################################################################################################################################################################################
 #from avalanche.evaluation.metric_definitions import GenericPluginMetric
 import copy
 import torch
@@ -526,6 +571,8 @@ class LwFTrainer(SupervisedTemplate):
             momentum=self.momentum,#momentum,
             weight_decay=self.weight_decay,#weight_decay,
         )
+
+        self.bn_saver = BatchNormStateSaver(self.model)
 
         self.criterion = nn.CrossEntropyLoss()
         self.dataloader: Iterable[Any] = []
@@ -1303,12 +1350,12 @@ class LwFTrainer(SupervisedTemplate):
         print("print(self.model.training) -- evaluate_all_experiences before self.model.eval()",self.model.training)
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
-        prev_train_state = self._save_train_state()
+        #prev_train_state = self._save_train_state()
         self.is_training = False
         self.model.eval()
         print("print(self.model.training)-- evaluate_all_experiences after self.model.eval()", self.model.training)
 
-        with BatchNormStateSaver(self.model) as bn_saver:
+        with self.bn_saver: #with BatchNormStateSaver(self.model) as bn_saver:
 
             current_exp_id_all_experiences = experience.current_experience
 
@@ -1365,12 +1412,12 @@ class LwFTrainer(SupervisedTemplate):
                         f"performance on Exp {exp_id_all_experiences}: Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
                     )
 
-        # Compute backward transfer AFTER all evaluations
-        self._compute_backward_transfer_internal()
-        self._load_train_state(prev_train_state)
-        self.model.train()
-        print("print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function", self.model.training)
-        #self.model.to(self.device) # TODO: may be the problem
+            # Compute backward transfer AFTER all evaluations
+            self._compute_backward_transfer_internal()
+            #self._load_train_state(prev_train_state)
+            self.model.train()
+            print("print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function", self.model.training)
+            #self.model.to(self.device) # TODO: may be the problem
 
     # Replace your evaluate_all_experiences function with this debug version:
 
@@ -1602,12 +1649,12 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING Epoch {epoch} OF Experience {experience.current_experience}")
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
-        prev_train_state = self._save_train_state()
+        #prev_train_state = self._save_train_state()
         self.is_training = False
         self.model.eval()
         print("print(self.model.training) -- evaluate_epoch after self.model.eval()", self.model.training)
 
-        with BatchNormStateSaver(self.model) as bn_saver:
+        with self.bn_saver: #with BatchNormStateSaver(self.model) as bn_saver:
 
             current_exp_id_epoch = experience.current_experience
 
@@ -1660,10 +1707,10 @@ class LwFTrainer(SupervisedTemplate):
                         f"Epoch {epoch}: Loss = {avg_loss_epoch:.6f} | Accuracy = {accuracy_epoch:.2f}%"
                         f"\n{'...' * 60}\n"
                     )
-        self._load_train_state(prev_train_state)
-        self.model.train()
-        #self.model.to(self.device)  # TODO: may be the problem
-        return avg_loss_epoch, accuracy_epoch
+            #self._load_train_state(prev_train_state)
+            self.model.train()
+            #self.model.to(self.device)  # TODO: may be the problem
+            return avg_loss_epoch, accuracy_epoch
 
     def evaluate_single_experience(self, experience: CLExperience, eval_streams: Optional[
         Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
@@ -1672,12 +1719,12 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING Experience {experience.current_experience}")
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
-        prev_train_state = self._save_train_state()
+        #prev_train_state = self._save_train_state()
         self.is_training = False
         self.model.eval()
         print("print(self.model.training) -- evaluate_single_experience after self.model.eval()", self.model.training)
 
-        with BatchNormStateSaver(self.model) as bn_saver:
+        with self.bn_saver: #with BatchNormStateSaver(self.model) as bn_saver:
 
             current_exp_id_single_exp = experience.current_experience
 
@@ -1730,10 +1777,10 @@ class LwFTrainer(SupervisedTemplate):
                         f"Loss = {avg_loss_single_exp:.6f} | Accuracy = {accuracy_single_exp:.2f}%"
                         f"\n{'...' * 60}\n"
                     )
-        self._load_train_state(prev_train_state)
-        self.model.train()
-        #self.model.to(self.device)  # TODO: may be the problem
-        return avg_loss_single_exp, accuracy_single_exp
+            #self._load_train_state(prev_train_state)
+            self.model.train()
+            #self.model.to(self.device)  # TODO: may be the problem
+            #return avg_loss_single_exp, accuracy_single_exp
 
     def make_eval_dataloader_for_evaluate_all_experiences_and_bwt(self,
             # experiences: Union[TExperienceType, Iterable[TExperienceType]],
@@ -2241,7 +2288,7 @@ This prevents BatchNorm state changes from evaluate_epoch() and
 evaluate_single_experience() from affecting evaluate_all_experiences()
 """
 
-import torch
+'''import torch
 import torch.nn as nn
 
 
@@ -2284,7 +2331,7 @@ class BatchNormStateSaver:
 # ============================================================================
 
 # In evaluate_all_experiences(), wrap your evaluation loop:
-'''def evaluate_all_experiences(self, experience: CLExperience, eval_streams=None):
+def evaluate_all_experiences(self, experience: CLExperience, eval_streams=None):
     """Evaluate on all experiences seen so far."""
     print(f"\n{'=' * 60}")
     print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
