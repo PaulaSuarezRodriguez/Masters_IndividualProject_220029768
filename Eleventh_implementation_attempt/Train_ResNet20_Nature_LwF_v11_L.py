@@ -572,7 +572,7 @@ class LwFTrainer(SupervisedTemplate):
             weight_decay=self.weight_decay,#weight_decay,
         )
 
-        self.bn_saver = BatchNormStateSaver(self.model)
+        #self.bn_saver = BatchNormStateSaver(self.model)
 
         self.criterion = nn.CrossEntropyLoss()
         self.dataloader: Iterable[Any] = []
@@ -738,6 +738,7 @@ class LwFTrainer(SupervisedTemplate):
             if not isinstance(exp, Iterable):
                 eval_streams[i] = [exp]
         for _ in range(self.train_epochs):
+            self.is_training = True
             self.model.train()
             #self.model.to(self.device)  # TODO: may be the problem
             self._before_training_epoch(**kwargs)
@@ -1351,11 +1352,11 @@ class LwFTrainer(SupervisedTemplate):
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
         #prev_train_state = self._save_train_state()
-        self.is_training = False
-        self.model.eval()
+        #self.is_training = False
+        #self.model.eval()
         print("print(self.model.training)-- evaluate_all_experiences after self.model.eval()", self.model.training)
 
-        with self.bn_saver: #with BatchNormStateSaver(self.model) as bn_saver:
+        with BatchNormStateSaver(self.model) as bn_saver: #with self.bn_saver:
 
             current_exp_id_all_experiences = experience.current_experience
 
@@ -1366,6 +1367,7 @@ class LwFTrainer(SupervisedTemplate):
             if eval_streams is None:
                 eval_streams = [experience]
 
+            self.is_training = False
             self.model.eval()
 
             for stream_idx, eval_stream in enumerate(eval_streams):
@@ -1650,11 +1652,11 @@ class LwFTrainer(SupervisedTemplate):
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
         #prev_train_state = self._save_train_state()
-        self.is_training = False
-        self.model.eval()
+        #self.is_training = False
+        #self.model.eval()
         print("print(self.model.training) -- evaluate_epoch after self.model.eval()", self.model.training)
 
-        with self.bn_saver: #with BatchNormStateSaver(self.model) as bn_saver:
+        with BatchNormStateSaver(self.model) as bn_saver: #with self.bn_saver:
 
             current_exp_id_epoch = experience.current_experience
 
@@ -1665,6 +1667,7 @@ class LwFTrainer(SupervisedTemplate):
             if eval_streams is None:
                 eval_streams = [experience]
 
+            self.is_training = False
             self.model.eval()
 
             for stream_idx, eval_stream in enumerate(eval_streams):
@@ -1720,11 +1723,11 @@ class LwFTrainer(SupervisedTemplate):
         # ✓ FIX: Reset state at the beginning
         #self.class_to_idx = {}
         #prev_train_state = self._save_train_state()
-        self.is_training = False
-        self.model.eval()
+        #self.is_training = False
+        #self.model.eval()
         print("print(self.model.training) -- evaluate_single_experience after self.model.eval()", self.model.training)
 
-        with self.bn_saver: #with BatchNormStateSaver(self.model) as bn_saver:
+        with BatchNormStateSaver(self.model) as bn_saver: #with self.bn_saver:
 
             current_exp_id_single_exp = experience.current_experience
 
@@ -1735,6 +1738,7 @@ class LwFTrainer(SupervisedTemplate):
             if eval_streams is None:
                 eval_streams = [experience]
 
+            self.is_training = False
             self.model.eval()
 
             for stream_idx, eval_stream in enumerate(eval_streams):

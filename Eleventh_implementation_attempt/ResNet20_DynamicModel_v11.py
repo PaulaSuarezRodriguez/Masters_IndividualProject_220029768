@@ -38,7 +38,7 @@ class BasicBlock_DynamicModel(nn.Module):
             padding=1,
             bias=False
         )
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = nn.BatchNorm2d(planes)#, track_running_stats=False)
 
         self.conv2 = nn.Conv2d(
             planes,
@@ -48,7 +48,7 @@ class BasicBlock_DynamicModel(nn.Module):
             padding=1,
             bias=False
         )
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.bn2 = nn.BatchNorm2d(planes)#,track_running_stats=False)
 
         self.shortcut = nn.Sequential()
 
@@ -73,7 +73,7 @@ class BasicBlock_DynamicModel(nn.Module):
                         stride=stride,
                         bias=False
                     ),
-                    nn.BatchNorm2d(planes)
+                    nn.BatchNorm2d(planes)#, track_running_stats=False)
                 )
 
     def forward(self, x):
@@ -92,7 +92,7 @@ class ResNet20_DynamicModel(nn.Module):
         self.in_planes = 16
 
         self.conv1 = nn.Conv2d(3,16,kernel_size=3,stride=1,padding=1,bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
+        self.bn1 = nn.BatchNorm2d(16)#, track_running_stats=False)
         self.layer1 = self._make_layer(16,3,stride=1)
         self.layer2 = self._make_layer(32,3,stride=2)
         self.layer3 = self._make_layer(64,3,stride=2)
