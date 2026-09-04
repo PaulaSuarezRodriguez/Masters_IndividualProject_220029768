@@ -623,11 +623,11 @@ class LwFTrainer(SupervisedTemplate):
             self._check_distributed_training_compatibility()
             self._distributed_check = True
 
-        '''self.is_training = True
+        self.is_training = True
         self._stop_training = False
 
-        self.model.train()
-        self.model.to(self.device) # TODO: may be the problem'''
+        '''self.model.train()'''
+        self.model.to(self.device) # TODO: may be the problem
 
         # Normalize training and eval data.
         experiences_list: Iterable[TExperienceType] = (
@@ -651,9 +651,9 @@ class LwFTrainer(SupervisedTemplate):
         self._train_cleanup()
 
     def train_experience(self, experience: CLExperience, eval_streams=None, **kwargs):
-        self.is_training = True
+        '''self.is_training = True
         self.model.train()
-        self.model.to(self.device)  # TODO: may be the problem
+        #self.model.to(self.device)  # TODO: may be the problem'''
         c = 0
         loss_c = 0
         prev_epoch_loss = 100
@@ -669,12 +669,12 @@ class LwFTrainer(SupervisedTemplate):
         for _ in range(self.train_epochs):
             self.is_training = True
             self.model.train()
-            self.model.to(self.device)  # TODO: may be the problem
+            #self.model.to(self.device)  # TODO: may be the problem
             self._before_training_epoch(**kwargs)
 
-            '''if self._stop_training:  # Early stopping
+            if self._stop_training:  # Early stopping
                 self._stop_training = False
-                break'''
+                break
 
             #prev_epoch_loss, prev_epoch_acc = self.evaluate_epoch(_, experience)
 
@@ -825,7 +825,7 @@ class LwFTrainer(SupervisedTemplate):
                 if VERBOSE:
                     print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
 
-                if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                     # Freeze shared layers
                     for module in self.model.modules():
@@ -1048,8 +1048,8 @@ class LwFTrainer(SupervisedTemplate):
         #print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
         #print("self.evaluate_single_experience() AFTER LOADING:")
         #self.evaluate_single_experience(experience, eval_streams)
-        print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
-        self.evaluate_single_experience(experience, eval_streams)
+        '''print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
+        self.evaluate_single_experience(experience, eval_streams)'''
 
         self.teacher = copy.deepcopy(self.model)
         print("print(self.teacher.training) -- before self.teacher.eval()", self.teacher.training)
@@ -1286,7 +1286,6 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING ALL EXPERIENCES UP TO {experience.current_experience}")
         print(f"{'=' * 60}\n")
         prev_train_state = self._save_train_state()
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
 
@@ -1299,12 +1298,10 @@ class LwFTrainer(SupervisedTemplate):
         if eval_streams is None:
             eval_streams = [experience]
 
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
 
         for stream_idx, eval_stream in enumerate(eval_streams):
-            self.stop_training = True
             self.is_training = False
             self.model.eval()
 
@@ -1312,7 +1309,6 @@ class LwFTrainer(SupervisedTemplate):
                 eval_stream = [eval_stream]
 
             for exp in eval_stream:
-                self.stop_training = True
                 self.is_training = False
                 self.model.eval()
 
@@ -1330,12 +1326,10 @@ class LwFTrainer(SupervisedTemplate):
                 total_correct_all_experiences = 0
                 total_samples_all_experiences = 0
 
-                self.stop_training = True
                 self.is_training = False
                 self.model.eval()
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
-                        self.stop_training = True
                         self.is_training = False
                         self.model.eval()
 
@@ -1441,7 +1435,6 @@ class LwFTrainer(SupervisedTemplate):
         print(f"\n{'...' * 60}")
         print(f"EVALUATING Epoch {epoch} OF Experience {experience.current_experience}")
         prev_train_state = self._save_train_state()
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
 
@@ -1454,13 +1447,11 @@ class LwFTrainer(SupervisedTemplate):
         if eval_streams is None:
             eval_streams = [experience]
 
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
         print("print(self.model.training) -- evaluate_epoch after self.model.eval()", self.model.training)
 
         for stream_idx, eval_stream in enumerate(eval_streams):
-            self.stop_training = True
             self.is_training = False
             self.model.eval()
 
@@ -1468,7 +1459,6 @@ class LwFTrainer(SupervisedTemplate):
                 eval_stream = [eval_stream]
 
             for exp in eval_stream:
-                self.stop_training = True
                 self.is_training = False
                 self.model.eval()
 
@@ -1486,12 +1476,10 @@ class LwFTrainer(SupervisedTemplate):
                 total_correct_epoch = 0
                 total_samples_epoch = 0
 
-                self.stop_training = True
                 self.is_training = False
                 self.model.eval()
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
-                        self.stop_training = True
                         self.is_training = False
                         self.model.eval()
 
@@ -1526,7 +1514,6 @@ class LwFTrainer(SupervisedTemplate):
         print(f"\n{'...' * 60}")
         print(f"EVALUATING Experience {experience.current_experience}")
         prev_train_state = self._save_train_state()
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
 
@@ -1539,13 +1526,11 @@ class LwFTrainer(SupervisedTemplate):
         if eval_streams is None:
             eval_streams = [experience]
 
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
         print("print(self.model.training) -- evaluate_single_experience after self.model.eval()",self.model.training)
 
         for stream_idx, eval_stream in enumerate(eval_streams):
-            self.stop_training = True
             self.is_training = False
             self.model.eval()
 
@@ -1553,7 +1538,6 @@ class LwFTrainer(SupervisedTemplate):
                 eval_stream = [eval_stream]
 
             for exp in eval_stream:
-                self.stop_training = True
                 self.is_training = False
                 self.model.eval()
 
@@ -1571,12 +1555,10 @@ class LwFTrainer(SupervisedTemplate):
                 total_correct_single_exp = 0
                 total_samples_single_exp = 0
 
-                self.stop_training = True
                 self.is_training = False
                 self.model.eval()
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
-                        self.stop_training = True
                         self.is_training = False
                         self.model.eval()
 
@@ -1650,7 +1632,6 @@ class LwFTrainer(SupervisedTemplate):
         print(f"EVALUATING ALL EXPERIENCES")
         print(f"{'=' * 60}\n")
 
-        self.stop_training = True
         self.is_training = False
         self.model.eval()
         print("print(self.model.training) -- evaluate_all_experiences_post_training after self.model.eval()", self.model.training)
