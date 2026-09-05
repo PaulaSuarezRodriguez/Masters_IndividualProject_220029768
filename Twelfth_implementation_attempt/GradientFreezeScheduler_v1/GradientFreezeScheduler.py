@@ -8,7 +8,7 @@ the stability-plasticity tradeoff in Class-Incremental Learning.
 Usage:
 ------
 scheduler = GradientFreezeScheduler(
-    strategy='gradual_unfreezing',
+    freezing_strategy='gradual_unfreezing',
     total_epochs=10,
     ft_shared_after=8,
     config={'initial_intensity': 1.0, 'final_intensity': 0.0}
@@ -65,7 +65,7 @@ class GradientFreezeScheduler:
     
     def __init__(
         self,
-        strategy: str = 'binary',
+        freezing_strategy: str = 'binary',
         total_epochs: int = 10,
         ft_shared_after: int = 8,
         config: Optional[Dict] = None,
@@ -75,13 +75,13 @@ class GradientFreezeScheduler:
         Initialize the gradient freeze scheduler.
         
         Args:
-            strategy: Name of the freezing strategy (see FreezeStrategy enum)
+            freezing_strategy: Name of the freezing freezing_strategy (see FreezeStrategy enum)
             total_epochs: Total number of training epochs per experience
             ft_shared_after: Default threshold for standard freezing behavior
             config: Strategy-specific configuration dictionary
             verbose: Print debug information
         """
-        self.strategy = FreezeStrategy(strategy)
+        self.freezing_strategy = FreezeStrategy(freezing_strategy)
         self.total_epochs = total_epochs
         self.ft_shared_after = ft_shared_after
         self.config = config or {}
@@ -95,7 +95,7 @@ class GradientFreezeScheduler:
         self.loss_threshold = None
         
     def _validate_and_set_defaults(self):
-        """Validate config and set strategy-specific defaults."""
+        """Validate config and set freezing_strategy-specific defaults."""
         defaults = {
             FreezeStrategy.BINARY: {
                 'freeze_before': self.ft_shared_after
@@ -132,9 +132,9 @@ class GradientFreezeScheduler:
             }
         }
         
-        # Set defaults for this strategy
-        strategy_defaults = defaults.get(self.strategy, {})
-        for key, value in strategy_defaults.items():
+        # Set defaults for this freezing_strategy
+        freezing_strategy_defaults = defaults.get(self.freezing_strategy, {})
+        for key, value in freezing_strategy_defaults.items():
             if key not in self.config:
                 self.config[key] = value
     
@@ -149,29 +149,29 @@ class GradientFreezeScheduler:
         Returns:
             FreezeConfig object specifying what to freeze
         """
-        if self.strategy == FreezeStrategy.BINARY:
+        if self.freezing_strategy == FreezeStrategy.BINARY:
             return self._binary_freeze(current_epoch)
-        elif self.strategy == FreezeStrategy.GRADUAL_UNFREEZING:
+        elif self.freezing_strategy == FreezeStrategy.GRADUAL_UNFREEZING:
             return self._gradual_unfreezing(current_epoch)
-        elif self.strategy == FreezeStrategy.LAYER_WISE_CURRICULUM:
+        elif self.freezing_strategy == FreezeStrategy.LAYER_WISE_CURRICULUM:
             return self._layer_wise_curriculum(current_epoch)
-        elif self.strategy == FreezeStrategy.TWO_PHASE:
+        elif self.freezing_strategy == FreezeStrategy.TWO_PHASE:
             return self._two_phase(current_epoch)
-        elif self.strategy == FreezeStrategy.EXPONENTIAL_DECAY:
+        elif self.freezing_strategy == FreezeStrategy.EXPONENTIAL_DECAY:
             return self._exponential_decay(current_epoch)
-        elif self.strategy == FreezeStrategy.CLASSIFIER_ONLY:
+        elif self.freezing_strategy == FreezeStrategy.CLASSIFIER_ONLY:
             return self._classifier_only(current_epoch)
-        elif self.strategy == FreezeStrategy.ADAPTIVE_BOOSTING:
+        elif self.freezing_strategy == FreezeStrategy.ADAPTIVE_BOOSTING:
             return self._adaptive_boosting(current_epoch, loss)
-        elif self.strategy == FreezeStrategy.CYCLIC:
+        elif self.freezing_strategy == FreezeStrategy.CYCLIC:
             return self._cyclic(current_epoch)
         else:
-            raise ValueError(f"Unknown strategy: {self.strategy}")
+            raise ValueError(f"Unknown freezing_strategy: {self.freezing_strategy}")
     
     # ======================== Strategy Implementations ========================
     
     def _binary_freeze(self, epoch: int) -> FreezeConfig:
-        """Original strategy: freeze until ft_shared_after, then fully trainable."""
+        """Original freezing_strategy: freeze until ft_shared_after, then fully trainable."""
         freeze_until = self.config.get('freeze_before', self.ft_shared_after)
         should_freeze = epoch <= freeze_until
         
@@ -358,7 +358,7 @@ class GradientFreezeScheduler:
     
     def get_schedule_visualization(self) -> str:
         """Generate a text visualization of the freeze schedule."""
-        lines = [f"\n{self.strategy.value.upper()} Schedule (total_epochs={self.total_epochs}):\n"]
+        lines = [f"\n{self.freezing_strategy.value.upper()} Schedule (total_epochs={self.total_epochs}):\n"]
         lines.append("Epoch | Shared Intensity | Classifier Intensity")
         lines.append("------|-----------------|---------------------")
         
@@ -526,9 +526,9 @@ if __name__ == "__main__":
         ('layer_wise_curriculum', {'num_stages': 3}),
     ]
     
-    for strategy_name, config in strategies_to_test:
+    for freezing_strategy_name, config in strategies_to_test:
         scheduler = GradientFreezeScheduler(
-            strategy=strategy_name,
+            freezing_strategy=freezing_strategy_name,
             total_epochs=10,
             ft_shared_after=8,
             config=config,
@@ -545,7 +545,7 @@ if __name__ == "__main__":
 # In your LwFTrainer.train_experience() method, after loss.backward():
 
 scheduler = GradientFreezeScheduler(
-    strategy='gradual_unfreezing',
+    freezing_strategy='gradual_unfreezing',
     total_epochs=self.train_epochs,
     ft_shared_after=self.ft_shared_after,
     config={'start_epoch': 0, 'end_epoch': self.ft_shared_after}

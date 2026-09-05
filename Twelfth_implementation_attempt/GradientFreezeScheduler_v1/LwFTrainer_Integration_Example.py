@@ -14,11 +14,14 @@ This example demonstrates:
 import torch
 import torch.nn as nn
 from typing import Dict, Optional, List
-from GradientFreezeScheduler import (
+
+from avalanche.training.templates import SupervisedTemplate
+
+from Twelfth_implementation_attempt.GradientFreezeScheduler_v1.GradientFreezeScheduler import (
     GradientFreezeScheduler,
-    apply_gradient_freezing,
-    FreezeConfig
+    apply_gradient_freezing
 )
+from Twelfth_implementation_attempt.Train_ResNet20_Nature_LwF_v12 import lwf_trainer
 
 
 class LwFTrainer_Experimental:
@@ -32,7 +35,7 @@ class LwFTrainer_Experimental:
         self,
         model: nn.Module,
         device: str = "cpu",
-        freeze_strategy: str = 'binary',
+        freezing_strategy: str = 'binary',
         freeze_config: Optional[Dict] = None,
         **kwargs
     ):
@@ -42,14 +45,14 @@ class LwFTrainer_Experimental:
         Args:
             model: The neural network
             device: Device to use
-            freeze_strategy: Strategy from GradientFreezeScheduler.FreezeStrategy
+            freezing_strategy: Strategy from GradientFreezeScheduler.FreezeStrategy
             freeze_config: Strategy-specific configuration
         """
         self.model = model
         self.device = torch.device(device)
         
         # Gradient freezing configuration
-        self.freeze_strategy = freeze_strategy
+        self.freezing_strategy = freezing_strategy
         self.freeze_config = freeze_config or {}
         self.freeze_scheduler: Optional[GradientFreezeScheduler] = None
         
@@ -76,7 +79,7 @@ class LwFTrainer_Experimental:
         """
         # ===== [INTEGRATION POINT 1] Initialize scheduler for this experience =====
         self.freeze_scheduler = GradientFreezeScheduler(
-            strategy=self.freeze_strategy,
+            freezing_strategy=self.freezing_strategy,
             total_epochs=self.train_epochs,
             ft_shared_after=self.ft_shared_after,
             config=self.freeze_config,
@@ -84,7 +87,7 @@ class LwFTrainer_Experimental:
         )
         
         # Show schedule (for debugging)
-        if self.freeze_strategy != 'binary':
+        if self.freezing_strategy != 'binary':
             print(self.freeze_scheduler.get_schedule_visualization())
         
         # Training loop (simplified version of your actual code)
@@ -191,7 +194,7 @@ class ExperimentManager:
     Helps compare performance across configurations.
     """
     
-    def __init__(self, model_factory, device: str = "cpu"):
+    def __init__(self, trainer, device: str = "cpu"):#def __init__(self, model_factory, device: str = "cpu"):
         """
         Initialize experiment manager.
         
@@ -199,24 +202,25 @@ class ExperimentManager:
             model_factory: Callable that returns a fresh model instance
             device: Device to use for training
         """
-        self.model_factory = model_factory
+        self.trainer:SupervisedTemplate
+        #self.model_factory = model_factory
         self.device = device
         self.results = {}
     
     def run_experiment(
         self,
         exp_name: str,
-        freeze_strategy: str,
+        freezing_strategy: str,
         freeze_config: Optional[Dict] = None,
         train_epochs: int = 10,
-        ft_shared_after: int = 8
+        ft_shared_after: int = 8,
     ) -> Dict:
         """
         Run a single experiment with given configuration.
         
         Args:
             exp_name: Name for this experiment
-            freeze_strategy: Strategy name
+            freezing_strategy: Strategy name
             freeze_config: Strategy-specific configuration
             train_epochs: Number of training epochs
             ft_shared_after: Baseline threshold for freezing
@@ -226,22 +230,23 @@ class ExperimentManager:
         """
         print(f"\n{'='*80}")
         print(f"Running Experiment: {exp_name}")
-        print(f"Strategy: {freeze_strategy}")
+        print(f"Strategy: {freezing_strategy}")
         print(f"Config: {freeze_config}")
         print(f"{'='*80}\n")
         
         # Create fresh model
-        model = self.model_factory()
+        #model = self.trainer.model #self.model_factory()
         
         # Create trainer with specified strategy
-        trainer = LwFTrainer_Experimental(
+        '''trainer = LwFTrainer_Experimental(
             model=model,
             device=self.device,
-            freeze_strategy=freeze_strategy,
+            freezing_strategy=freezing_strategy,
             freeze_config=freeze_config,
             train_epochs=train_epochs,
             ft_shared_after=ft_shared_after
-        )
+        )'''
+        trainer = self.trainer
         
         # Run training (placeholder - actual implementation would use real data)
         # trainer.train_experience(experience)
@@ -249,7 +254,7 @@ class ExperimentManager:
         # Extract results
         results = {
             'experiment_name': exp_name,
-            'strategy': freeze_strategy,
+            'strategy': freezing_strategy,
             'config': freeze_config,
             'freeze_logs': trainer.gradient_freeze_logs,
             'gradient_stats': trainer.get_gradient_statistics()
@@ -281,7 +286,7 @@ class ExperimentManager:
             avg_intensity = sum(freeze_intensities) / len(freeze_intensities)
             
             lines.append(
-                f"{exp_name:24s} | {result['strategy']:23s} | "
+                f"{exp_name:24s} | {result['freezing_strategy']:23s} | "
                 f"{avg_intensity:19.2f} | -"
             )
         
@@ -295,12 +300,12 @@ def get_experiment_configs() -> List[tuple]:
     """
     Return list of experiment configurations to test.
     
-    Each tuple is (exp_name, strategy, config_dict)
+    Each tuple is (exp_name, freezing_strategy, config_dict)
     
     This is where you define different stability-plasticity tradeoffs.
     """
     return [
-        # Baseline: Original binary freeze strategy
+        # Baseline: Original binary freeze freezing_strategy
         ('baseline_binary', 'binary', {
             'freeze_before': 8
         }),
@@ -318,7 +323,7 @@ def get_experiment_configs() -> List[tuple]:
             'unfreeze_shared_first': False
         }),
         
-        # Experiment 2: Two-phase strategy
+        # Experiment 2: Two-phase freezing_strategy
         ('exp_two_phase_tight3', 'two_phase', {
             'tight_freeze_epochs': 3,
             'gradual_unfreeze_epochs': 5
@@ -371,7 +376,7 @@ if __name__ == "__main__":
     print("="*80 + "\n")
     
     # Create a simple model factory
-    def model_factory():
+    '''def model_factory():
         return nn.Sequential(
             nn.Conv2d(3, 16, 3, padding=1),
             nn.ReLU(),
@@ -380,10 +385,10 @@ if __name__ == "__main__":
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Linear(32, 10)
-        )
+        )'''
     
     # Initialize experiment manager
-    manager = ExperimentManager(model_factory, device="cpu")
+    manager = ExperimentManager(lwf_trainer, device="cpu")#manager = ExperimentManager(model_factory, device="cpu")
     
     # Get experiment configurations
     configs = get_experiment_configs()
@@ -391,11 +396,11 @@ if __name__ == "__main__":
     print(f"Running {len(configs)} experiments...\n")
     
     # Run all experiments
-    for exp_name, strategy, config in configs:
+    for exp_name, freezing_strategy, config in configs:
         try:
             manager.run_experiment(
                 exp_name=exp_name,
-                freeze_strategy=strategy,
+                freezing_strategy=freezing_strategy,
                 freeze_config=config,
                 train_epochs=10,
                 ft_shared_after=8
@@ -411,6 +416,6 @@ if __name__ == "__main__":
     print("1. Implement actual data loading in LwFTrainer_Experimental")
     print("2. Run experiments on your Nature dataset")
     print("3. Track BWT (Backward Transfer), FWT (Forward Transfer), and AvgAcc")
-    print("4. Identify best strategy for your problem")
-    print("5. Fine-tune hyperparameters of best strategy")
+    print("4. Identify best freezing_strategy for your problem")
+    print("5. Fine-tune hyperparameters of best freezing_strategy")
     print("6. Validate on test set")
