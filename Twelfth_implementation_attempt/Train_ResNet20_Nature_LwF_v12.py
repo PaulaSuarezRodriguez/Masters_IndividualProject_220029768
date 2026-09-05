@@ -689,8 +689,6 @@ class LwFTrainer(SupervisedTemplate):
                 self._stop_training = False
                 break
 
-            #prev_epoch_loss, prev_epoch_acc = self.evaluate_epoch(_, experience)
-
             print(f"\n\n***** MY train_experience() IS EXECUTING FOR Experience {experience.current_experience} *****\n\n")
             #self.optimizer = self.step_lr(_) # optimizer = self.step_lr( _, self.args.lr, self.args.lr_decay_every,self.args.lr_decay_factor,self.optimizer.param_groups)
 
@@ -705,6 +703,7 @@ class LwFTrainer(SupervisedTemplate):
                 self.model.train()
 
                 self.unpack_minibatch()
+
                 targets = self.map_targets() #targets = self.map_labels_expanding_classifier()
 
                 self._before_training_iteration(**kwargs) #TODO: NEW, in testing
@@ -732,16 +731,6 @@ class LwFTrainer(SupervisedTemplate):
                 # ------------------------------------------------
                 # LwF -- single teacher
                 # ------------------------------------------------
-                #print("dist_loss = torch.tensor(0.0,device=self.device)")
-                '''dist_loss = torch.tensor(
-                    0.0,
-                    device=self.device
-                )'''
-                '''print("dist_loss = torch.tensor(total_dist,device=self.device)")
-                dist_loss = torch.tensor(
-                    total_dist,
-                    device=self.device
-                )'''
                 if self.teacher is not None:
                     #for classes in self.teacher_classes:
                     with torch.no_grad():
@@ -749,17 +738,8 @@ class LwFTrainer(SupervisedTemplate):
                         teacher_logits = self.teacher(self.mb_x)  # self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
                         #print("print(self.teacher.training) -- after teacher_logits = self.teacher(self.mb_x)",self.teacher.training)
 
-                        # Only old classes
-                        #classes = sorted(self.teacher_classes)
+                    # Only old classes
                     for classes in self.teacher_classes:
-                        '''class_indices = torch.tensor(
-                            [
-                                self.class_to_idx[c]
-                                for c in sorted(classes)#(self.teacher_classes)
-                            ],
-                            device=self.device,
-                            dtype=torch.long
-                        )'''
                         class_indices = torch.tensor(
                             [
                                 class_to_idx_new[c]
@@ -769,30 +749,16 @@ class LwFTrainer(SupervisedTemplate):
                             dtype=torch.long
                         )
                     if VERBOSE:
-                        #print(f"  Classes (original): {sorted(classes)}")#{sorted(self.teacher_classes)}")
+                        print(f"  Classes (original): {sorted(classes)}")#{sorted(self.teacher_classes)}")
                         print(f"  Class indices (mapped): {class_indices.tolist()}")
                         print(f"  Student output shape: {self.mb_output.shape}")
                         print(f"  Teacher output shape: {teacher_logits.shape}")
 
-                    #student_old = self.mb_output[:, class_indices]#student_logits[:, old_classes]
-                    #teacher_old = teacher_logits[:, class_indices]
-
-                    # ALTERNATE CODE to achieve the same thing -- try if you suspect the above two lines do not work as intended
-                    #student_old = self.mb_output.index_select(1,class_indices)  # student_logits.index_select(1, classes)
-                    #teacher_old = teacher_logits.index_select(1, class_indices)
-
                     if VERBOSE:
-                        #print(f"  Student old shape: {student_old.shape}")
                         print(f"  scale used in dist_loss: {self.mb_output.size(1)}")#{student_old.size(1)}
-                        #print(f"  Teacher old shape: {teacher_old.shape}")
 
                     scale = self.mb_output.size(1)
 
-                    '''dist_loss = self.distillation_loss(
-                        student_old,
-                        teacher_old,
-                        scale=scale
-                    )'''
                     dist_loss = self.distillation_loss(
                         self.mb_output,
                         teacher_logits,
@@ -839,7 +805,7 @@ class LwFTrainer(SupervisedTemplate):
                 if VERBOSE:
                     print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
 
-                if (self.teacher is not None) and (_ >= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                     # Freeze shared layers
                     for module in self.model.modules():
@@ -1010,7 +976,7 @@ class LwFTrainer(SupervisedTemplate):
 
             if EARLY_STOPPING_LOOP_3:
                 # for acc in accuracies:
-                if epoch_acc > accuracies[0] and experience.current_experience>0:
+                if epoch_acc > accuracies[0]: #and experience.current_experience>0:
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     checkpoint_dir = Path("./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
@@ -1066,17 +1032,7 @@ class LwFTrainer(SupervisedTemplate):
                 if epoch_acc >= accuracies[0]:
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
-                    checkpoint_dir = Path("./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
-                    checkpoint_dir.mkdir(parents=True, exist_ok=True)
                     saved_model=copy.deepcopy(self.model)
-                    #torch.save(saved_model,f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pt")
-                    '''torch.save({
-                        #'epoch': _,
-                        'model_state_dict': self.model.state_dict(),
-                        'optimizer_state_dict': self.optimizer.state_dict(),
-                        #'loss': self.loss,
-                        #'experience': experience.current_experience,
-                    },f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pt")'''#.pkl")#self.save_entire_checkpoint(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl")
                     print("Best checkpoint saved.")
                 if epoch_loss >= prev_epoch_loss:
                     loss_c += 1
@@ -1137,25 +1093,9 @@ class LwFTrainer(SupervisedTemplate):
             parameter.requires_grad = False
 
         if EARLY_STOPPING_LOOP_4:  # if EARLY_STOPPING_LOOP_3:
-            '''self.model = ResNet20_DynamicModel(num_classes=self.num_new_classes)
-            optimizer = self.optimizer = torch.optim.SGD(
-                self.model.parameters(),
-                lr=self.lr,
-                momentum=self.momentum,
-                weight_decay=self.weight_decay,
-            )'''
             self.model=saved_model
-            #checkpoint = torch.load(f"./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pt",#.pkl",weights_only=False)  # True)
-            '''self.model.load_state_dict(checkpoint['model_state_dict'], assign=True)
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])'''
-            # self.loss = checkpoint['loss']
-            # self.clock.train_exp_epochs = checkpoint['epoch']
-            # self.clock.train_exp_counter = checkpoint['experience']
-            '''self.clock.train_exp_epochs = checkpoint['epoch']
-            self.clock.train_exp_counter = checkpoint['experience']
-            self.loss = checkpoint['loss']'''
             print(
-                f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")
+                f"Loaded saved_model to continue training the next Experience on it --- from inside train_experience()")
 
         # Add classes from this experience
         experience_classes = set(
@@ -1389,7 +1329,7 @@ class LwFTrainer(SupervisedTemplate):
 
         current_exp_id_all_experiences = experience.current_experience
 
-        if current_exp_id_all_experiences not in self.experience_accuracies:
+        if current_exp_id_all_experiences not in self.experience_accuracies: #if current_exp_id_all_experiences not in self.experience_accuracies.keys():
             self.experience_accuracies[current_exp_id_all_experiences] = {}
             self.experience_losses[current_exp_id_all_experiences] = {}
 
@@ -1538,10 +1478,6 @@ class LwFTrainer(SupervisedTemplate):
 
         current_exp_id_epoch = experience.current_experience
 
-        '''if current_exp_id not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id] = {}
-            self.experience_losses[current_exp_id] = {}'''
-
         if eval_streams is None:
             eval_streams = [experience]
 
@@ -1562,9 +1498,6 @@ class LwFTrainer(SupervisedTemplate):
 
                 exp_id_epoch = exp.current_experience
 
-                '''# Don't evaluate future experiences
-                if exp_id_epoch > current_exp_id_epoch:
-                    break'''
                 # Don't evaluate future experiences
                 if exp_id_epoch != current_exp_id_epoch:
                     break
@@ -1620,10 +1553,6 @@ class LwFTrainer(SupervisedTemplate):
 
         current_exp_id_single_exp = experience.current_experience
 
-        '''if current_exp_id not in self.experience_accuracies:
-            self.experience_accuracies[current_exp_id] = {}
-            self.experience_losses[current_exp_id] = {}'''
-
         if eval_streams is None:
             eval_streams = [experience]
 
@@ -1644,9 +1573,6 @@ class LwFTrainer(SupervisedTemplate):
 
                 exp_id_single_exp = exp.current_experience
 
-                '''# Don't evaluate future experiences
-                if exp_id_single_exp > current_exp_id_single_exp:
-                    break'''
                 # Don't evaluate future experiences
                 if exp_id_single_exp != current_exp_id_single_exp:
                     break
@@ -2062,10 +1988,10 @@ Temperature: 2.0 Alpha: 3.2631507962942123
 '''
 MATCH_AUTHOR_DISTILL = True
 MATCH_AUTHOR_LOSS = True
-EARLY_STOPPING_LOOP_1=False #True
+EARLY_STOPPING_LOOP_1=True
 EARLY_STOPPING_LOOP_2=False
 EARLY_STOPPING_LOOP_3=False
-EARLY_STOPPING_LOOP_4=True
+EARLY_STOPPING_LOOP_4=False
 VERBOSE=False#True
 #DYNAMIC_MODELS = True
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")

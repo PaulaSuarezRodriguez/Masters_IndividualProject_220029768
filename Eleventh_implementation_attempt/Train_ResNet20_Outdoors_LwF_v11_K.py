@@ -760,7 +760,7 @@ class LwFTrainer(SupervisedTemplate):
                         print(f"  Distillation loss (teacher {self.teacher_classes}): {dist_loss.item():.6f}")#print(f"  Distillation loss (teacher {classes}): {dist_loss.item():.6f}")
 
                     difference_ce_dist = (ce_loss.item() - dist_loss.item())
-                    if difference_ce_dist !=0:
+                    if difference_ce_dist > 0:
                         div = (difference_ce_dist / 0.20)
                         print(f"self.alpha BEFORE INCREASE: {self.alpha}\n")
                         self.alpha = self.original_alpha + (0.10 * div)
@@ -768,7 +768,8 @@ class LwFTrainer(SupervisedTemplate):
                               f"div = (difference_ce_dist/0.20) = {div},\n "
                               f"Alpha has been increased by {(0.10 * div)} --> self.alpha = self.alpha + (0.10 * div) = {self.alpha},\n"
                               f"self.alpha AFTER INCREASE: {self.alpha}\n"
-                              f"(self.alpha * dist_loss): {self.alpha * dist_loss}\n")
+                              f"(self.alpha * dist_loss): {self.alpha * dist_loss}\n"
+                              f"Effective difference CE loss - Distillation loss: {ce_loss.item() - (self.alpha * dist_loss)}\n")
 
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + (self.alpha * dist_loss)
