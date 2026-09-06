@@ -238,15 +238,15 @@ lwf_trainer = LwFTrainer(
 
 ### Step 4: Test Different Strategies (30-60 min per strategy)
 ```python
-for strategy in ['gradual_unfreezing', 'two_phase', 'exponential_decay']:
-    trainer = LwFTrainer(..., freeze_strategy=strategy)
+for freeze_strategy in ['gradual_unfreezing', 'two_phase', 'exponential_decay']:
+    trainer = LwFTrainer(..., freeze_strategy=freeze_strategy)
     run_experiments()
     track_BWT_FWT_AvgAcc()
 ```
 
-### Step 5: Fine-Tune Best Strategy (1-2 hours)
+### Step 5: Fine-Tune Best freeze_strategy (1-2 hours)
 ```python
-# Once you find best strategy, optimize its hyperparameters
+# Once you find best freeze_strategy, optimize its hyperparameters
 for end_epoch in [6, 7, 8, 9, 10]:
     for unfreeze_first in [True, False]:
         test_configuration(...)
@@ -296,11 +296,11 @@ Target: Maximize AvgAcc (want ≥ 82%)
 
 ---
 
-## Expected Results by Strategy
+## Expected Results by freeze_strategy
 
 After 4 experiences on Nature dataset (hypothetical):
 
-| Strategy | BWT | FWT | AvgAcc | Risk | Time |
+| freeze_strategy | BWT | FWT | AvgAcc | Risk | Time |
 |----------|-----|-----|--------|------|------|
 | Binary (baseline) | -3% | 78% | 80% | Low | 1x |
 | Gradual Unfreeze | -1% | 77% | 81% | Low | 1x |
@@ -332,10 +332,10 @@ After 4 experiences on Nature dataset (hypothetical):
 - [ ] Test gradual_unfreezing - 1 full training run
 - [ ] Test two_phase - 1 full training run
 - [ ] Track BWT, FWT, AvgAcc for each
-- [ ] Select best strategy
+- [ ] Select best freeze_strategy
 
 ### Optimization
-- [ ] Fine-tune hyperparameters of best strategy
+- [ ] Fine-tune hyperparameters of best freeze_strategy
 - [ ] Run 3-5 variants with different hyperparams
 - [ ] Select final hyperparameters
 - [ ] Document results
@@ -360,9 +360,9 @@ After 4 experiences on Nature dataset (hypothetical):
 **A**: At least 3 full training runs per configuration (for error bars). Budget ~10-15 hours total.
 
 ### Q: Can I use this with other CL strategies?
-**A**: Yes! The framework is independent of LwF. Any training strategy can use it.
+**A**: Yes! The framework is independent of LwF. Any training freeze_strategy can use it.
 
-### Q: What if I want to test a new strategy?
+### Q: What if I want to test a new freeze_strategy?
 **A**: Add a new method to `GradientFreezeScheduler` class (should be ~20-30 lines).
 
 ---
@@ -378,7 +378,7 @@ After 4 experiences on Nature dataset (hypothetical):
 ### Problem: Memory usage increased
 **Solution**: Disable logging: remove lines that append to `gradient_freeze_logs`.
 
-### Problem: Results are worse with new strategy
+### Problem: Results are worse with new freeze_strategy
 **Solution**: 
 1. Verify freeze_config is correct (print it)
 2. Check BWT/FWT metrics separately (not just AvgAcc)

@@ -35,7 +35,7 @@ def __init__(
 # NEW: Initialize scheduler once per experience
 if self.freeze_scheduler is None:
     self.freeze_scheduler = GradientFreezeScheduler(
-        strategy=self.freeze_strategy,
+        freeze_strategy=self.freeze_strategy,
         total_epochs=self.train_epochs,
         ft_shared_after=self.ft_shared_after,
         config=self.freeze_config,

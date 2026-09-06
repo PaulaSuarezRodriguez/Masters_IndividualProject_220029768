@@ -141,7 +141,7 @@ class LwFTrainer(SupervisedTemplate):
             # NEW: Initialize freeze scheduler for this experience (first epoch only)
             if _ == 0:
                 self.freeze_scheduler = GradientFreezeScheduler(
-                    strategy=self.freeze_strategy,
+                    freeze_strategy=self.freeze_strategy,
                     total_epochs=self.train_epochs,
                     ft_shared_after=self.ft_shared_after,
                     config=self.freeze_config,
@@ -273,7 +273,7 @@ lwf_trainer.train(experience, [seen_experiences, seen_experiences_val])
 ```python
 # Test scheduler initialization
 scheduler = GradientFreezeScheduler(
-    strategy='gradual_unfreezing',
+    freeze_strategy='gradual_unfreezing',
     total_epochs=10,
     ft_shared_after=8,
     config={'start_epoch': 0, 'end_epoch': 8}
