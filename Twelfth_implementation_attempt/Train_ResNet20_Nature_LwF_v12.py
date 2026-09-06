@@ -2474,8 +2474,8 @@ if TRAINING_WITH_LOOP_LwF:
 
     # Get experiment configurations
     #configs = get_experiment_configs()
-    configs = get_experiment_configs_1()
-    #configs = get_experiment_configs_2()
+    #configs = get_experiment_configs_1()
+    configs = get_experiment_configs_2()
 
     print("\n" + "=" * 80)
     print("LwFTrainer Gradient Freeze Strategy Testing")
@@ -2485,7 +2485,7 @@ if TRAINING_WITH_LOOP_LwF:
 
     # Run all experiments
     for (exp_name, freeze_strategy, config) in configs:
-        print('Starting experiment WITH LwFTrainer; configs = get_experiment_configs_1()')
+        print('Starting experiment WITH LwFTrainer; configs = get_experiment_configs_2()')
         seen_experiences = []
         seen_experiences_val = []
         checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
@@ -2589,6 +2589,7 @@ if TRAINING_WITH_LOOP_LwF:
 
     print('Training completed WITH LwFTrainer')
     print("lwf_trainer.results",lwf_trainer.results)
+    print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
     '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
     print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
     print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch']",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'])
