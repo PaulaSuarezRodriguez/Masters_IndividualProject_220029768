@@ -2533,6 +2533,18 @@ if TRAINING_WITH_LOOP_LwF:
 
     print("print(lwf_trainer.plugins) AFTER initialisation, before entering training loop", lwf_trainer.plugins)'''
 
+    #TODO: This one works for 1 experiment
+    '''lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9,
+                             weight_decay=5e-4, lr_decay_factor=0.1,
+                             temperature=2.0, alpha=1.0,
+                             train_mb_size=43, train_epochs=10, eval_mb_size=43,
+                             patience=5, ft_shared_after=8,
+                             # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                             evaluator=EvaluationPlugin(  # accuracy_metrics(experience=True, stream=True),
+                                 loss_metrics(experience=True, stream=True),
+                                 loggers=InteractiveLogger(), collect_all=True),
+                             eval_every=1,)'''
+
     # Get experiment configurations
     configs = get_experiment_configs()
 
@@ -2548,20 +2560,10 @@ if TRAINING_WITH_LOOP_LwF:
         #results = []
         #seen_experiences = [nature_specialised_models_train_stream_class_il[0]]
         #seen_experiences_val = [nature_specialised_models_val_stream_class_il[0]]
+        #####lwf_trainer.model = ResNet20_DynamicModel(num_classes=0)
         seen_experiences = []
         seen_experiences_val = []
         checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
-
-        lwf_trainer = LwFTrainer(model=ResNet20_DynamicModel(num_classes=0), device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
-                                 temperature=2.0, alpha=1.0,
-                                 train_mb_size=43, train_epochs=10, eval_mb_size=43,
-                                 patience=5, ft_shared_after=8,
-                                 # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                                 evaluator=EvaluationPlugin(# accuracy_metrics(experience=True, stream=True),
-                                     loss_metrics(experience=True, stream=True),
-                                     loggers=InteractiveLogger(), collect_all=True),
-                                 eval_every=1,
-                                 freeze_strategy=freeze_strategy, freeze_config=config)
 
         print(f"\n{'=' * 80}")
         print(f"Running Experiment: {exp_name}")
@@ -2572,6 +2574,48 @@ if TRAINING_WITH_LOOP_LwF:
         exp_name = exp_name
         freeze_strategy = freeze_strategy
         config = config  # freeze_config=freeze_config
+        #lwf_trainer.freeze_strategy = freeze_strategy #TODO: This one works for 1 experiment
+        #lwf_trainer.freeze_config = config#TODO: This one works for 1 experiment
+
+        #nature_specialised_model = ResNet20_DynamicModel(num_classes=0) # DOES NOT WORK!!!
+
+
+
+        lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
+                                 temperature=2.0, alpha=1.0,
+                                 train_mb_size=43, train_epochs=10, eval_mb_size=43,
+                                 patience=5, ft_shared_after=8,
+                                 # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                                 evaluator=EvaluationPlugin(# accuracy_metrics(experience=True, stream=True),
+                                     loss_metrics(experience=True, stream=True),
+                                     loggers=InteractiveLogger(), collect_all=True),
+                                 eval_every=1,
+                                 freeze_strategy=freeze_strategy, freeze_config=config)
+
+        print(f"TEST TO MAKE SURE BRAND NEW lwf_trainer IS CREATED FOR EACH EXPERIMENT:"
+              #f"lwf_trainer.model = {lwf_trainer.model}"
+              f"lwf_trainer.freeze_strategy = {lwf_trainer.freeze_strategy}\n"
+              f"lwf_trainer.freeze_config = {lwf_trainer.freeze_config}\n"
+              #f"lwf_trainer.train_epochs = {lwf_trainer.train_epochs}"
+              #f"lwf_trainer.ft_shared_after = {lwf_trainer.ft_shared_after}"
+              #f"lwf_trainer.patience = {lwf_trainer.patience}"
+              #f"lwf_trainer.lr_decay_factor = {lwf_trainer.lr_decay_factor}"
+              f"lwf_trainer.alpha = {lwf_trainer.alpha}\n"
+              #f"lwf_trainer.temperature = {lwf_trainer.temperature}"
+              #f"lwf_trainer.train_mb_size = {lwf_trainer.train_mb_size}"
+              #f"lwf_trainer.eval_mb_size = {lwf_trainer.eval_mb_size}"
+              #f"lwf_trainer.eval_every = {lwf_trainer.eval_every}"
+              #f"lwf_trainer.device = {lwf_trainer.device}"
+              #f"lwf_trainer.plugins = {lwf_trainer.plugins}"
+              #f"lwf_trainer.evaluator = {lwf_trainer.evaluator}"
+              f"lwf_trainer.experience_losses = {lwf_trainer.experience_losses}\n"
+              f"lwf_trainer.experience_accuracies = {lwf_trainer.experience_accuracies}\n"
+              f"lwf_trainer.num_new_classes = {lwf_trainer.num_new_classes}\n"
+              f"lwf_trainer.experience = {lwf_trainer.experience}\n"
+              f"lwf_trainer.optimizer = {lwf_trainer.optimizer}\n"
+              f"lwf_trainer.original_alpha = {lwf_trainer.original_alpha}\n"
+              f"lwf_trainer.teacher_classes = {lwf_trainer.teacher_classes}\n"
+              f"lwf_trainer.teacher = {lwf_trainer.teacher}\n")
 
 
         for experience in nature_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
@@ -2687,6 +2731,8 @@ if TRAINING_WITH_LOOP_LwF:
 
         # Print comparison
         print(lwf_trainer.compare_experiments())
+        #DOES NOT WORK! lwf_trainer.model = ResNet20_DynamicModel(num_classes=0)
+        nature_specialised_model = ResNet20_DynamicModel(num_classes=0) # WORKS !!!
 
     print('Training completed WITH LwFTrainer')
     print("lwf_trainer.results",lwf_trainer.results)
