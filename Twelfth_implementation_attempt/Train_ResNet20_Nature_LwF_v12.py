@@ -472,6 +472,7 @@ class LwFTrainer(SupervisedTemplate):
     def __init__(
         self,
         model: nn.Module,
+        #freeze_strategy: str,
         lr=0.001,
         momentum=0.9,
         weight_decay=5e-4,
@@ -485,7 +486,7 @@ class LwFTrainer(SupervisedTemplate):
         device: Union[str, torch.device] = "cpu",
         patience: int = 0,
         ft_shared_after: int = 5,
-        freeze_strategy: str = 'binary',  # NEW LINE
+        freeze_strategy: str = 'empty',#freeze_strategy: str = 'binary',  # NEW LINE
         freeze_config: Optional[Dict] = None,  # NEW LINE
         plugins: Optional[List[SupervisedPlugin]] = None,
         evaluator: Union[
@@ -1169,6 +1170,47 @@ class LwFTrainer(SupervisedTemplate):
                 prev_epoch_loss = epoch_loss
                 prev_epoch_acc = epoch_acc
 
+            if EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC:
+                if epoch_loss >= prev_epoch_loss:
+                    loss_c += 1
+                    if loss_c == self.patience - 1:  # and epoch_acc <= prev_epoch_acc: # and c == self.patience-1:
+                        print(
+                            f"lr before being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        self.lr = self.lr * self.lr_decay_factor
+                        print(
+                            f"lr after being increased at Experience {experience.current_experience}, Epoch {_}: {self.lr}")
+                        c = 0
+
+                if epoch_acc > prev_epoch_acc and epoch_acc < 75:  #TODO: NEW -- if epoch_acc > prev_epoch_acc and prev_epoch_acc < 80:
+                    # Both metrics improved - reset patience counter
+                    # prev_epoch_loss = epoch_loss
+                    # prev_epoch_acc = epoch_acc
+                    c = 0
+                    loss_c = 0
+                elif epoch_acc <= prev_epoch_acc and epoch_acc < 75:
+                    # No improvement - increment patience counter
+                    c += 1
+                    print(f"WARNING: Loss and accuracy did not improve during the previous epoch.")
+
+                    if c >= self.patience:
+                        print(
+                            f"WARNING: The number of epochs equivalent to self.patience ({self.patience}) has been reached without improvement. Training will be stopped.")
+                        self.lr = self.original_lr
+                        c = 0
+                        loss_c = 0
+                        break
+                elif epoch_acc >= 75:  # elif prev_epoch_acc>=75:
+                    print(
+                        f"WARNING: The accuracy of experience {experience.current_experience} has reached 75%. Training will be stopped.")
+                    # c = self.patience
+                    self.lr = self.original_lr
+                    c = 0
+                    loss_c = 0
+                    break
+
+                prev_epoch_loss = epoch_loss
+                prev_epoch_acc = epoch_acc
+
             if EARLY_STOPPING_LOOP_5:
                 if epoch_loss >= prev_epoch_loss:
                     loss_c += 1
@@ -1209,6 +1251,7 @@ class LwFTrainer(SupervisedTemplate):
 
                 prev_epoch_loss = epoch_loss
                 prev_epoch_acc = epoch_acc
+
 
         # --------------------------------------------------------
         # IMPORTANT:
@@ -2500,6 +2543,7 @@ EARLY_STOPPING_LOOP_1=False#True #TODO:Change back to EARLY_STOPPING_LOOP_1=True
 EARLY_STOPPING_LOOP_2=False
 EARLY_STOPPING_LOOP_3=False
 EARLY_STOPPING_LOOP_4=False
+EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC=False
 EARLY_STOPPING_LOOP_5=True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
 #                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
 #                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
@@ -2571,9 +2615,9 @@ if TRAINING_WITH_LOOP_LwF:
         print(f"Config: {config}")  # print(f"Config: {freeze_config}")
         print(f"{'=' * 80}\n")
 
-        exp_name = exp_name
+        '''exp_name = exp_name
         freeze_strategy = freeze_strategy
-        config = config  # freeze_config=freeze_config
+        config = config  # freeze_config=freeze_config'''
         #lwf_trainer.freeze_strategy = freeze_strategy #TODO: This one works for 1 experiment
         #lwf_trainer.freeze_config = config#TODO: This one works for 1 experiment
 
@@ -2596,6 +2640,7 @@ if TRAINING_WITH_LOOP_LwF:
               #f"lwf_trainer.model = {lwf_trainer.model}"
               f"lwf_trainer.freeze_strategy = {lwf_trainer.freeze_strategy}\n"
               f"lwf_trainer.freeze_config = {lwf_trainer.freeze_config}\n"
+              f"lwf_trainer.freeze_scheduler = {lwf_trainer.freeze_scheduler}\n"
               #f"lwf_trainer.train_epochs = {lwf_trainer.train_epochs}"
               #f"lwf_trainer.ft_shared_after = {lwf_trainer.ft_shared_after}"
               #f"lwf_trainer.patience = {lwf_trainer.patience}"
@@ -2615,7 +2660,10 @@ if TRAINING_WITH_LOOP_LwF:
               f"lwf_trainer.optimizer = {lwf_trainer.optimizer}\n"
               f"lwf_trainer.original_alpha = {lwf_trainer.original_alpha}\n"
               f"lwf_trainer.teacher_classes = {lwf_trainer.teacher_classes}\n"
-              f"lwf_trainer.teacher = {lwf_trainer.teacher}\n")
+              f"lwf_trainer.teacher = {lwf_trainer.teacher}\n"
+              f"lwf_trainer.old_classes = {lwf_trainer.old_classes}\n"
+              f"lwf_trainer.gradient_freeze_logs = {lwf_trainer.gradient_freeze_logs}\n"
+              f"lwf_trainer.results = {lwf_trainer.results}")
 
 
         for experience in nature_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.

@@ -394,6 +394,7 @@ def apply_gradient_freezing(
         verbose: Print debug information
     """
     if not freeze_config.should_freeze:
+        print("freeze_config.should_freeze NOT defined. No freezing will be applied.")
         return  # No freezing needed
     
     # Freeze shared layers
