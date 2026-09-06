@@ -1919,77 +1919,6 @@ class LwFTrainer(SupervisedTemplate):
 
         return stats
 
-    '''def run_experiment(
-            self,
-            configs,
-            experiences: Union[TExperienceType, Iterable[TExperienceType]],
-            #exp_name: str,
-            #freeze_strategy: str,
-            freeze_config: Optional[Dict] = None,
-            eval_streams: Optional[
-                Sequence[Union[TExperienceType, Iterable[TExperienceType]]]
-            ] = None,
-            train_epochs: int = 10,
-            ft_shared_after: int = 8,
-            **kwargs,
-    ) -> Dict:
-        """
-        Run a single experiment with given configuration.
-
-        Args:
-            exp_name: Name for this experiment
-            freeze_strategy: Strategy name
-            freeze_config: Strategy-specific configuration
-            train_epochs: Number of training epochs
-            ft_shared_after: Baseline threshold for freezing
-
-        Returns:
-            Dictionary with experiment results
-            :param eval_streams:
-        """
-        for (exp_name, freeze_strategy, config) in configs:
-
-            print(f"\n{'=' * 80}")
-            print(f"Running Experiment: {exp_name}")
-            print(f"Strategy: {freeze_strategy}")
-            print(f"Config: {config}")#print(f"Config: {freeze_config}")
-            print(f"{'=' * 80}\n")
-
-            exp_name=exp_name
-            freeze_strategy=freeze_strategy
-            config=config #freeze_config=freeze_config
-
-            # Create fresh model
-            # model = self.trainer.model #self.model_factory()
-
-            # Create trainer with specified strategy
-            #trainer = LwFTrainer_Experimental(
-             #   model=model,
-             #   device=self.device,
-             #   freeze_strategy=freeze_strategy,
-             #   freeze_config=freeze_config,
-             #   train_epochs=train_epochs,
-             #   ft_shared_after=ft_shared_after
-            #)
-            #trainer = self.trainer
-
-            # Run training (placeholder - actual implementation would use real data)
-            # trainer.train_experience(experience)
-            #DOES NOT WORK when .train() is called from here!!!! lwf_trainer.train(experiences, eval_streams)
-
-            # Extract results
-            results = {
-                'experiment_name': exp_name,
-                'strategy': freeze_strategy,
-                'config': config,#freeze_config,
-                'freeze_logs':self.gradient_freeze_logs,
-                'gradient_stats': self.get_gradient_statistics()
-            }
-
-            self.results[exp_name] = results
-        #return self.results[exp_name]
-        #return results'''
-
     def compare_experiments(self) -> str:
         """
         Generate comparison summary of all experiments.
@@ -2305,122 +2234,6 @@ Temperature: 2.0 Alpha: 3.2631507962942123
 ######################################################################################################################################################
 
 '''
-
-
-'''# ==================== EXPERIMENT MANAGER ====================
-
-class ExperimentManager:
-    """
-    Manages running multiple experiments with different freeze strategies.
-
-    Helps compare performance across configurations.
-    """
-
-    def __init__(self, trainer, device: str = "cpu"):  # def __init__(self, model_factory, device: str = "cpu"):
-        """
-        Initialize experiment manager.
-
-        Args:
-            model_factory: Callable that returns a fresh model instance
-            device: Device to use for training
-        """
-        self.trainer: SupervisedTemplate = trainer
-        # self.model_factory = model_factory
-        self.device = device
-        self.results = {}
-
-    def run_experiment(
-            self,
-            exp_name: str,
-            freeze_strategy: str,
-            freeze_config: Optional[Dict] = None,
-            #train_epochs: int = 10,
-            #ft_shared_after: int = 8,
-    ) -> Dict:
-        """
-        Run a single experiment with given configuration.
-
-        Args:
-            exp_name: Name for this experiment
-            freeze_strategy: Strategy name
-            freeze_config: Strategy-specific configuration
-            train_epochs: Number of training epochs
-            ft_shared_after: Baseline threshold for freezing
-
-        Returns:
-            Dictionary with experiment results
-        """
-        print(f"\n{'=' * 80}")
-        print(f"Running Experiment: {exp_name}")
-        print(f"Strategy: {freeze_strategy}")
-        print(f"Config: {freeze_config}")
-        print(f"{'=' * 80}\n")
-
-        # Create fresh model
-        # model = self.trainer.model #self.model_factory()
-
-        # Create trainer with specified strategy
-        ''''''trainer = LwFTrainer_Experimental(
-            model=model,
-            device=self.device,
-            freeze_strategy=freeze_strategy,
-            freeze_config=freeze_config,
-            train_epochs=train_epochs,
-            ft_shared_after=ft_shared_after
-        )''''''
-        #trainer = self.trainer
-        self.trainer.freeze_strategy=freeze_strategy
-        self.trainer.freeze_config = freeze_config
-        #self.trainer.train_epochs = train_epochs
-        #self.trainer.ft_shared_after = ft_shared_after
-
-
-        # Run training (placeholder - actual implementation would use real data)
-        # trainer.train_experience(experience)
-
-        # Extract results
-        results = {
-            'experiment_name': exp_name,
-            'strategy': freeze_strategy,
-            'config': freeze_config,
-            'freeze_logs': self.trainer.gradient_freeze_logs,
-            'gradient_stats': self.trainer.get_gradient_statistics()
-        }
-
-        self.results[exp_name] = results
-        return results
-
-    def compare_experiments(self) -> str:
-        """
-        Generate comparison summary of all experiments.
-
-        Returns:
-            String with formatted comparison results
-        """
-        lines = ["\n" + "=" * 80]
-        lines.append("EXPERIMENT COMPARISON SUMMARY")
-        lines.append("=" * 80 + "\n")
-
-        lines.append("Experiment Name          | Strategy                | "
-                     "Avg Freeze Intensity | Recommendation")
-        lines.append("-" * 105)
-
-        for exp_name, result in self.results.items():
-            stats = result['gradient_stats']
-            freeze_intensities = [
-                config['shared'] for config in stats['freeze_intensity_by_epoch']
-            ]
-            avg_intensity = sum(freeze_intensities) / len(freeze_intensities)
-
-            lines.append(
-                f"{exp_name:24s} | {result['freeze_strategy']:23s} | "
-                f"{avg_intensity:19.2f} | -"
-            )
-
-        lines.append("\n" + "=" * 80 + "\n")
-        return "\n".join(lines)'''
-
-
 # ==================== EXAMPLE CONFIGURATIONS ====================
 
 def get_experiment_configs() -> List[tuple]:
@@ -2495,6 +2308,90 @@ def get_experiment_configs() -> List[tuple]:
     ]
     return configs
 
+def get_experiment_configs_1() -> List[tuple]:
+    """
+    Return list of experiment configurations to test.
+
+    Each tuple is (exp_name, freeze_strategy, config_dict)
+
+    This is where you define different stability-plasticity tradeoffs.
+    """
+    configs = [
+        # Baseline: Original binary freeze freeze_strategy
+        ('baseline_binary', 'binary', {
+            'freeze_before': 8
+        }),
+
+        # Experiment 1: Gradual unfreezing
+        ('exp_gradual_early_unfreeze', 'gradual_unfreezing', {
+            'start_epoch': 0,
+            'end_epoch': 8,
+            'unfreeze_shared_first': True
+        }),
+
+        ('exp_gradual_late_unfreeze', 'gradual_unfreezing', {
+            'start_epoch': 2,
+            'end_epoch': 10,
+            'unfreeze_shared_first': False
+        }),
+
+        # Experiment 2: Two-phase freeze_strategy
+        ('exp_two_phase_tight3', 'two_phase', {
+            'tight_freeze_epochs': 3,
+            'gradual_unfreeze_epochs': 5
+        }),
+
+        ('exp_two_phase_tight5', 'two_phase', {
+            'tight_freeze_epochs': 5,
+            'gradual_unfreeze_epochs': 3
+        }),
+    ]
+    return configs
+
+def get_experiment_configs_2() -> List[tuple]:
+    """
+    Return list of experiment configurations to test.
+
+    Each tuple is (exp_name, freeze_strategy, config_dict)
+
+    This is where you define different stability-plasticity tradeoffs.
+    """
+    configs = [
+        # Experiment 3: Exponential decay
+        ('exp_exponential_fast', 'exponential_decay', {
+            'decay_rate': 0.3,
+            'half_life_epochs': 2.0
+        }),
+
+        ('exp_exponential_slow', 'exponential_decay', {
+            'decay_rate': 0.7,
+            'half_life_epochs': 4.0
+        }),
+
+        # Experiment 4: Layer-wise curriculum
+        ('exp_layer_wise_3stages', 'layer_wise_curriculum', {
+            'num_stages': 3,
+            'freeze_order': 'deep_to_shallow'
+        }),
+
+        # Experiment 5: Classifier-only freezing
+        ('exp_classifier_only', 'classifier_only', {
+            'freeze_classifier': True,
+            'freeze_shared': False
+        }),
+
+        # Experiment 6: Cyclic freezing
+        ('exp_cyclic_period2', 'cyclic', {
+            'cycle_length': 2
+        }),
+
+        ('exp_cyclic_period3', 'cyclic', {
+            'cycle_length': 3
+        }),
+    ]
+    return configs
+
+
 def compute_average_accuracy(accuracies_per_task:Dict[int, Dict[int, float]]):#(accuracies_per_task:Dict[Any, Any]):#(accuracies_per_task):
     """
     Average accuracy after all tasks are learned
@@ -2531,8 +2428,6 @@ def compute_fwt(accuracies_per_task:Dict[int, Dict[int, float]]):#(accuracies_pe
         fwt = accuracies_per_task[exp_new][exp_new]
         fwt_values.append(fwt)
     return sum(fwt_values) / len(fwt_values)
-
-
 
 
 MATCH_AUTHOR_DISTILL = True
@@ -2577,20 +2472,10 @@ if TRAINING_WITH_LOOP_LwF:
 
     print("print(lwf_trainer.plugins) AFTER initialisation, before entering training loop", lwf_trainer.plugins)'''
 
-    #TODO: This one works for 1 experiment
-    '''lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9,
-                             weight_decay=5e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=1.0,
-                             train_mb_size=43, train_epochs=10, eval_mb_size=43,
-                             patience=5, ft_shared_after=8,
-                             # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(  # accuracy_metrics(experience=True, stream=True),
-                                 loss_metrics(experience=True, stream=True),
-                                 loggers=InteractiveLogger(), collect_all=True),
-                             eval_every=1,)'''
-
     # Get experiment configurations
-    configs = get_experiment_configs()
+    #configs = get_experiment_configs()
+    configs = get_experiment_configs_1()
+    #configs = get_experiment_configs_2()
 
     print("\n" + "=" * 80)
     print("LwFTrainer Gradient Freeze Strategy Testing")
@@ -2600,11 +2485,7 @@ if TRAINING_WITH_LOOP_LwF:
 
     # Run all experiments
     for (exp_name, freeze_strategy, config) in configs:
-        print('Starting experiment WITH LwFTrainer')
-        #results = []
-        #seen_experiences = [nature_specialised_models_train_stream_class_il[0]]
-        #seen_experiences_val = [nature_specialised_models_val_stream_class_il[0]]
-        #####lwf_trainer.model = ResNet20_DynamicModel(num_classes=0)
+        print('Starting experiment WITH LwFTrainer; configs = get_experiment_configs_1()')
         seen_experiences = []
         seen_experiences_val = []
         checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
@@ -2614,16 +2495,6 @@ if TRAINING_WITH_LOOP_LwF:
         print(f"Strategy: {freeze_strategy}")
         print(f"Config: {config}")  # print(f"Config: {freeze_config}")
         print(f"{'=' * 80}\n")
-
-        '''exp_name = exp_name
-        freeze_strategy = freeze_strategy
-        config = config  # freeze_config=freeze_config'''
-        #lwf_trainer.freeze_strategy = freeze_strategy #TODO: This one works for 1 experiment
-        #lwf_trainer.freeze_config = config#TODO: This one works for 1 experiment
-
-        #nature_specialised_model = ResNet20_DynamicModel(num_classes=0) # DOES NOT WORK!!!
-
-
 
         lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
                                  temperature=2.0, alpha=1.0,
@@ -2687,13 +2558,8 @@ if TRAINING_WITH_LOOP_LwF:
             print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
             seen_experiences.append(experience)
             seen_experiences_val.append(nature_specialised_models_val_stream_class_il[i])
-            '''if i > 0:
-                lwf_trainer.load_entire_checkpoint_inside_class(f"./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl")
-                print(f"Loaded {f'./checkpoints/checkpoint_Experience_{i-1}_Best_Epoch.pkl'} to continue training the next Experience on it --- from inside train_experience()")'''
-            ####lwf_trainer.train(experience, [seen_experiences])
             lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
             print("Temperature:" ,lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
-
             '''if i>0:
                 print("compute_average_accuracy(lwf_trainer.experience_accuracies)")
                 compute_average_accuracy(lwf_trainer.experience_accuracies)
@@ -2701,12 +2567,9 @@ if TRAINING_WITH_LOOP_LwF:
                 compute_bwt(lwf_trainer.experience_accuracies)
                 print("compute_fwt(lwf_trainer.experience_accuracies)")
                 compute_fwt(lwf_trainer.experience_accuracies)'''
-            #lwf_trainer.train(experience, nature_specialised_models_val_stream_class_il)
-            #lwf_trainer.train_experience(experience, nature_specialised_models_val_stream_class_il)
-            #lwf_trainer.train_experience(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
             #print("print(lwf_trainer.plugins) AFTER call to .train()", lwf_trainer.plugins)
-            # print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
-            # print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
+            #print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
+            #print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
 
         # Extract results
         results = {
@@ -2720,66 +2583,8 @@ if TRAINING_WITH_LOOP_LwF:
         lwf_trainer.results[exp_name] = results
         print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
 
-        #NONE EXISTING CODE, but follow instructions of how to implement it in QuickReference_LwFTrainer_Modifications.md --> print(f"{freeze_strategy:25s} | BWT: {results['BWT']:.4f} | AvgAcc: {results['AvgAcc']:.4f}")
-
-        '''print("compute_average_accuracy(lwf_trainer.experience_accuracies)")
-        compute_average_accuracy(lwf_trainer.experience_accuracies)
-        print("compute_bwt(lwf_trainer.experience_accuracies)")
-        compute_bwt(lwf_trainer.experience_accuracies)
-        print("compute_fwt(lwf_trainer.experience_accuracies)")
-        compute_fwt(lwf_trainer.experience_accuracies)'''
-
-        # return self.results[exp_name]
-        # return results
-        '''lwf_trainer.run_experiment(
-            configs=configs,
-            experiences=experience,
-            #exp_name=exp_name,
-            #freeze_strategy=freeze_strategy,
-            #freeze_config=config,
-            eval_streams=[seen_experiences, seen_experiences_val]
-            # train_epochs=10,
-            # ft_shared_after=8
-        )'''
-
-        '''print("\n" + "=" * 80)
-        print("LwFTrainer Gradient Freeze Strategy Testing")
-        print("=" * 80 + "\n")
-
-        # Get experiment configurations
-        configs = get_experiment_configs()
-
-        print(f"Running {len(configs)} experiments...\n")'''
-
-        # Run all experiments
-        '''for exp_name, freeze_strategy, config in configs:
-            try:
-                lwf_trainer.run_experiment(
-                    experiences=experience,
-                    exp_name=exp_name,
-                    freeze_strategy=freeze_strategy,
-                    freeze_config=config,
-                    eval_streams=[seen_experiences, seen_experiences_val]
-                    # train_epochs=10,
-                    # ft_shared_after=8
-                )
-            except Exception as e:
-                print(f"Error in experiment {exp_name}: {e}")'''
-
-        '''lwf_trainer.run_experiment(
-            configs=configs,
-            experiences=experience,
-            #exp_name=exp_name,
-            #freeze_strategy=freeze_strategy,
-            #freeze_config=config,
-            eval_streams=[seen_experiences, seen_experiences_val]
-            # train_epochs=10,
-            # ft_shared_after=8
-        )''' # DOES NOT WORK when placed here
-
         # Print comparison
         print(lwf_trainer.compare_experiments())
-        #DOES NOT WORK! lwf_trainer.model = ResNet20_DynamicModel(num_classes=0)
         nature_specialised_model = ResNet20_DynamicModel(num_classes=0) # WORKS !!!
 
     print('Training completed WITH LwFTrainer')
@@ -2790,71 +2595,3 @@ if TRAINING_WITH_LOOP_LwF:
     print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
     #print("lwf_trainer.evaluate_all_experiences(nature_specialised_models_val_stream_class_il)")
     #lwf_trainer.evaluate_all_experiences_post_training(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
-
-'''
-    checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
-    for checkpoint_file in checkpoint_files:
-        print(f"Loading {checkpoint_file}")
-        cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
-        print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITH LOOP VERSION 2'")
-        cl_strategy_evaluation.eval(nature_specialised_models_val_stream_class_il)
-
-'''
-    #print('Computing accuracy on the whole val set OUTSIDE training LOOP')
-    #cl_strategy.eval(nature_specialised_models_val_stream_class_il)
-    #results.append(cl_strategy.eval(nature_specialised_models_val_stream_class_il))
-    #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
-
-
-# ==================== MAIN EXECUTION ====================
-
-if __name__ == "__main__":
-    '''print("\n" + "=" * 80)
-    print("LwFTrainer Gradient Freeze Strategy Testing")
-    print("=" * 80 + "\n")'''
-
-    # Create a simple model factory
-    '''def model_factory():
-        return nn.Sequential(
-            nn.Conv2d(3, 16, 3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, 3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1),
-            nn.Flatten(),
-            nn.Linear(32, 10)
-        )'''
-
-    '''# Initialize experiment manager
-    manager = ExperimentManager(lwf_trainer, device="cpu")  # manager = ExperimentManager(model_factory, device="cpu")
-
-    # Get experiment configurations
-    configs = get_experiment_configs()
-
-    print(f"Running {len(configs)} experiments...\n")
-
-    # Run all experiments
-    for exp_name, freeze_strategy, config in configs:
-        try:
-            manager.run_experiment(
-                exp_name=exp_name,
-                freeze_strategy=freeze_strategy,
-                freeze_config=config,
-                #train_epochs=10,
-                #ft_shared_after=8
-            )
-        except Exception as e:
-            print(f"Error in experiment {exp_name}: {e}")
-
-    # Print comparison
-    print(manager.compare_experiments())
-
-    print("\nNext Steps:")
-    print("-" * 80)
-    print("1. Implement actual data loading in LwFTrainer_Experimental")
-    print("2. Run experiments on your Nature dataset")
-    print("3. Track BWT (Backward Transfer), FWT (Forward Transfer), and AvgAcc")
-    print("4. Identify best freeze_strategy for your problem")
-    print("5. Fine-tune hyperparameters of best freeze_strategy")
-    print("6. Validate on test set")'''
-
