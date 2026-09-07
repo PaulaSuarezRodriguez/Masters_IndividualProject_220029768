@@ -21,7 +21,7 @@ from Twelfth_implementation_attempt.GradientFreezeScheduler_v1.GradientFreezeSch
     GradientFreezeScheduler,
     apply_gradient_freezing
 )
-from Twelfth_implementation_attempt.Train_ResNet20_Nature_LwF_v12 import lwf_trainer
+from Twelfth_implementation_attempt.Nature_specialised_model_v12.Train_ResNet20_Nature_LwF_v12 import lwf_trainer
 
 
 class LwFTrainer_Experimental:
