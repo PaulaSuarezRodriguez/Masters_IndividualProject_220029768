@@ -858,8 +858,7 @@ class LwFTrainer(SupervisedTemplate):
                             print(
                                 f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
                     if MATCH_AUTHOR_LOSS == False:
-                        loss = ((self.alpha * dist_loss) + ((
-                                                                        1 - self.alpha) * ce_loss))  # loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss # loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
+                        loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss))  # loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss # loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
 
                 else:
                     loss = ce_loss
