@@ -822,7 +822,7 @@ class LwFTrainer(SupervisedTemplate):
 
                     if DIFFERENCE_CE_DIST:
                         difference_ce_dist = (ce_loss.item() - dist_loss.item())
-                        if difference_ce_dist > 0: # and dist_loss.item() < 1:
+                        if difference_ce_dist > 0.1: # and dist_loss.item() < 1:
                             div = (difference_ce_dist / 0.10)  # div = (difference_ce_dist / 0.20)
                             self.alpha = self.original_alpha + (0.10 * div)
                             if VERBOSE:
@@ -836,11 +836,9 @@ class LwFTrainer(SupervisedTemplate):
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + (self.alpha * dist_loss)
                         if VERBOSE:
-                            print(
-                                f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
+                            print(f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
                     if MATCH_AUTHOR_LOSS == False:
-                        loss = ((self.alpha * dist_loss) + ((
-                                                                        1 - self.alpha) * ce_loss))  # loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss # loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
+                        loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss))  # loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss # loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
 
                 else:
                     loss = ce_loss
@@ -1438,6 +1436,9 @@ class LwFTrainer(SupervisedTemplate):
         # self.alpha += 0.05
         # print(f"Alpha has been increased by 0.05. It is now {self.alpha}")
         print(f"lr at Experience {experience.current_experience}: {self.lr}")
+        print(f"train_mb_size at Experience {experience.current_experience}: {self.train_mb_size}")
+        print(f"eval_mb_size at Experience {experience.current_experience}: {self.eval_mb_size}")
+        print(f"train_epochs at Experience {experience.current_experience}: {self.train_epochs}")
         # print(f"lr before being increased at Experience {experience.current_experience}: {self.lr}")
         # self.lr-=0.01*self.lr
         # print(f"lr has been decreased by {self.lr_decay_factor}. It is now {self.lr}")
@@ -2139,8 +2140,8 @@ DIFFERENCE_CE_DIST = True
 
 TRAINING_WITH_LOOP_LwF =True# False
 # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-FREEZING_ORIGINAL=True #False
-FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
+FREEZING_ORIGINAL=False#True #False
+FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #False
 FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
 FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
 FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=False #True
@@ -2151,10 +2152,10 @@ print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATC
 if TRAINING_WITH_LOOP_LwF:
 
     # lwf_trainer = LwFTrainer(model=people_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.0001,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0,
-                             train_mb_size=32, train_epochs=30, eval_mb_size=32,
-                             patience=3, ft_shared_after=8,
+                             train_mb_size=128, train_epochs=5, eval_mb_size=128,
+                             patience=3, ft_shared_after=10,
                              #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),
@@ -2167,6 +2168,17 @@ if TRAINING_WITH_LOOP_LwF:
 
     for experience in people_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of people_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+        if i == 1:
+            lwf_trainer.lr = 0.001
+            lwf_trainer.train_epochs = 5
+            lwf_trainer.train_mb_size=128
+            lwf_trainer.eval_mb_size = 128
+            lwf_trainer.ft_shared_after=3
+        if i == 2:
+            lwf_trainer.lr = 0.01
+            lwf_trainer.train_epochs = 1
+            lwf_trainer.train_mb_size=128
+            lwf_trainer.eval_mb_size =128
         if i == 3:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)

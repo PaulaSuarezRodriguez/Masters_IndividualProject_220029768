@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from avalanche.benchmarks import CLExperience
+#from avalanche.benchmarks import CLExperience
 #from avalanche.models.dynamic_modules import IncrementalClassifier, DynamicModule
 #from avalanche.models.dynamic_modules import DynamicModule
 

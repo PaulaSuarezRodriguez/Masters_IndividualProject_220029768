@@ -807,7 +807,7 @@ class LwFTrainer(SupervisedTemplate):
 
                     if DIFFERENCE_CE_DIST:
                         difference_ce_dist = (ce_loss.item() - dist_loss.item())
-                        if difference_ce_dist > 0 and dist_loss.item() < 1:
+                        if difference_ce_dist > 0: #and dist_loss.item() < 1:
                             div = (difference_ce_dist / 0.10)  # div = (difference_ce_dist / 0.20)
                             self.alpha = self.original_alpha + (0.10 * div)
                             if VERBOSE:
@@ -2134,9 +2134,9 @@ print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATC
 if TRAINING_WITH_LOOP_LwF:
 
     # lwf_trainer = LwFTrainer(model=animals_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-    lwf_trainer = LwFTrainer(model=animals_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=0.5, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
-                             train_mb_size=64, train_epochs=100, eval_mb_size=64, #eval_mb_size=32, #device=DEVICE,
+    lwf_trainer = LwFTrainer(model=animals_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                             temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
+                             train_mb_size=128, train_epochs=10, eval_mb_size=128, #eval_mb_size=32, #device=DEVICE,
                              patience=3, ft_shared_after=8,
                              #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
