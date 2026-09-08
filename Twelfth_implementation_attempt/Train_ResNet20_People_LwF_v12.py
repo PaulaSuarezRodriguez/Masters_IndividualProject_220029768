@@ -822,7 +822,7 @@ class LwFTrainer(SupervisedTemplate):
 
                     if DIFFERENCE_CE_DIST:
                         difference_ce_dist = (ce_loss.item() - dist_loss.item())
-                        if difference_ce_dist > 0:
+                        if difference_ce_dist > 0: # and dist_loss.item() < 1:
                             div = (difference_ce_dist / 0.10)  # div = (difference_ce_dist / 0.20)
                             self.alpha = self.original_alpha + (0.10 * div)
                             if VERBOSE:
@@ -858,36 +858,69 @@ class LwFTrainer(SupervisedTemplate):
                 if VERBOSE:
                     print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
 
-                if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+                if FREEZING_ORIGINAL:
+                    if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
-                    # Freeze shared layers
-                    for module in self.model.modules():
+                        # Freeze shared layers
+                        for module in self.model.modules():
 
-                        if isinstance(module, (nn.Conv2d, nn.Linear)):
+                            if isinstance(module, (nn.Conv2d, nn.Linear)):
 
-                            if module is not self.model.linear:
+                                if module is not self.model.linear:
 
-                                if module.weight.grad is not None:
-                                    module.weight.grad.zero_()
+                                    if module.weight.grad is not None:
+                                        module.weight.grad.zero_()
 
-                                if module.bias is not None:
-                                    if module.bias.grad is not None:
-                                        module.bias.grad.zero_()
+                                    if module.bias is not None:
+                                        if module.bias.grad is not None:
+                                            module.bias.grad.zero_()
 
-                # Freeze old classifier rows
-                if len(self.old_classes) > 0:
+                        # Freeze old classifier rows
+                        if len(self.old_classes) > 0:
 
-                    old_num_classes = len(self.old_classes)
+                            old_num_classes = len(self.old_classes)
 
-                    if self.model.linear.weight.grad is not None:
-                        self.model.linear.weight.grad[
-                            :old_num_classes
-                        ].zero_()
+                            if self.model.linear.weight.grad is not None:
+                                self.model.linear.weight.grad[
+                                    :old_num_classes
+                                ].zero_()
 
-                    if self.model.linear.bias.grad is not None:
-                        self.model.linear.bias.grad[
-                            :old_num_classes
-                        ].zero_()
+                            if self.model.linear.bias.grad is not None:
+                                self.model.linear.bias.grad[
+                                    :old_num_classes
+                                ].zero_()
+
+                if FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS:
+                    if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+
+                        # Freeze shared layers
+                        for module in self.model.modules():
+
+                            if isinstance(module, (nn.Conv2d, nn.Linear)):
+
+                                if module is not self.model.linear:
+
+                                    if module.weight.grad is not None:
+                                        module.weight.grad.zero_()
+
+                                    if module.bias is not None:
+                                        if module.bias.grad is not None:
+                                            module.bias.grad.zero_()
+
+                    # Freeze old classifier rows
+                    if len(self.old_classes) > 0:
+
+                        old_num_classes = len(self.old_classes)
+
+                        if self.model.linear.weight.grad is not None:
+                            self.model.linear.weight.grad[
+                                :old_num_classes
+                            ].zero_()
+
+                        if self.model.linear.bias.grad is not None:
+                            self.model.linear.bias.grad[
+                                :old_num_classes
+                            ].zero_()
 
                 '''if (self.teacher is not None) and len(self.old_classes) > 0 and (_ <= self.ft_shared_after-2):
                     # Freeze old classifier rows
@@ -902,6 +935,132 @@ class LwFTrainer(SupervisedTemplate):
                         self.model.linear.bias.grad[
                             :old_num_classes
                         ].zero_()'''
+
+                if FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS:
+                    if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=freeze_onwards):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+
+                        # Freeze shared layers
+                        for module in self.model.modules():
+
+                            if isinstance(module, (nn.Conv2d, nn.Linear)):
+
+                                if module is not self.model.linear:
+
+                                    if module.weight.grad is not None:
+                                        module.weight.grad.zero_()
+
+                                    if module.bias is not None:
+                                        if module.bias.grad is not None:
+                                            module.bias.grad.zero_()
+
+                        # Freeze old classifier rows
+                        if len(self.old_classes) > 0:
+
+                            old_num_classes = len(self.old_classes)
+
+                            if self.model.linear.weight.grad is not None:
+                                self.model.linear.weight.grad[
+                                    :old_num_classes
+                                ].zero_()
+
+                            if self.model.linear.bias.grad is not None:
+                                self.model.linear.bias.grad[
+                                    :old_num_classes
+                                ].zero_()
+
+                if FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS:
+                    if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=freeze_onwards):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
+
+                        # Freeze shared layers
+                        for module in self.model.modules():
+
+                            if isinstance(module, (nn.Conv2d, nn.Linear)):
+
+                                if module is not self.model.linear:
+
+                                    if module.weight.grad is not None:
+                                        module.weight.grad.zero_()
+
+                                    if module.bias is not None:
+                                        if module.bias.grad is not None:
+                                            module.bias.grad.zero_()
+
+                    # Freeze old classifier rows
+                    if len(self.old_classes) > 0:
+
+                        old_num_classes = len(self.old_classes)
+
+                        if self.model.linear.weight.grad is not None:
+                            self.model.linear.weight.grad[
+                                :old_num_classes
+                            ].zero_()
+
+                        if self.model.linear.bias.grad is not None:
+                            self.model.linear.bias.grad[
+                                :old_num_classes
+                            ].zero_()
+
+                if FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS:
+                    if (self.teacher is not None) and (_ >= self.ft_shared_after):
+                        # Freeze shared layers
+                        for module in self.model.modules():
+
+                            if isinstance(module, (nn.Conv2d, nn.Linear)):
+
+                                if module is not self.model.linear:
+
+                                    if module.weight.grad is not None:
+                                        module.weight.grad.zero_()
+
+                                    if module.bias is not None:
+                                        if module.bias.grad is not None:
+                                            module.bias.grad.zero_()
+
+                    # Freeze old classifier rows
+                    if len(self.old_classes) > 0:
+
+                        old_num_classes = len(self.old_classes)
+
+                        if self.model.linear.weight.grad is not None:
+                            self.model.linear.weight.grad[
+                                :old_num_classes
+                            ].zero_()
+
+                        if self.model.linear.bias.grad is not None:
+                            self.model.linear.bias.grad[
+                                :old_num_classes
+                            ].zero_()
+
+                if FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after:
+                    if (self.teacher is not None) and (_ >= self.ft_shared_after):
+                        # Freeze shared layers
+                        for module in self.model.modules():
+
+                            if isinstance(module, (nn.Conv2d, nn.Linear)):
+
+                                if module is not self.model.linear:
+
+                                    if module.weight.grad is not None:
+                                        module.weight.grad.zero_()
+
+                                    if module.bias is not None:
+                                        if module.bias.grad is not None:
+                                            module.bias.grad.zero_()
+
+                        # Freeze old classifier rows
+                        if len(self.old_classes) > 0:
+
+                            old_num_classes = len(self.old_classes)
+
+                            if self.model.linear.weight.grad is not None:
+                                self.model.linear.weight.grad[
+                                    :old_num_classes
+                                ].zero_()
+
+                            if self.model.linear.bias.grad is not None:
+                                self.model.linear.bias.grad[
+                                    :old_num_classes
+                                ].zero_()
 
                 self.optimizer.step()
 
@@ -957,9 +1116,9 @@ class LwFTrainer(SupervisedTemplate):
             print(f"Loaded {f'./checkpoints/checkpoint_Experience_{experience.current_experience}_Epoch_{_}.pkl'} to continue training the next epoch of the experience on it --- from inside _training_epoch()")
             '''
 
-            #epoch_loss = avg_loss
-            #epoch_acc = avg_acc
-            epoch_loss, epoch_acc = self.evaluate_epoch(_, experience) # TODO: Temporarily commented out to see if alternative calculation of epoch_loss, epoch_acc leads to better results!
+            epoch_loss = avg_loss
+            epoch_acc = avg_acc
+            #epoch_loss, epoch_acc = self.evaluate_epoch(_, experience) # TODO: Temporarily commented out to see if alternative calculation of epoch_loss, epoch_acc leads to better results!
             accuracies.append(epoch_acc)
             accuracies.sort(reverse=True)
             print(f"accuracies: {accuracies}")
@@ -1967,23 +2126,35 @@ EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True o
 
 #acc_limit=80 # best for binary strategy
 acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
+freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
+                # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
+                # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
+                # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-VERBOSE = False#True
+VERBOSE = True
 # DYNAMIC_MODELS = True
 
 DIFFERENCE_CE_DIST = True
 # DIFFERENCE_CE_DIST= False
 
 TRAINING_WITH_LOOP_LwF =True# False
+# TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
+FREEZING_ORIGINAL=True #False
+FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
+FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
+FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
+FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=False #True
+FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
+
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
 if TRAINING_WITH_LOOP_LwF:
 
     # lwf_trainer = LwFTrainer(model=people_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
-                             train_mb_size=1, train_epochs=30, eval_mb_size=1, #train_mb_size=32, train_epochs=50, eval_mb_size=32,
-                             patience=3, ft_shared_after=10,
+    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.0001,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                             temperature=2.0, alpha=1.0,
+                             train_mb_size=32, train_epochs=30, eval_mb_size=32,
+                             patience=3, ft_shared_after=8,
                              #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
                                                         loss_metrics(experience=True, stream=True),

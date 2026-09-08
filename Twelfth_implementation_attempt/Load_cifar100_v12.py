@@ -68,8 +68,10 @@ similar_superclasses = {
 specialised_models_superclasses = {
     "outdoors":["large_man-made_outdoor_things", "large_natural_outdoor_scenes"],
     "nature": ["flowers","trees", "fruit_and_vegetables"],
-    #"people": ["people"],
-    "animals": ["aquatic_mammals","fish", "large_carnivores", "large_omnivores_and_herbivores", "medium_mammals", "small_mammals", "reptiles", "insects", "non-insect_invertebrates", "people"],
+    "people": ["people"],
+    "animals": ["aquatic_mammals","fish", "large_carnivores", "large_omnivores_and_herbivores", "medium_mammals", "small_mammals", "reptiles", "insects", "non-insect_invertebrates"],
+    #"large_animals_and_people": ["people", "aquatic_mammals", "large_carnivores", "large_omnivores_and_herbivores"],
+    #"small_animals": ["fish", "medium_mammals", "small_mammals", "reptiles", "insects", "non-insect_invertebrates"],
     "objects_and_vehicles": ["household_furniture","household_electrical_devices","food_containers", "vehicles_1","vehicles_2"],
 }
 
