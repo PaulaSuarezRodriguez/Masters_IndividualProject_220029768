@@ -313,8 +313,12 @@ print(
 
 # people_specialised_models_val_stream_class_il[4]  contains the 3 last classes of the specialised model, in case I even wanna use
 # people_specialised_models_val_stream_class_il[4] for the global model
+'''people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 1, 94])'''
+
+# for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v12.py
 people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 1, 94])
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])
 
 if DEBUG:
     print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
@@ -2152,7 +2156,7 @@ print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATC
 if TRAINING_WITH_LOOP_LwF:
 
     # lwf_trainer = LwFTrainer(model=people_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0,
                              train_mb_size=128, train_epochs=5, eval_mb_size=128,
                              patience=3, ft_shared_after=10,
@@ -2166,6 +2170,27 @@ if TRAINING_WITH_LOOP_LwF:
     seen_experiences = []
     seen_experiences_val = []
 
+    # for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v12.py
+    #people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+        #class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])
+
+    #"people": ["woman", "girl", "baby", "man", "boy"],
+
+
+    '''lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                             temperature=2.0, alpha=1.0,
+                             train_mb_size=128, train_epochs=5, eval_mb_size=128,
+                             patience=3, ft_shared_after=10,
+                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
+                                                        loss_metrics(experience=True, stream=True),
+                                                        #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
+                                                        loggers=InteractiveLogger(), collect_all=True),
+                             eval_every=1,)
+
+    seen_experiences = []
+    seen_experiences_val = []'''
+
     for experience in people_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of people_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
         if i == 1:
@@ -2173,7 +2198,7 @@ if TRAINING_WITH_LOOP_LwF:
             lwf_trainer.train_epochs = 5
             lwf_trainer.train_mb_size=128
             lwf_trainer.eval_mb_size = 128
-            lwf_trainer.ft_shared_after=3
+            lwf_trainer.ft_shared_after=1
         if i == 2:
             lwf_trainer.lr = 0.01
             lwf_trainer.train_epochs = 1

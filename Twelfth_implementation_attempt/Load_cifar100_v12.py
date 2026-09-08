@@ -47,6 +47,9 @@ cifar100_superclasses = {
     "medium_mammals": ["fox", "porcupine", "possum", "raccoon", "skunk"], # medium-sized mammals, but in code is called "medium_mammals"
     "non-insect_invertebrates": ["crab", "lobster", "snail", "spider", "worm"],
     "people": ["baby", "boy", "girl", "man", "woman"],
+    #"people": ["woman", "girl", "man", "boy", "baby",],
+    #"people": ["woman", "girl","baby", "man", "boy"],
+    #"people": ["baby", "girl","woman", "man", "boy"],
     "reptiles": ["crocodile", "dinosaur", "lizard", "snake", "turtle"],
     "small_mammals": ["hamster", "mouse", "rabbit", "shrew", "squirrel"],
     "trees": ["maple_tree", "oak_tree", "palm_tree", "pine_tree", "willow_tree"],
