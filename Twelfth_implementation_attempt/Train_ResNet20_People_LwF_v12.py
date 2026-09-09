@@ -223,9 +223,9 @@ if DYNAMIC_MODELS == True:
     people_specialised_model = ResNet20_DynamicModel(
         num_classes=0)  # No need for num_classes=5 anymore despite 5 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     animals_specialised_model = ResNet20_DynamicModel(
-        num_classes=0)  # No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+        num_classes=45)  # No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     objects_and_vehicles_specialised_model = ResNet20_DynamicModel(
-        num_classes=0)  # No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+        num_classes=25)  # No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
 
     #people_specialised_model = ResNet20_Compact_S(num_classes=0) #ResNet20_Compact(num_classes=0)
 
