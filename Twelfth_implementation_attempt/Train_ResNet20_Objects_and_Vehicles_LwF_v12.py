@@ -2096,6 +2096,58 @@ class LwFTrainer(SupervisedTemplate):
 
 '''
 ######################################################################################################################################################
+# First set of results for Objects_and_Vehicles models that does not results in absolute catastrophic forgetting. May be worth fine-tuning this model...
+REMEMBER! Here, all classes are included across the three experiences. Maybe changing that like for Nature of People models will improve results !
+================================================================================
+BACKWARD TRANSFER ANALYSIS
+================================================================================
+
+print(self.model.training) -- _compute_backward_transfer_internal False
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 41.56%
+
+After training Experience 1:
+  - Tested on Experience 0: 35.33%
+  - Tested on Experience 1: 13.38%
+
+After training Experience 2:
+  - Tested on Experience 0: 29.78%
+  - Tested on Experience 1: 10.12%
+  - Tested on Experience 2: 14.75%
+
+--------------------------------------------------------------------------------
+
+Experience 0:
+  Accuracy on Exp 0 right after training on Exp 0 = 41.56%
+  Accuracy on Exp 0 after training on Exp 2 = 29.78%
+  BWT = -11.78%
+
+Experience 1:
+  Accuracy on Exp 1 right after training on Exp 1 = 13.38%
+  Accuracy on Exp 1 after training on Exp 2 = 10.12%
+  BWT = -3.25%
+
+Experience 2:
+  Accuracy on Exp 2 right after training on Exp 2 = 14.75%
+  Accuracy on Exp 2 after training on Exp 2 = 14.75%
+  BWT = +0.00%
+
+Mean Backward Transfer (BWT): -5.01%
+  Positive BWT = improvement on old tasks (good)
+  Negative BWT = forgetting on old tasks (bad)
+  BWT ≈ 0 = stable performance (ideal)
+================================================================================
+
+print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function True
+-- >> End of training phase << --
+Temperature: 2.0 Alpha: 0.5
+acc_limit: 85
+Training completed WITH LwFTrainer
+lwf_trainer.results {}
+
+Process finished with exit code 0
 
 ######################################################################################################################################################
 
