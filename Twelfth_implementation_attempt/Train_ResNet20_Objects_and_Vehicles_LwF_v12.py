@@ -305,8 +305,14 @@ print(
 
 # objects_and_vehicles_specialised_models_val_stream_class_il[4]  contains the 3 last classes of the specialised model, in case I even wanna use
 # objects_and_vehicles_specialised_models_val_stream_class_il[4] for the global model
+'''objects_and_vehicles_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[9, 8, 8, 70])'''
+
+'''objects_and_vehicles_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[8, 8, 9, 70])'''
+
 objects_and_vehicles_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[9, 8, 8, 70])
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[6, 9, 10, 70])
 
 if DEBUG:
     print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
@@ -2150,6 +2156,59 @@ lwf_trainer.results {}
 Process finished with exit code 0
 
 ######################################################################################################################################################
+GitHub commit: Train_ResNet20_Objects_and_Vehicles_LwF_v12.py as is, is the new best performing Object_and_vehicles_model
+
+================================================================================
+BACKWARD TRANSFER ANALYSIS
+================================================================================
+
+print(self.model.training) -- _compute_backward_transfer_internal False
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 63.17%
+
+After training Experience 1:
+  - Tested on Experience 0: 41.00%
+  - Tested on Experience 1: 37.33%
+
+After training Experience 2:
+  - Tested on Experience 0: 30.83%
+  - Tested on Experience 1: 16.56%
+  - Tested on Experience 2: 43.90%
+
+--------------------------------------------------------------------------------
+
+Experience 0:
+  Accuracy on Exp 0 right after training on Exp 0 = 63.17%
+  Accuracy on Exp 0 after training on Exp 2 = 30.83%
+  BWT = -32.33%
+
+Experience 1:
+  Accuracy on Exp 1 right after training on Exp 1 = 37.33%
+  Accuracy on Exp 1 after training on Exp 2 = 16.56%
+  BWT = -20.78%
+
+Experience 2:
+  Accuracy on Exp 2 right after training on Exp 2 = 43.90%
+  Accuracy on Exp 2 after training on Exp 2 = 43.90%
+  BWT = +0.00%
+
+Mean Backward Transfer (BWT): -17.70%
+  Positive BWT = improvement on old tasks (good)
+  Negative BWT = forgetting on old tasks (bad)
+  BWT ≈ 0 = stable performance (ideal)
+================================================================================
+
+print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function True
+-- >> End of training phase << --
+Temperature: 2.0 Alpha: 0.5
+acc_limit: 85
+Training completed WITH LwFTrainer
+lwf_trainer.results {}
+
+Process finished with exit code 0
+######################################################################################################################################################
 
 '''
 
@@ -2196,7 +2255,7 @@ if TRAINING_WITH_LOOP_LwF:
     # lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1, #lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                                     temperature=2.0, alpha=0.5,
-                                    train_mb_size=64, train_epochs=10, eval_mb_size=64,
+                                    train_mb_size=64, train_epochs=30, eval_mb_size=64,
                                     patience=3, ft_shared_after=10,
                                     # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                                     evaluator=EvaluationPlugin(
@@ -2218,10 +2277,12 @@ if TRAINING_WITH_LOOP_LwF:
             lwf_trainer.eval_mb_size = 64
             #lwf_trainer.ft_shared_after = 5
         if i == 2:
-            lwf_trainer.lr = 0.01
-            lwf_trainer.train_epochs = 1
-            lwf_trainer.train_mb_size = 128
-            lwf_trainer.eval_mb_size = 128'''
+            #lwf_trainer.lr = 0.01
+            #lwf_trainer.train_epochs = 1
+            #lwf_trainer.train_mb_size = 128
+            #lwf_trainer.eval_mb_size = 128
+            lwf_trainer.original_alpha = 1.0
+            lwf_trainer.alpha = 1.0'''
         if i == 3:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
