@@ -17,4 +17,10 @@ def set_device():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     torch.cuda.set_device(device)
 
+'''def set_device():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        torch.cuda.set_device(device)
+    return device'''
+
 

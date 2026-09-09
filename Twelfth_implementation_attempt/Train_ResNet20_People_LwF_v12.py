@@ -223,9 +223,9 @@ if DYNAMIC_MODELS == True:
     people_specialised_model = ResNet20_DynamicModel(
         num_classes=0)  # No need for num_classes=5 anymore despite 5 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     animals_specialised_model = ResNet20_DynamicModel(
-        num_classes=45)  # No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+        num_classes=0)  # No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     objects_and_vehicles_specialised_model = ResNet20_DynamicModel(
-        num_classes=25)  # No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+        num_classes=0)  # No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
 
     #people_specialised_model = ResNet20_Compact_S(num_classes=0) #ResNet20_Compact(num_classes=0)
 
@@ -317,8 +317,11 @@ print(
                                                                   class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 1, 94])'''
 
 # for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v12.py
+'''people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])'''
+
 people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 1, 1, 96])
 
 if DEBUG:
     print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
@@ -2112,6 +2115,113 @@ class LwFTrainer(SupervisedTemplate):
 
 '''
 ######################################################################################################################################################
+# GitHub commit: Best results for People model when benchmark includes all classes in the specialised subset across 3 experiences
+================================================================================
+BACKWARD TRANSFER ANALYSIS
+================================================================================
+
+print(self.model.training) -- _compute_backward_transfer_internal False
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 100.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 18.00%
+  - Tested on Experience 1: 43.50%
+
+After training Experience 2:
+  - Tested on Experience 0: 16.00%
+  - Tested on Experience 1: 28.50%
+  - Tested on Experience 2: 21.50%
+
+--------------------------------------------------------------------------------
+
+Experience 0:
+  Accuracy on Exp 0 right after training on Exp 0 = 100.00%
+  Accuracy on Exp 0 after training on Exp 2 = 16.00%
+  BWT = -84.00%
+
+Experience 1:
+  Accuracy on Exp 1 right after training on Exp 1 = 43.50%
+  Accuracy on Exp 1 after training on Exp 2 = 28.50%
+  BWT = -15.00%
+
+Experience 2:
+  Accuracy on Exp 2 right after training on Exp 2 = 21.50%
+  Accuracy on Exp 2 after training on Exp 2 = 21.50%
+  BWT = +0.00%
+
+Mean Backward Transfer (BWT): -33.00%
+  Positive BWT = improvement on old tasks (good)
+  Negative BWT = forgetting on old tasks (bad)
+  BWT ≈ 0 = stable performance (ideal)
+================================================================================
+
+print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function True
+-- >> End of training phase << --
+Temperature: 2.0 Alpha: 2.24137282371521
+acc_limit: 85
+Training completed WITH LwFTrainer
+lwf_trainer.results {}
+
+
+
+
+######################################################################################################################################################
+# GitHub commit: Best results for People model when benchmark does NOT includes all classes, and instead includes 1 class per experience, and there 
+are 3 experiences (the removing of classes from each experience was also done for Nature model)
+######################################################################################################################################################
+================================================================================
+BACKWARD TRANSFER ANALYSIS
+================================================================================
+
+print(self.model.training) -- _compute_backward_transfer_internal False
+Accuracy Results:
+
+After training Experience 0:
+  - Tested on Experience 0: 100.00%
+
+After training Experience 1:
+  - Tested on Experience 0: 26.00%
+  - Tested on Experience 1: 68.00%
+
+After training Experience 2:
+  - Tested on Experience 0: 18.00%
+  - Tested on Experience 1: 40.00%
+  - Tested on Experience 2: 39.00%
+
+--------------------------------------------------------------------------------
+
+Experience 0:
+  Accuracy on Exp 0 right after training on Exp 0 = 100.00%
+  Accuracy on Exp 0 after training on Exp 2 = 18.00%
+  BWT = -82.00%
+
+Experience 1:
+  Accuracy on Exp 1 right after training on Exp 1 = 68.00%
+  Accuracy on Exp 1 after training on Exp 2 = 40.00%
+  BWT = -28.00%
+
+Experience 2:
+  Accuracy on Exp 2 right after training on Exp 2 = 39.00%
+  Accuracy on Exp 2 after training on Exp 2 = 39.00%
+  BWT = +0.00%
+
+Mean Backward Transfer (BWT): -36.67%
+  Positive BWT = improvement on old tasks (good)
+  Negative BWT = forgetting on old tasks (bad)
+  BWT ≈ 0 = stable performance (ideal)
+================================================================================
+
+print(self.model.training)-- evaluate_all_experiences after self.model.train() before exiting function True
+-- >> End of training phase << --
+Temperature: 2.0 Alpha: 2.2166237011551857
+acc_limit: 85
+Training completed WITH LwFTrainer
+lwf_trainer.results {}
+
+Process finished with exit code 0
 
 ######################################################################################################################################################
 
@@ -2194,7 +2304,7 @@ if TRAINING_WITH_LOOP_LwF:
 
     for experience in people_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of people_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-        if i == 1:
+        '''if i == 1:
             lwf_trainer.lr = 0.001
             lwf_trainer.train_epochs = 5
             lwf_trainer.train_mb_size=128
@@ -2204,7 +2314,19 @@ if TRAINING_WITH_LOOP_LwF:
             lwf_trainer.lr = 0.01
             lwf_trainer.train_epochs = 1
             lwf_trainer.train_mb_size=128
+            lwf_trainer.eval_mb_size =128'''
+        if i == 1:
+            lwf_trainer.lr = 0.00001
+            lwf_trainer.train_epochs = 5
+            lwf_trainer.train_mb_size=128
+            lwf_trainer.eval_mb_size = 128
+            lwf_trainer.ft_shared_after=5
+        if i == 2:
+            lwf_trainer.lr = 0.001
+            lwf_trainer.train_epochs = 10
+            lwf_trainer.train_mb_size=128
             lwf_trainer.eval_mb_size =128
+            lwf_trainer.ft_shared_after=3
         if i == 3:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)

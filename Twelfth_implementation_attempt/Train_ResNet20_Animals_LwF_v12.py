@@ -2150,6 +2150,17 @@ if TRAINING_WITH_LOOP_LwF:
 
     for experience in animals_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of animals_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+        '''if i == 1:
+            lwf_trainer.lr = 0.001
+            lwf_trainer.train_epochs = 5
+            lwf_trainer.train_mb_size=128
+            lwf_trainer.eval_mb_size = 128
+            lwf_trainer.ft_shared_after=3
+        if i == 2:
+            lwf_trainer.lr = 0.01
+            lwf_trainer.train_epochs = 1
+            lwf_trainer.train_mb_size=128
+            lwf_trainer.eval_mb_size =128'''
         if i == 3:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
