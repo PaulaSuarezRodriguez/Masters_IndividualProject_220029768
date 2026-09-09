@@ -68,24 +68,24 @@ from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 from avalanche.training.templates.base import TExperienceType, _experiences_parameter_as_iterable, \
     _group_experiences_by_stream
 
-from Twelfth_implementation_attempt.Config_v12 import set_seed
+from Thirteenth_implementation_attempt.Config_v13 import set_seed
 
 set_seed()  # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Twelfth_implementation_attempt.Config_v12 import set_device
+from Thirteenth_implementation_attempt.Config_v13 import set_device
 
 DEVICE = set_device()
-from Twelfth_implementation_attempt.Config_v12 import SEED
+from Thirteenth_implementation_attempt.Config_v13 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 
 RNGManager.set_random_seeds(SEED)
-from Twelfth_implementation_attempt.ResNet20_v12 import ResNet20
-from Twelfth_implementation_attempt.ResNet20_DynamicModel_v12 import ResNet20_DynamicModel
-from Twelfth_implementation_attempt.Load_cifar100_v12 import (outdoors_specialised_models_train_subset)
-from Twelfth_implementation_attempt.Load_cifar100_v12 import (outdoors_specialised_models_val_subset)
-from Twelfth_implementation_attempt.Load_cifar100_v12 import (outdoors_specialised_models_test_subset)
-from Twelfth_implementation_attempt.Load_cifar100_v12 import (nature_specialised_models_train_subset)
-from Twelfth_implementation_attempt.Load_cifar100_v12 import (nature_specialised_models_val_subset)
-from Twelfth_implementation_attempt.Load_cifar100_v12 import (nature_specialised_models_test_subset)
+from Thirteenth_implementation_attempt.ResNet20_v13 import ResNet20
+from Thirteenth_implementation_attempt.ResNet20_DynamicModel_v13 import ResNet20_DynamicModel
+from Thirteenth_implementation_attempt.Load_cifar100_v13 import (outdoors_specialised_models_train_subset)
+from Thirteenth_implementation_attempt.Load_cifar100_v13 import (outdoors_specialised_models_val_subset)
+from Thirteenth_implementation_attempt.Load_cifar100_v13 import (outdoors_specialised_models_test_subset)
+from Thirteenth_implementation_attempt.Load_cifar100_v13 import (nature_specialised_models_train_subset)
+from Thirteenth_implementation_attempt.Load_cifar100_v13 import (nature_specialised_models_val_subset)
+from Thirteenth_implementation_attempt.Load_cifar100_v13 import (nature_specialised_models_test_subset)
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
@@ -187,16 +187,6 @@ from copy import deepcopy
 import pickle
 from avalanche.training.plugins import SupervisedPlugin
 from torch.optim.adam import Adam
-from Twelfth_implementation_attempt.GradientFreezeScheduler_v1.GradientFreezeScheduler import (
-    GradientFreezeScheduler,
-    apply_gradient_freezing,
-    FreezeConfig
-)
-'''from Twelfth_implementation_attempt.GradientFreezeScheduler_v2.GradientFreezeScheduler_REVISED import (
-    GradientFreezeScheduler,
-    apply_gradient_freezing,
-    FreezeConfig
-)'''
 
 DEBUG = False  # True#False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False  # TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
@@ -205,7 +195,7 @@ TRAINING_WITHOUT_LOOP = False  # True #TODO: Remember to change TRAINING_WITHOUT
 # TRAINING_WITH_RUN_SEVERAL_EXPERIMENTS_LwF = True
 DYNAMIC_MODELS = True
 print(
-    "\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v12.py ################################ \n\n\n")
+    "\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v13.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
     resnet20_global_model = ResNet20(num_classes=100)
@@ -1233,7 +1223,7 @@ class LwFTrainer(SupervisedTemplate):
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     checkpoint_dir = Path(
-                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
+                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Thirteenth_implementation_attempt\checkpoints")
                     checkpoint_dir.mkdir(parents=True, exist_ok=True)
                     torch.save({
                         'epoch': _,
@@ -2083,7 +2073,7 @@ class LwFTrainer(SupervisedTemplate):
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
         #torch.save(checkpoint, path)
-        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Twelfth_implementation_attempt\checkpoints")
+        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Thirteenth_implementation_attempt\checkpoints")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         torch.save(checkpoint, fname, pickle_module=dill)
 

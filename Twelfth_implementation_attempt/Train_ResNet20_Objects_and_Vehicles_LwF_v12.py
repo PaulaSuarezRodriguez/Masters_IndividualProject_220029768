@@ -2233,7 +2233,7 @@ freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_sta
                 # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
                 # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-VERBOSE = True
+VERBOSE = False#True
 # DYNAMIC_MODELS = True
 
 #DIFFERENCE_CE_DIST = True
@@ -2255,7 +2255,7 @@ if TRAINING_WITH_LOOP_LwF:
     # lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1, #lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                                     temperature=2.0, alpha=0.5,
-                                    train_mb_size=64, train_epochs=30, eval_mb_size=64,
+                                    train_mb_size=64, train_epochs=50, eval_mb_size=64,
                                     patience=3, ft_shared_after=10,
                                     # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                                     evaluator=EvaluationPlugin(
@@ -2283,6 +2283,8 @@ if TRAINING_WITH_LOOP_LwF:
             #lwf_trainer.eval_mb_size = 128
             lwf_trainer.original_alpha = 1.0
             lwf_trainer.alpha = 1.0'''
+        if i == 1:
+            lwf_trainer.lr = 0.0001
         if i == 3:
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
