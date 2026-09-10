@@ -1785,6 +1785,9 @@ VERBOSE=True #False
 #DYNAMIC_MODELS = True
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
+final_specialised_models_dir = Path("./final_specialised_models")
+final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+
 if TRAINING_WITH_LOOP_LwF:
 
     #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
@@ -1810,6 +1813,7 @@ if TRAINING_WITH_LOOP_LwF:
     for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
         i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
         if i == 3:#4:
+            torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_outdoors_model.pt")
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
         print("Start of experience -- current VAL experience: ",outdoors_specialised_models_val_stream_class_il.exps_iter[i].current_experience)

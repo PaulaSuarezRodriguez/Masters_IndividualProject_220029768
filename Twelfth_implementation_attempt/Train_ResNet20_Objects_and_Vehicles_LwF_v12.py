@@ -2250,12 +2250,15 @@ FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False 
 
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
+final_specialised_models_dir = Path("./final_specialised_models")
+final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+
 if TRAINING_WITH_LOOP_LwF:
 
     # lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
     lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1, #lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                                     temperature=2.0, alpha=0.5,
-                                    train_mb_size=64, train_epochs=50, eval_mb_size=64,
+                                    train_mb_size=64, train_epochs=30, eval_mb_size=64,
                                     patience=3, ft_shared_after=10,
                                     # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                                     evaluator=EvaluationPlugin(
@@ -2283,9 +2286,22 @@ if TRAINING_WITH_LOOP_LwF:
             #lwf_trainer.eval_mb_size = 128
             lwf_trainer.original_alpha = 1.0
             lwf_trainer.alpha = 1.0'''
-        if i == 1:
-            lwf_trainer.lr = 0.0001
+        #if i == 1:
+           #lwf_trainer.lr=0.0001 # which was the lr originally passed to lwf_trainer
+           #lwf_trainer.train_epochs = 60
+        if i == 2:
+            #lwf_trainer.ft_shared_after=20
+            #lwf_trainer.lr = 0.001
+            #lwf_trainer.train_epochs = 30
+            #NEXT:
+            lwf_trainer.original_alpha = 1.0
+            lwf_trainer.alpha = 1.0
+            lwf_trainer.lr = 0.1
+            lwf_trainer.patience=15
+            VERBOSE=True
         if i == 3:
+            VERBOSE = False
+            torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_objects_and_vehicles_model.pt")
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
         print("Start of experience -- current VAL experience: ",

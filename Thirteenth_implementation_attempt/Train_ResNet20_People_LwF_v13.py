@@ -2265,6 +2265,9 @@ FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False 
 
 print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
+final_specialised_models_dir = Path("./final_specialised_models")
+final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+
 if TRAINING_WITH_LOOP_LwF:
 
     # lwf_trainer = LwFTrainer(model=people_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
@@ -2328,6 +2331,7 @@ if TRAINING_WITH_LOOP_LwF:
             lwf_trainer.eval_mb_size =128
             lwf_trainer.ft_shared_after=3
         if i == 3:
+            torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
             break
         print("Start of experience -- current TRAIN experience: ", experience.current_experience)
         print("Start of experience -- current VAL experience: ",
