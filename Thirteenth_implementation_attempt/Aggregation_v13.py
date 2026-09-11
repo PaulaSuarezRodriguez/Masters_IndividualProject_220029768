@@ -330,6 +330,18 @@ aggregator.print_report()
 # Aggregate
 aggregator.save_aggregated_weights('aggregated_backbone.pth')
 
+combined_classifier = torch.nn.Linear(64, 43)
+
+with torch.no_grad():
+    combined_classifier.weight[:3].load_state_dict(torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model_CLASSIFIER.pt"))
+    combined_classifier.bias[:3] = people_classifier.bias
+
+    combined_classifier.weight[3:23] = nature_classifier.weight
+    combined_classifier.bias[3:23] = nature_classifier.bias
+
+    combined_classifier.weight[23:43] = outdoors_classifier.weight
+    combined_classifier.bias[23:43] = outdoors_classifier.bias
+
 # Load into model
 print("\nLoading aggregated backbone into target model...")
 target_model = ResNet20_DynamicModel(num_classes=43)  # For new classes
@@ -362,7 +374,7 @@ from Thirteenth_implementation_attempt.Train_ResNet20_People_LwF_v13 import peop
 from Twelfth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v12 import objects_and_vehicles_specialised_models_test_stream_class_il
 #TODO: TEMPORARY!!!! Change to that of v13 once I have final Objects_and_Vehicles model!!!!!
 
-def make_test_dataloader_for_evaluate_all_experiences_and_bwt_aggregation(
+'''def make_test_dataloader_for_evaluate_all_experiences_and_bwt_aggregation(
                                                               # experiences: Union[TExperienceType, Iterable[TExperienceType]],
                                                               test_adapted_dataset: Optional[Dataset],
                                                               # AvalancheDataset[T_co],
@@ -384,30 +396,18 @@ def make_test_dataloader_for_evaluate_all_experiences_and_bwt_aggregation(
                                  pin_memory=pin_memory,
                                  persistent_workers=persistent_workers,
                                  drop_last=drop_last, )
-    return eval_dataloader
+    return eval_dataloader'''
 
-outdoors_specialised_models_test_stream_class_il_variable = outdoors_specialised_models_test_stream_class_il
+'''outdoors_specialised_models_test_stream_class_il_variable = outdoors_specialised_models_test_stream_class_il
 nature_specialised_models_test_stream_class_il_variable = nature_specialised_models_test_stream_class_il
 people_specialised_models_test_stream_class_il_variable = people_specialised_models_test_stream_class_il
-objects_and_vehicles_specialised_models_test_stream_class_il_variable = objects_and_vehicles_specialised_models_test_stream_class_il
+objects_and_vehicles_specialised_models_test_stream_class_il_variable = objects_and_vehicles_specialised_models_test_stream_class_il'''
 
-test_stream_dict ={}
-test_stream_dict["outdoors_specialised_models_test_stream_class_il_variable"]= outdoors_specialised_models_test_stream_class_il_variable
-test_stream_dict["nature_specialised_models_test_stream_class_il_variable"]= nature_specialised_models_test_stream_class_il_variable
-test_stream_dict["people_specialised_models_test_stream_class_il_variable"]= people_specialised_models_test_stream_class_il_variable
-test_stream_dict["objects_and_vehicles_specialised_models_test_stream_class_il_variable"]=objects_and_vehicles_specialised_models_test_stream_class_il_variable
-
-from torch.utils.data import Dataset
-
-class ListDataset(Dataset):
-    def __init__(self, data):
-        self.data = data
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        return self.data[index]
+'''test_stream_dict ={}
+test_stream_dict["outdoors_specialised_models_test_stream_class_il_variable"]= outdoors_specialised_models_test_stream_class_il
+test_stream_dict["nature_specialised_models_test_stream_class_il_variable"]= nature_specialised_models_test_stream_class_il
+test_stream_dict["people_specialised_models_test_stream_class_il_variable"]= people_specialised_models_test_stream_class_il
+test_stream_dict["objects_and_vehicles_specialised_models_test_stream_class_il_variable"]=objects_and_vehicles_specialised_models_test_stream_class_il
 
 coarse_label_list = []
 targets_list = []
@@ -438,59 +438,124 @@ for test_stream_name, test_stream in test_stream_dict.items():
     print(f"\ncoarse_label_list for {test_stream_name}", coarse_label_list)
     print(f"targets_list for {test_stream_name}", targets_list)
 
-#torch.utils.data.dataset.Dataset(coarse_label_list)
 
-'''dataset_coarse_label = ListDataset(coarse_label_list)
-dataset_targets = ListDataset(targets_list)'''
 
-coarse_label_data_attribute=make_avalanche_dataset(coarse_label_list)
-targets_data_attribute=make_avalanche_dataset(targets_list)
+test_set_global_model=[]
+for test_stream_name, test_stream in test_stream_dict.items():
+    for test_exp in test_stream:
+        if len(test_exp.dataset) != 0:
+            test_set_global_model.append(test_exp)'''
 
-#TODO: Uncomment this block later
+# NEW NEW NEW
+from torch.utils.data import ConcatDataset, DataLoader
 
-make_avalanche_dataset(outdoors_specialised_models_test_stream_class_il[0])
-make_avalanche_dataset(outdoors_specialised_models_test_stream_class_il[1])
-make_avalanche_dataset(outdoors_specialised_models_test_stream_class_il[2])
-make_avalanche_dataset(outdoors_specialised_models_test_stream_class_il[3])
-make_avalanche_dataset(outdoors_specialised_models_test_stream_class_il[4])
+'''outdoors_specialised_models_test_stream_class_il = DataLoader(outdoors_specialised_models_test_stream_class_il)
+nature_specialised_models_test_stream_class_il = DataLoader(nature_specialised_models_test_stream_class_il)
+people_specialised_models_test_stream_class_il = DataLoader(people_specialised_models_test_stream_class_il)
+objects_and_vehicles_specialised_models_test_stream_class_il = DataLoader(objects_and_vehicles_specialised_models_test_stream_class_il)
 
-test_set_global_model = outdoors_specialised_models_test_stream_class_il[0].concat(outdoors_specialised_models_test_stream_class_il[1])
-print("test_set_global_model VERSION 1", test_set_global_model)
-
-avl_test_outdoors = make_avalanche_dataset(outdoors_specialised_models_test_stream_class_il)
-avl_test_nature = make_avalanche_dataset(nature_specialised_models_test_stream_class_il)
-avl_test_people = make_avalanche_dataset(people_specialised_models_test_stream_class_il)
-avl_test_objects_and_vehicles = make_avalanche_dataset(objects_and_vehicles_specialised_models_test_stream_class_il)
-
-test_set_global_model = avl_test_outdoors.concat(avl_test_nature)
-test_set_global_model = test_set_global_model.concat(avl_test_people)
-test_set_global_model = test_set_global_model.concat(avl_test_objects_and_vehicles)
-
-print("test_set_global_model", test_set_global_model)
+combined_dataset = ConcatDataset([outdoors_specialised_models_test_stream_class_il, nature_specialised_models_test_stream_class_il, people_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_test_stream_class_il])
 '''
-test_set_global_model = ClassificationDataset(
-    [test_set_global_model],
-    data_attributes=[DataAttribute(coarse_label_data_attribute, "coarse_label"),
-                     DataAttribute(targets_data_attribute, "targets")],)'''
+
+test_stream_dict ={}
+test_stream_dict["outdoors_specialised_models_test_stream_class_il_variable"]= outdoors_specialised_models_test_stream_class_il
+test_stream_dict["nature_specialised_models_test_stream_class_il_variable"]= nature_specialised_models_test_stream_class_il
+test_stream_dict["people_specialised_models_test_stream_class_il_variable"]= people_specialised_models_test_stream_class_il
+test_stream_dict["objects_and_vehicles_specialised_models_test_stream_class_il_variable"]=objects_and_vehicles_specialised_models_test_stream_class_il
+
+for test_stream_name, test_stream in test_stream_dict.items():
+    for test_exp in test_stream:
+        if len(test_exp.dataset) != 0:
+            print(
+                f"{test_stream_name}.Exp{test_exp.current_experience}.dataset.coarse_label.uniques (coarse_labels of TEST)",
+                test_exp.dataset.coarse_label.uniques
+            )
+
+            print(
+                f"{test_stream_name}.Exp{test_exp.current_experience}.dataset.targets.uniques (targets of TEST)",
+                test_exp.dataset.targets.uniques
+            )
+
+print("type", type(outdoors_specialised_models_test_stream_class_il[0].dataset))
+
+combined_dataset_outdoors = ConcatDataset([
+    outdoors_specialised_models_test_stream_class_il[0].dataset,
+    outdoors_specialised_models_test_stream_class_il[1].dataset,
+    outdoors_specialised_models_test_stream_class_il[2].dataset,
+    #outdoors_specialised_models_test_stream_class_il[3].dataset,
+    #outdoors_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature = ConcatDataset([
+    nature_specialised_models_test_stream_class_il[0].dataset,
+    nature_specialised_models_test_stream_class_il[1].dataset,
+    nature_specialised_models_test_stream_class_il[2].dataset,
+    #nature_specialised_models_test_stream_class_il[3].dataset,
+    #nature_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_people = ConcatDataset([
+    people_specialised_models_test_stream_class_il[0].dataset,
+    people_specialised_models_test_stream_class_il[1].dataset,
+    people_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles = ConcatDataset([
+    objects_and_vehicles_specialised_models_test_stream_class_il[0].dataset,
+    objects_and_vehicles_specialised_models_test_stream_class_il[1].dataset,
+    objects_and_vehicles_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset = ConcatDataset([
+    combined_dataset_outdoors,combined_dataset_nature, combined_dataset_people, combined_dataset_objects_and_vehicles
+])
+
+test_loader = DataLoader(
+    combined_dataset,
+    batch_size=32,
+    shuffle=True
+)
+print("print test_loader", test_loader)
+print("print test_loader.dataset", test_loader.dataset)
 
 
-'''avl_test = ClassificationDataset(
-    [avl_test],  # [nature_specialised_models_test_subset.dataset],
-    data_attributes=[DataAttribute(nature_specialised_models_test_subset.dataset.coarse_label, "coarse_label"),
-                     DataAttribute(nature_specialised_models_test_subset.dataset.targets, "targets")],
-    # "fine_label")],
-)'''
+for batch in test_loader:
+    print(type(batch))
+    print(len(batch))
+    for i, item in enumerate(batch):
+        print(i, type(item), getattr(item, "shape", None))
+        print(type(batch))
+    break
 
-#TODO: Uncomment later
-'''target_model.eval()
 
-test_adapted_dataset = test_set_global_model.eval() #FAILED --> test_adapted_dataset = test_set_global_model.dataset.eval()
-test_dataloader = make_test_dataloader_for_evaluate_all_experiences_and_bwt_aggregation(test_adapted_dataset,test_mb_size=64)
-#TRY NEXT IF ABOVE FAILS --> test_adapted_dataset = test_set_global_model.eval()
+print("test_loader.batch_sampler",test_loader.batch_sampler)
+
+correct = 0
+total = 0
 
 with torch.no_grad():
+    for batch_data, batch_labels, batch_task_ids in test_loader:
+        #print(type(batch_data))
+        #print(type(batch_labels))
+        #print(type(batch_task_ids))
+
+        #print("print(batch_labels)",batch_labels)
+        #print("print(batch_task_ids)",batch_task_ids)
+
+        outputs = target_model(batch_data)
+
+        predictions = outputs.argmax(dim=1)
+
+        correct += (predictions == batch_labels).sum().item()
+        total += batch_labels.size(0)
+
+accuracy = correct / total
+print(f"Fine-tuned model accuracy: {accuracy:.2%}")
+
+'''target_model.eval()
+with torch.no_grad():
     accuracy = 0.0
-    for batch_data, batch_labels in test_dataloader:
+    for batch_data, batch_labels in test_loader:
         outputs = target_model(batch_data)
         accuracy += (outputs.argmax(1) == batch_labels).float().mean().item()
 

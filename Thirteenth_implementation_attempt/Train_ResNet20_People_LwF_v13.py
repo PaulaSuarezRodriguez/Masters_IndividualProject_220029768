@@ -198,8 +198,8 @@ TRAINING_WITHOUT_LOOP = False  # True #TODO: Remember to change TRAINING_WITHOUT
 # TRAINING_WITH_LOOP_LwF = False#True
 # TRAINING_WITH_RUN_SEVERAL_EXPERIMENTS_LwF = True
 DYNAMIC_MODELS = True
-print(
-    "\n\n\n################################ HERE BEGINS Train_ResNet20_Outdoors_v13.py ################################ \n\n\n")
+
+print("\n\n\n################################ HERE BEGINS Train_ResNet20_People_LwF_v13.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
     resnet20_global_model = ResNet20(num_classes=100)
@@ -2227,147 +2227,156 @@ Process finished with exit code 0
 
 '''
 
-MATCH_AUTHOR_DISTILL = True
-MATCH_AUTHOR_LOSS = True
+if __name__ == "__main__":
 
-EARLY_STOPPING_LOOP_1 = False  # True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
-#                                  EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
-#                                  "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
-EARLY_STOPPING_LOOP_2 = False
-EARLY_STOPPING_LOOP_3 = False
-EARLY_STOPPING_LOOP_4 = False
-EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC = False
-EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
-#                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
-#                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
+    MATCH_AUTHOR_DISTILL = True
+    MATCH_AUTHOR_LOSS = True
 
-#acc_limit=80 # best for binary strategy
-acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
-freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
-                # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
-                # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
-                # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
+    EARLY_STOPPING_LOOP_1 = False  # True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
+    #                                  EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
+    #                                  "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
+    EARLY_STOPPING_LOOP_2 = False
+    EARLY_STOPPING_LOOP_3 = False
+    EARLY_STOPPING_LOOP_4 = False
+    EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC = False
+    EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
+    #                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
+    #                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
 
-VERBOSE = True
-# DYNAMIC_MODELS = True
+    #acc_limit=80 # best for binary strategy
+    acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
+    freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
+                    # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
+                    # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
+                    # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-DIFFERENCE_CE_DIST = True
-# DIFFERENCE_CE_DIST= False
+    VERBOSE = False#True
+    # DYNAMIC_MODELS = True
 
-TRAINING_WITH_LOOP_LwF =True# False
-# TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-FREEZING_ORIGINAL=False#True #False
-FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #False
-FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
-FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
-FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=False #True
-FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
+    DIFFERENCE_CE_DIST = True
+    # DIFFERENCE_CE_DIST= False
 
-print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
+    TRAINING_WITH_LOOP_LwF =True# False
+    # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
+    FREEZING_ORIGINAL=False#True #False
+    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #False
+    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
+    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
+    FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=False #True
+    FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
 
-final_specialised_models_dir = Path("./final_specialised_models")
-final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+    print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
-if TRAINING_WITH_LOOP_LwF:
+    final_specialised_models_dir = Path("./final_specialised_models")
+    final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
 
-    # lwf_trainer = LwFTrainer(model=people_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-    '''lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=1.0,
-                             train_mb_size=128, train_epochs=5, eval_mb_size=128,
-                             patience=3, ft_shared_after=10,
-                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
-                                                        loss_metrics(experience=True, stream=True),
-                                                        #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
-                                                        loggers=InteractiveLogger(), collect_all=True),
-                             eval_every=1,)
+    if TRAINING_WITH_LOOP_LwF:
 
-    seen_experiences = []
-    seen_experiences_val = []'''
+        # lwf_trainer = LwFTrainer(model=people_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
+        '''lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                                 temperature=2.0, alpha=1.0,
+                                 train_mb_size=128, train_epochs=5, eval_mb_size=128,
+                                 patience=3, ft_shared_after=10,
+                                 #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                                 evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
+                                                            loss_metrics(experience=True, stream=True),
+                                                            #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
+                                                            loggers=InteractiveLogger(), collect_all=True),
+                                 eval_every=1,)
+    
+        seen_experiences = []
+        seen_experiences_val = []'''
 
-    # for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v13.py
-    #people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-        #class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])
+        # for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v13.py
+        #people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
+            #class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])
 
-    #"people": ["woman", "girl", "baby", "man", "boy"],
+        #"people": ["woman", "girl", "baby", "man", "boy"],
 
-    lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=1.0,
-                             train_mb_size=128, train_epochs=5, eval_mb_size=128,
-                             patience=3, ft_shared_after=10,
-                             #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                             evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
-                                                        loss_metrics(experience=True, stream=True),
-                                                        #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
-                                                        loggers=InteractiveLogger(), collect_all=True),
-                             eval_every=1,)
+        lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                                 temperature=2.0, alpha=1.0,
+                                 train_mb_size=128, train_epochs=5, eval_mb_size=128,
+                                 patience=3, ft_shared_after=10,
+                                 #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                                 evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
+                                                            loss_metrics(experience=True, stream=True),
+                                                            #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
+                                                            loggers=InteractiveLogger(), collect_all=True),
+                                 eval_every=1,)
 
-    seen_experiences = []
-    seen_experiences_val = []
+        seen_experiences = []
+        seen_experiences_val = []
+        seen_experiences_sizes = 0
 
-    for experience in people_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
-        i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of people_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-        '''if i == 1:
-            lwf_trainer.lr = 0.001
-            lwf_trainer.train_epochs = 5
-            lwf_trainer.train_mb_size=128
-            lwf_trainer.eval_mb_size = 128
-            lwf_trainer.ft_shared_after=3
-        if i == 2:
-            lwf_trainer.lr = 0.01
-            lwf_trainer.train_epochs = 1
-            lwf_trainer.train_mb_size=128
-            lwf_trainer.eval_mb_size =128'''
-        if i == 1:
-            lwf_trainer.lr = 0.00001
-            lwf_trainer.train_epochs = 5
-            lwf_trainer.train_mb_size=128
-            lwf_trainer.eval_mb_size = 128
-            lwf_trainer.ft_shared_after=5
-        if i == 2:
-            lwf_trainer.lr = 0.001
-            lwf_trainer.train_epochs = 10
-            lwf_trainer.train_mb_size=128
-            lwf_trainer.eval_mb_size =128
-            lwf_trainer.ft_shared_after=3
-        if i == 3:
-            torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
-            break
-        print("Start of experience -- current TRAIN experience: ", experience.current_experience)
-        print("Start of experience -- current VAL experience: ",
-              people_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
-        print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
-        print("Current Classes -- current VAL .classes_in_this_experience: ",
-              people_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
-        print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)",
-              experience.dataset.coarse_label.uniques)
-        print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
-        print(
-            "people_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)",
-            people_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
-        print("people_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)",
-              people_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
-        print("print(experience.origin_stream.name)", experience.origin_stream.name)
-        print("print(people_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)",
-              people_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
-        # print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-        # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
-        # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-        # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-        print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
-        seen_experiences.append(experience)
-        seen_experiences_val.append(people_specialised_models_val_stream_class_il[i])
-        lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [people_specialised_models_train_stream_class_il,people_specialised_models_val_stream_class_il])
-        print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
-        if EARLY_STOPPING_LOOP_5:
-            print("acc_limit:", acc_limit)
+        for experience in people_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
+            i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of people_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+            '''if i == 1:
+                lwf_trainer.lr = 0.001
+                lwf_trainer.train_epochs = 5
+                lwf_trainer.train_mb_size=128
+                lwf_trainer.eval_mb_size = 128
+                lwf_trainer.ft_shared_after=3
+            if i == 2:
+                lwf_trainer.lr = 0.01
+                lwf_trainer.train_epochs = 1
+                lwf_trainer.train_mb_size=128
+                lwf_trainer.eval_mb_size =128'''
+            if i == 1:
+                lwf_trainer.lr = 0.00001
+                lwf_trainer.train_epochs = 5
+                lwf_trainer.train_mb_size=128
+                lwf_trainer.eval_mb_size = 128
+                lwf_trainer.ft_shared_after=5
+            if i == 2:
+                lwf_trainer.lr = 0.001
+                lwf_trainer.train_epochs = 10
+                lwf_trainer.train_mb_size=128
+                lwf_trainer.eval_mb_size =128
+                lwf_trainer.ft_shared_after=3
+            if i == 3:
+                torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
+                torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_CLASSIFIER.pt")
+                torch.save(lwf_trainer.model.linear.weight.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_WEIGHTS.pt")
+                torch.save(lwf_trainer.model.linear.bias.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_BIAS.pt")
+                print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
+                break
+            print("Start of experience -- current TRAIN experience: ", experience.current_experience)
+            print("Start of experience -- current VAL experience: ",
+                  people_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
+            print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
+            print("Current Classes -- current VAL .classes_in_this_experience: ",
+                  people_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
+            print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)",
+                  experience.dataset.coarse_label.uniques)
+            print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
+            print(
+                "people_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)",
+                people_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
+            print("people_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)",
+                  people_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
+            print("print(experience.origin_stream.name)", experience.origin_stream.name)
+            print("print(people_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)",
+                  people_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
+            # print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+            # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
+            # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
+            # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+            print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
+            seen_experiences.append(experience)
+            seen_experiences_sizes += len(experience.dataset)
+            print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
+            seen_experiences_val.append(people_specialised_models_val_stream_class_il[i])
+            lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [people_specialised_models_train_stream_class_il,people_specialised_models_val_stream_class_il])
+            print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
+            if EARLY_STOPPING_LOOP_5:
+                print("acc_limit:", acc_limit)
 
-    print('Training completed WITH LwFTrainer')
-    print("lwf_trainer.results", lwf_trainer.results)
-    # print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
-    '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
-    print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
-    print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch']",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'])
-    print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
-    # print("lwf_trainer.evaluate_all_experiences(people_specialised_models_val_stream_class_il)")
-    # lwf_trainer.evaluate_all_experiences_post_training(people_specialised_models_val_stream_class_il)#(seen_experiences_val)
+        print('Training completed WITH LwFTrainer')
+        print("lwf_trainer.results", lwf_trainer.results)
+        # print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
+        '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
+        print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
+        print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch']",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'])
+        print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
+        # print("lwf_trainer.evaluate_all_experiences(people_specialised_models_val_stream_class_il)")
+        # lwf_trainer.evaluate_all_experiences_post_training(people_specialised_models_val_stream_class_il)#(seen_experiences_val)
