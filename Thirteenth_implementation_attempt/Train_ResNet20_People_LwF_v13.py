@@ -2336,8 +2336,10 @@ if __name__ == "__main__":
             if i == 3:
                 torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
                 torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_CLASSIFIER.pt")
-                torch.save(lwf_trainer.model.linear.weight.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_WEIGHTS.pt")
-                torch.save(lwf_trainer.model.linear.bias.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_BIAS.pt")
+                print("lwf_trainer.model.linear", lwf_trainer.model.linear)
+                print("lwf_trainer.model.linear.state_dict", lwf_trainer.model.linear.weight.shape)
+                #torch.save(lwf_trainer.model.linear.weight.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_WEIGHTS.pt")
+                #torch.save(lwf_trainer.model.linear.bias.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_BIAS.pt")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
                 break
             print("Start of experience -- current TRAIN experience: ", experience.current_experience)
@@ -2380,3 +2382,7 @@ if __name__ == "__main__":
         print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
         # print("lwf_trainer.evaluate_all_experiences(people_specialised_models_val_stream_class_il)")
         # lwf_trainer.evaluate_all_experiences_post_training(people_specialised_models_val_stream_class_il)#(seen_experiences_val)
+        print("lwf_trainer.model.linear", lwf_trainer.model.linear)
+        print("lwf_trainer.model.linear.state_dict", lwf_trainer.model.linear.weight.shape)
+        print("people_specialised_model.linear", people_specialised_model.linear)
+        print("people_specialised_model.linear.state_dict", people_specialised_model.linear.weight.shape)

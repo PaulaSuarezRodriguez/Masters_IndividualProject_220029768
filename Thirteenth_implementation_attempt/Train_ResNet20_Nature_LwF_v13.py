@@ -2263,8 +2263,8 @@ if __name__ == "__main__":
             if i == 3:  # 4:#3:
                 torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_nature_model.pt")
                 torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_nature_model_CLASSIFIER.pt")
-                torch.save(lwf_trainer.model.linear.weight.state_dict(), f"./final_specialised_models/final_nature_model_CLASSIFIER_WEIGHTS.pt")
-                torch.save(lwf_trainer.model.linear.bias.state_dict(), f"./final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt")
+                torch.save(lwf_trainer.model.linear.weight.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_WEIGHTS.pt")
+                torch.save(lwf_trainer.model.linear.bias.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
                 break
             print("Start of experience -- current TRAIN experience: ", experience.current_experience)

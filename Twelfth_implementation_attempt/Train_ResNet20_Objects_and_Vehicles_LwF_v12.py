@@ -2274,173 +2274,171 @@ if __name__ == "__main__":
 
     import sys
 
-    with open("output.txt", "w") as f:
-        sys.stdout = f
+    # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
+    FREEZING_ORIGINAL = False
+    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS = False
+    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS =False
+    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS = False
+    FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS = False
+    FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after =False
 
-        # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-        FREEZING_ORIGINAL = False
-        FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS = False
-        FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS =False
-        FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS = False
-        FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS = False
-        FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after =False
+    freezing_set_up_list = {"FREEZING_ORIGINAL":FREEZING_ORIGINAL,
+                            "FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS":FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS,
+                            "FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS":FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS,
+                            "FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS":FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS,
+                            "FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS":FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS,
+                            "FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after":FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after
+                            }
 
-        freezing_set_up_list = {"FREEZING_ORIGINAL":FREEZING_ORIGINAL,
-                                "FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS":FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS,
-                                "FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS":FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS,
-                                "FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS":FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS,
-                                "FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS":FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS,
-                                "FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after":FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after
-                                }
+    for freezing_set_up_keys , freezing_set_up in freezing_set_up_list.items():
+        print(f"\n{'#' * 100}")
+        print("CURRENT freezing_set_up -->",freezing_set_up_keys)
+        print("Print freezing_set_up_list -->", freezing_set_up_list)
+        if freezing_set_up == False:
+            freezing_set_up =True
+            print(f"Value of CURRENT freezing_set_up {freezing_set_up_keys} = {freezing_set_up}")
+        print(f"\n{'#' * 100}")
 
-        for freezing_set_up_keys , freezing_set_up in freezing_set_up_list.items():
-            print(f"\n{'#' * 100}")
-            print("CURRENT freezing_set_up -->",freezing_set_up_keys)
-            print("Print freezing_set_up_list -->", freezing_set_up_list)
-            if freezing_set_up == False:
-                freezing_set_up =True
-                print(f"Value of CURRENT freezing_set_up {freezing_set_up_keys} = {freezing_set_up}")
-            print(f"\n{'#' * 100}")
+        print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
-            print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
+        final_specialised_models_dir = Path("./final_specialised_models")
+        final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
 
-            final_specialised_models_dir = Path("./final_specialised_models")
-            final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+        if TRAINING_WITH_LOOP_LwF:
+        #TODO: IMPORTANT!!!!!!!!!! ALL MODEL CREATION STATEMENTS (both dynamic and non-dynamic models) HAVE BEEN COMMENTED OUT!!!!
+        # (other than that of objects_and_vehicles_specialised_model Dynamic). REMEMBER AS IT MAY AFFECT FINAL RESULTS LIKE IT HAPPENED IN People!!!!
+        # However, so far, with the hyperparameter/fine-tuning/training set-up I had yesterday, for objects_and_vehicles_specialised_model Dynamic,
+        # it does not seem to have any effect. HOWEVER!!!! KEEP AN EYE OUT, AS GIVEN WHAT HAPPENED WITH THE People model, WE CANNOT BE CERTAIN.
+        # Also, starting today I am fine-tuning the objects_and_vehicles_specialised_model Dynamic WITH ALL OTHER MODEL CREATION STATEMENTS COMMENTED OUT!!!!
+        # MEANING!!!!!!! IF I FIND A STRATEGY THAT PRODUCES A GOOD ENOUGH MODEL I WOULD LIKE TO DEEM THE BEST, objects_and_vehicles_specialised_model,
+        # TO RE-CREATE RESULTS IT IS ESSENTIAL THAT ALL OTHER MODEL CREATION STATEMENTS COMMENTED OUT!!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WE DO NOT WANT WHAT HAPPENED WITH THE People model REPEATING ITSELF !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            if TRAINING_WITH_LOOP_LwF:
-            #TODO: IMPORTANT!!!!!!!!!! ALL MODEL CREATION STATEMENTS (both dynamic and non-dynamic models) HAVE BEEN COMMENTED OUT!!!!
-            # (other than that of objects_and_vehicles_specialised_model Dynamic). REMEMBER AS IT MAY AFFECT FINAL RESULTS LIKE IT HAPPENED IN People!!!!
-            # However, so far, with the hyperparameter/fine-tuning/training set-up I had yesterday, for objects_and_vehicles_specialised_model Dynamic,
-            # it does not seem to have any effect. HOWEVER!!!! KEEP AN EYE OUT, AS GIVEN WHAT HAPPENED WITH THE People model, WE CANNOT BE CERTAIN.
-            # Also, starting today I am fine-tuning the objects_and_vehicles_specialised_model Dynamic WITH ALL OTHER MODEL CREATION STATEMENTS COMMENTED OUT!!!!
-            # MEANING!!!!!!! IF I FIND A STRATEGY THAT PRODUCES A GOOD ENOUGH MODEL I WOULD LIKE TO DEEM THE BEST, objects_and_vehicles_specialised_model,
-            # TO RE-CREATE RESULTS IT IS ESSENTIAL THAT ALL OTHER MODEL CREATION STATEMENTS COMMENTED OUT!!!!
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WE DO NOT WANT WHAT HAPPENED WITH THE People model REPEATING ITSELF !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        #TODO: ANOTHER IMPORTANT THING TO REMEMBER!!!!!!!!!! If ever re-creating the results for "GitHub commit: Train_ResNet20_Objects_and_Vehicles_LwF_v12.py as is, is the new best performing Object_and_vehicles_model".
+        # That is, of the best Objects_and_Vehicles model so far that is saved as a comment above, I MUST UNCOMMENT THE MODEL CREATION STATEMENTS FOR ALL
+        # OTHER MODELS, SINCE THAT WAS THE STATE OF THE .py FILE WITH WHICH THOSE BEST RESULTS WERE ACHIEVED!!!!!!!!!!!!!!!!!! SUPER IMPORTANT !!!!!!!!!!!!!!!!!
+        # !!!!!!!!!!!!!!!!!! SUPER IMPORTANT !!!!!!!!!!!!!!!!!! WE DO NOT WANT WHAT HAPPENED WITH THE People model REPEATING ITSELF !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            #TODO: ANOTHER IMPORTANT THING TO REMEMBER!!!!!!!!!! If ever re-creating the results for "GitHub commit: Train_ResNet20_Objects_and_Vehicles_LwF_v12.py as is, is the new best performing Object_and_vehicles_model".
-            # That is, of the best Objects_and_Vehicles model so far that is saved as a comment above, I MUST UNCOMMENT THE MODEL CREATION STATEMENTS FOR ALL
-            # OTHER MODELS, SINCE THAT WAS THE STATE OF THE .py FILE WITH WHICH THOSE BEST RESULTS WERE ACHIEVED!!!!!!!!!!!!!!!!!! SUPER IMPORTANT !!!!!!!!!!!!!!!!!
-            # !!!!!!!!!!!!!!!!!! SUPER IMPORTANT !!!!!!!!!!!!!!!!!! WE DO NOT WANT WHAT HAPPENED WITH THE People model REPEATING ITSELF !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            #TODO: from before changing benchmark
+            '''lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1, #lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                                            temperature=2.0, alpha=0.5,
+                                            train_mb_size=64, train_epochs=30, eval_mb_size=64,
+                                            patience=3, ft_shared_after=10,
+                                            # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                                            evaluator=EvaluationPlugin(
+                                                # accuracy_metrics(experience=True, stream=True),
+                                                loss_metrics(experience=True, stream=True),
+                                                # forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
+                                                loggers=InteractiveLogger(), collect_all=True),
+                                            eval_every=1, )'''
 
-                #TODO: from before changing benchmark
-                '''lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu",lr=0.001,momentum=0.9,weight_decay=5e-4, lr_decay_factor=0.1, #lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                                                temperature=2.0, alpha=0.5,
-                                                train_mb_size=64, train_epochs=30, eval_mb_size=64,
-                                                patience=3, ft_shared_after=10,
-                                                # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                                                evaluator=EvaluationPlugin(
-                                                    # accuracy_metrics(experience=True, stream=True),
-                                                    loss_metrics(experience=True, stream=True),
-                                                    # forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
-                                                    loggers=InteractiveLogger(), collect_all=True),
-                                                eval_every=1, )'''
+            # lwf_trainer from best objects_and_vehicles_model recorded !!!! Shown in comments above
+            lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu", lr=0.001, momentum=0.9,
+                                 weight_decay=5e-4, lr_decay_factor=0.1,
+                                 # lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+                                 temperature=2.0, alpha=0.5,
+                                 train_mb_size=64, train_epochs=30, eval_mb_size=64,
+                                 patience=3, ft_shared_after=10,
+                                 # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
+                                 evaluator=EvaluationPlugin(
+                                     # accuracy_metrics(experience=True, stream=True),
+                                     loss_metrics(experience=True, stream=True),
+                                     # forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
+                                     loggers=InteractiveLogger(), collect_all=True),
+                                 eval_every=1, )
+            seen_experiences = []
+            seen_experiences_val = []
+            seen_experiences_sizes = 0
 
-                # lwf_trainer from best objects_and_vehicles_model recorded !!!! Shown in comments above
-                lwf_trainer = LwFTrainer(model=objects_and_vehicles_specialised_model, device="cpu", lr=0.001, momentum=0.9,
-                                     weight_decay=5e-4, lr_decay_factor=0.1,
-                                     # lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                                     temperature=2.0, alpha=0.5,
-                                     train_mb_size=64, train_epochs=30, eval_mb_size=64,
-                                     patience=3, ft_shared_after=10,
-                                     # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
-                                     evaluator=EvaluationPlugin(
-                                         # accuracy_metrics(experience=True, stream=True),
-                                         loss_metrics(experience=True, stream=True),
-                                         # forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
-                                         loggers=InteractiveLogger(), collect_all=True),
-                                     eval_every=1, )
-                seen_experiences = []
-                seen_experiences_val = []
-                seen_experiences_sizes = 0
+            for experience in objects_and_vehicles_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
+                i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+                '''if i == 1:
+                    lwf_trainer.lr = 0.0001
+                    lwf_trainer.train_epochs = 5
+                    lwf_trainer.train_mb_size = 64
+                    lwf_trainer.eval_mb_size = 64
+                    #lwf_trainer.ft_shared_after = 5
+                if i == 2:
+                    #lwf_trainer.lr = 0.01
+                    #lwf_trainer.train_epochs = 1
+                    #lwf_trainer.train_mb_size = 128
+                    #lwf_trainer.eval_mb_size = 128
+                    lwf_trainer.original_alpha = 1.0
+                    lwf_trainer.alpha = 1.0'''
+                #if i == 1: #TODO: from before changing benchmark
+                   #lwf_trainer.lr=0.0001 # which was the lr originally passed to lwf_trainer#TODO: from before changing benchmark
+                   #lwf_trainer.train_epochs = 60#TODO: from before changing benchmark
+                '''if i == 2:
+                    #lwf_trainer.ft_shared_after=20#TODO: from before changing benchmark
+                    #lwf_trainer.lr = 0.001#TODO: from before changing benchmark
+                    #lwf_trainer.train_epochs = 30#TODO: from before changing benchmark
+                    lwf_trainer.original_alpha = 1.0 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
+                    lwf_trainer.alpha = 1.0 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
+                    lwf_trainer.lr = 0.1 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
+                    lwf_trainer.patience=15 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
+                    VERBOSE=True'''
 
-                for experience in objects_and_vehicles_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
-                    i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-                    '''if i == 1:
-                        lwf_trainer.lr = 0.0001
-                        lwf_trainer.train_epochs = 5
-                        lwf_trainer.train_mb_size = 64
-                        lwf_trainer.eval_mb_size = 64
-                        #lwf_trainer.ft_shared_after = 5
-                    if i == 2:
-                        #lwf_trainer.lr = 0.01
-                        #lwf_trainer.train_epochs = 1
-                        #lwf_trainer.train_mb_size = 128
-                        #lwf_trainer.eval_mb_size = 128
-                        lwf_trainer.original_alpha = 1.0
-                        lwf_trainer.alpha = 1.0'''
-                    #if i == 1: #TODO: from before changing benchmark
-                       #lwf_trainer.lr=0.0001 # which was the lr originally passed to lwf_trainer#TODO: from before changing benchmark
-                       #lwf_trainer.train_epochs = 60#TODO: from before changing benchmark
-                    '''if i == 2:
-                        #lwf_trainer.ft_shared_after=20#TODO: from before changing benchmark
-                        #lwf_trainer.lr = 0.001#TODO: from before changing benchmark
-                        #lwf_trainer.train_epochs = 30#TODO: from before changing benchmark
-                        lwf_trainer.original_alpha = 1.0 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
-                        lwf_trainer.alpha = 1.0 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
-                        lwf_trainer.lr = 0.1 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
-                        lwf_trainer.patience=15 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
-                        VERBOSE=True'''
+                if i !=3:
+                    print(f"\n{'#' * 100}")
+                    print("freezing_set_up of iteration that just started:", freezing_set_up_keys)
+                    print(f"freezing_set_up_list at the start of freezing_set_up {freezing_set_up_keys} iterations: {freezing_set_up_list}")
+                    if "FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS" in freezing_set_up_keys:
+                        print(f"{freezing_set_up_keys}!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                              f"freezing_set_up of BEST PERFORMING Objects_and_vehicles model recorded !!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print(f"{'#' * 100}")
+                if i == 3:
+                    VERBOSE = False
+                    torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_objects_and_vehicles_model.pt")
+                    torch.save(lwf_trainer.model.linear.state_dict(),f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
+                    #torch.save(lwf_trainer.model.linear.weight,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_WEIGHTS.pt")
+                    #torch.save(lwf_trainer.model.linear.bias,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_BIAS.pt")
+                    print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
+                    break
+                print("Start of experience -- current TRAIN experience: ", experience.current_experience)
+                print("Start of experience -- current VAL experience: ",
+                      objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
+                print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
+                print("Current Classes -- current VAL .classes_in_this_experience: ",
+                      objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
+                print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)",
+                      experience.dataset.coarse_label.uniques)
+                print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
+                print(
+                    "objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)",
+                    objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
+                print("objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)",
+                      objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
+                print("print(experience.origin_stream.name)", experience.origin_stream.name)
+                print("print(objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)",
+                      objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
+                # print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+                # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
+                # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
+                # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
+                print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
+                seen_experiences.append(experience)
+                seen_experiences_sizes += len(experience.dataset)
+                print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
+                seen_experiences_val.append(objects_and_vehicles_specialised_models_val_stream_class_il[i])
+                lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [objects_and_vehicles_specialised_models_train_stream_class_il,objects_and_vehicles_specialised_models_val_stream_class_il])
+                print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
+                if EARLY_STOPPING_LOOP_5:
+                    print("acc_limit:", acc_limit)
 
-                    if i !=3:
-                        print(f"\n{'#' * 100}")
-                        print("freezing_set_up of iteration that just started:", freezing_set_up_keys)
-                        print(f"freezing_set_up_list at the start of freezing_set_up {freezing_set_up_keys} iterations: {freezing_set_up_list}")
-                        if "FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS" in freezing_set_up_keys:
-                            print(f"{freezing_set_up_keys}!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                                  f"freezing_set_up of BEST PERFORMING Objects_and_vehicles model recorded !!!!!!!!!!!!!!!!!!!!!!!!!!")
-                        print(f"{'#' * 100}")
-                    if i == 3:
-                        VERBOSE = False
-                        torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_objects_and_vehicles_model.pt")
-                        torch.save(lwf_trainer.model.linear.state_dict(),f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
-                        torch.save(lwf_trainer.model.linear.weight,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_WEIGHTS.pt")
-                        torch.save(lwf_trainer.model.linear.bias,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_BIAS.pt")
-                        print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
-                        break
-                    print("Start of experience -- current TRAIN experience: ", experience.current_experience)
-                    print("Start of experience -- current VAL experience: ",
-                          objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].current_experience)
-                    print("Current Classes -- current TRAIN .classes_in_this_experience: ", experience.classes_in_this_experience)
-                    print("Current Classes -- current VAL .classes_in_this_experience: ",
-                          objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].classes_in_this_experience)
-                    print("experience.dataset.coarse_label.uniques (coarse_labels of TRAIN)",
-                          experience.dataset.coarse_label.uniques)
-                    print("experience.dataset.targets (targets of TRAIN)", experience.dataset.targets.uniques)
-                    print(
-                        "objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques (coarse_labels of VAL)",
-                        objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.coarse_label.uniques)
-                    print("objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets (targets of VAL)",
-                          objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].dataset.targets.uniques)
-                    print("print(experience.origin_stream.name)", experience.origin_stream.name)
-                    print("print(objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)",
-                          objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[i].origin_stream.name)
-                    # print("print(criterion_masked.current_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-                    # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
-                    # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
-                    # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-                    print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
-                    seen_experiences.append(experience)
-                    seen_experiences_sizes += len(experience.dataset)
-                    print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
-                    seen_experiences_val.append(objects_and_vehicles_specialised_models_val_stream_class_il[i])
-                    lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [objects_and_vehicles_specialised_models_train_stream_class_il,objects_and_vehicles_specialised_models_val_stream_class_il])
-                    print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
-                    if EARLY_STOPPING_LOOP_5:
-                        print("acc_limit:", acc_limit)
-
-                print('Training completed WITH LwFTrainer')
-                print("lwf_trainer.results", lwf_trainer.results)
-                # print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
-                '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
-                print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
-                print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch']",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'])
-                print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
-                # print("lwf_trainer.evaluate_all_experiences(objects_and_vehicles_specialised_models_val_stream_class_il)")
-                # lwf_trainer.evaluate_all_experiences_post_training(objects_and_vehicles_specialised_models_val_stream_class_il)#(seen_experiences_val)
-            print(f"{'#' * 100}")
-            print("freezing_set_up of iteration that just concluded:", freezing_set_up_keys)
-            print(f"Value of CURRENT freezing_set_up {freezing_set_up_keys} of iteration that just concluded = {freezing_set_up}")
-            print("freezing_set_up_list BEFORE freezing_set_up_list.pop(freezing_set_up):\n", freezing_set_up_list, "\n")
-            #freezing_set_up_list = freezing_set_up_list.pop(freezing_set_up_keys) #freezing_set_up_list.remove(freezing_set_up)
-            #print("freezing_set_up_list AFTER freezing_set_up_list.pop(freezing_set_up_keys):\n",freezing_set_up_list)
-            print(f"{'#' * 100}")
+            print('Training completed WITH LwFTrainer')
+            print("lwf_trainer.results", lwf_trainer.results)
+            # print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
+            '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
+            print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
+            print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch']",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'])
+            print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
+            # print("lwf_trainer.evaluate_all_experiences(objects_and_vehicles_specialised_models_val_stream_class_il)")
+            # lwf_trainer.evaluate_all_experiences_post_training(objects_and_vehicles_specialised_models_val_stream_class_il)#(seen_experiences_val)
+            objects_and_vehicles_specialised_model = ResNet20_DynamicModel(num_classes=0)  # WORKS !!!
+        print(f"{'#' * 100}")
+        print("freezing_set_up of iteration that just concluded:", freezing_set_up_keys)
+        print(f"Value of CURRENT freezing_set_up {freezing_set_up_keys} of iteration that just concluded = {freezing_set_up}")
+        print("freezing_set_up_list BEFORE freezing_set_up_list.pop(freezing_set_up):\n", freezing_set_up_list, "\n")
+        #freezing_set_up_list = freezing_set_up_list.pop(freezing_set_up_keys) #freezing_set_up_list.remove(freezing_set_up)
+        #print("freezing_set_up_list AFTER freezing_set_up_list.pop(freezing_set_up_keys):\n",freezing_set_up_list)
+        print(f"{'#' * 100}")
