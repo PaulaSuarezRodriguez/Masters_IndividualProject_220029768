@@ -211,7 +211,7 @@ with torch.no_grad():
     target_model.linear.weight.copy_(weights)
     target_model.linear.bias.copy_(biases)
 
-aggregator.aggregate_into_model(target_model, keep_classifier=False)#target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False)
+aggregator.aggregate_into_model(target_model, keep_classifier=True)#target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False)
 print("  ✓ Aggregated backbone loaded")
 print("  ✓ Classifier from target model preserved")
 
