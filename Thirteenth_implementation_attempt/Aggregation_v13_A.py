@@ -110,7 +110,8 @@ model_paths=[#f"../Thirteenth_implementation_attempt/final_specialised_models/fi
              f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model.pt",
              f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt"]
 
-training_samples_per_model=[3600, 1200, 10000]#training_samples_per_model=[2400, 3600, 1200, 10000]
+training_samples_per_model=[3600, 1200, 10000]
+#training_samples_per_model=[2400, 3600, 1200, 10000]
 
 # Create aggregator
 aggregator = FedAvgAggregatorBackboneOnly(
@@ -183,14 +184,14 @@ print("objects_and_vehicles[weight]", objects_and_vehicles["weight"].shape)
 
 weights = torch.cat([
     #outdoors["weight"],
-    nature["weight"],
+    #nature["weight"],
     people["weight"],
     objects_and_vehicles["weight"]
 ], dim=0)
 
 biases = torch.cat([
     #outdoors["bias"],
-    nature["bias"],
+    #nature["bias"],
     people["bias"],
     objects_and_vehicles["bias"]
 ], dim=0)
@@ -200,29 +201,25 @@ print("biases.shape",biases.shape)
 
 # Load into model
 print("\nLoading aggregated backbone into target model...")
-target_model = ResNet20_DynamicModel(num_classes=37)#TODO:Temporary ###########(num_classes=43)  # For new classes
+target_model = ResNet20_DynamicModel(num_classes=28)#TODO:Temporary ###########(num_classes=43)  # For new classes
 
-'''target_model.linear.weight.data.copy_(combined_weight)
-target_model.linear.bias.data.copy_(combined_bias)'''
-##########target_model.linear = torch.nn.Linear(64, 43)#TODO:Temporary ###########(64, 43)
+'''target_model.linear.weight.data.copy_(weights)#(combined_weight)
+target_model.linear.bias.data.copy_(biases)#(combined_bias)'''
+#target_model.linear = torch.nn.Linear(64, 43)#TODO:Temporary ###########(64, 43)
 
-'''with torch.no_grad():
+with torch.no_grad():
     target_model.linear.weight.copy_(weights)
     target_model.linear.bias.copy_(biases)
 
-target_model = aggregator.aggregate_into_model(target_model)
-print("  ✓ Aggregated backbone loaded")
-print("  ✓ Classifier from target model preserved")'''
-
-aggregator.aggregate_into_model(target_model)#target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False)
+aggregator.aggregate_into_model(target_model, keep_classifier=False)#target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False)
 print("  ✓ Aggregated backbone loaded")
 print("  ✓ Classifier from target model preserved")
 
 #target_model.linear = torch.nn.Linear(64, 18)#TODO:Temporary ###########(64, 43)
 
-with torch.no_grad():
+'''with torch.no_grad():
     target_model.linear.weight.copy_(weights)
-    target_model.linear.bias.copy_(biases)
+    target_model.linear.bias.copy_(biases)'''
 
 # See aggregation details
 aggregator.print_report()
@@ -307,7 +304,8 @@ combined_dataset_objects_and_vehicles = ConcatDataset([
 
 combined_dataset = ConcatDataset([
     #combined_dataset_outdoors,
-    combined_dataset_nature, combined_dataset_people, combined_dataset_objects_and_vehicles
+    #combined_dataset_nature,
+    combined_dataset_people, combined_dataset_objects_and_vehicles
 ])
 
 test_loader = DataLoader(

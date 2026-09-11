@@ -112,7 +112,7 @@ from Thirteenth_implementation_attempt.FedAvg_code_v3.fedavg_aggregator_backbone
 
 # Create aggregator
 aggregator = FedAvgAggregatorBackboneOnly(
-    weighting_strategy='data_driven',
+    weighting_strategy='data_driven',#'uniform',#'data_driven',
     exclude_layers=['classifier']  # ← Skip classifier
 )
 
@@ -122,10 +122,11 @@ aggregator.load_model_weights_from_files(
     dataset_sizes=training_samples_per_model
 )
 
-# See aggregation details
+#TODO: This was the ORIGINAL LOCATION, I moved it below
+'''# See aggregation details
 aggregator.print_report()
 # Aggregate
-aggregator.save_aggregated_weights('aggregated_backbone.pth')
+aggregator.save_aggregated_weights('aggregated_backbone.pth')'''
 
 # TODO: BRANCH 1
 '''combined_classifier = torch.nn.Linear(64, 43)
@@ -210,6 +211,11 @@ target_model.linear = torch.nn.Linear(64, 18)#TODO:Temporary ###########(64, 43)
 with torch.no_grad():
     target_model.linear.weight.copy_(weights)
     target_model.linear.bias.copy_(biases)
+
+# See aggregation details
+aggregator.print_report()
+# Aggregate
+aggregator.save_aggregated_weights('aggregated_backbone.pth')
 
 # Verify
 '''print("\nVerifying aggregation...")
