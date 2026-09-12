@@ -230,6 +230,39 @@ avl_train = make_avalanche_dataset(outdoors_specialised_models_train_subset.data
 avl_val = make_avalanche_dataset(outdoors_specialised_models_val_subset.dataset)
 avl_test = make_avalanche_dataset(outdoors_specialised_models_test_subset.dataset)
 
+
+def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
+    """
+    Map labels using provided mapping, or build a new one.
+    Allows caller to control state management.
+    """
+    if class_to_idx_new is None:
+        class_to_idx_new = {}
+
+    for fine_label in sorted(ds.targets):
+        fine_label_item = fine_label
+        if fine_label_item not in class_to_idx_new.keys():
+            class_to_idx_new[fine_label_item] = len(class_to_idx_new)
+
+    return class_to_idx_new
+
+
+class_to_idx_new = map_labels_expanding_classifier_benchmark(outdoors_specialised_models_train_subset.dataset)
+print("class_to_idx_new:", class_to_idx_new)
+
+def new_to_original_creation(new_to_original=None):
+    if new_to_original is None:
+        new_to_original = {}
+
+    for original_label, new_idx in class_to_idx_new.items():
+        new_to_original[new_idx] = original_label #new_to_original[original_label] = new_idx #TEST LATER: new_to_original[new_idx] = original_label #
+    return new_to_original
+
+new_to_original = new_to_original_creation()
+print("new_to_original:", new_to_original)
+
+
+
 if DEBUG:
     print("type(outdoors_specialised_models_train_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_train", type(avl_train))
     print("type(outdoors_specialised_models_val_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_val", type(avl_val))
@@ -671,7 +704,8 @@ class LwFTrainer(SupervisedTemplate):
             for self.mbatch in self.dataloader:#self.train_dataloader: # for batch, targets in train_dataloader:
 
                 self.unpack_minibatch()
-                targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
+                #TODO: NEW! In testing for re-mapping labels in aggregated model
+                targets = self.map_targets() #targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
 
                 self._before_training_iteration(**kwargs) #TODO: NEW, in testing
 
@@ -715,11 +749,21 @@ class LwFTrainer(SupervisedTemplate):
 
                         # Only old classes
                         #classes = sorted(self.teacher_classes)
-                    for classes in self.teacher_classes:
+                    '''for classes in self.teacher_classes:
                         class_indices = torch.tensor(
                             [
                                 self.class_to_idx[c]
                                 for c in sorted(classes)#(self.teacher_classes)
+                            ],
+                            device=self.device,
+                            dtype=torch.long
+                        )'''
+                    # Only old classes
+                    for classes in self.teacher_classes:
+                        class_indices = torch.tensor(
+                            [
+                                class_to_idx_new[c]
+                                for c in sorted(classes)  # (self.teacher_classes)
                             ],
                             device=self.device,
                             dtype=torch.long
@@ -1152,13 +1196,20 @@ class LwFTrainer(SupervisedTemplate):
         """Evaluation loop over the current `self.dataloader`."""
         for self.mbatch in self.dataloader:#self.eval_dataloader:
             self.unpack_minibatch()
-            targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
+            # TODO: NEW! In testing for re-mapping labels in aggregated model
+            targets = self.map_targets()
+            print("targets = self.map_targets()", targets)
+            #targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
             self._before_eval_iteration(**kwargs) # formerly commented-out
 
             self._before_eval_forward(**kwargs)# formerly commented-out
             self.mb_output = self.model(self.mb_x)#self.mb_output = self.forward()
             self._after_eval_forward(**kwargs)# formerly commented-out
             self.loss = self.criterion(self.mb_output, targets) #self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
+
+            targets = self.map_targets_back_to_original(targets) # TODO: NEW! In testing for re-mapping labels in aggregated model
+
+            print("targets = self.map_targets_back_to_original(targets)", targets)
 
             self._after_eval_iteration(**kwargs) # formerly commented-out
 
@@ -1203,13 +1254,18 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        # TODO: NEW! In testing for re-mapping labels in aggregated model
+                        targets = self.map_targets()
+                        #targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
 
                         student_logits = self.model(self.mb_x)
                         loss = self.criterion(student_logits, targets)
 
                         total_loss += loss.item() * targets.size(0)
                         predictions = torch.argmax(student_logits, dim=1)
+
+                        targets = self.map_targets_back_to_original(targets)# TODO: NEW! In testing for re-mapping labels in aggregated model
+
                         total_correct += (predictions == targets).sum().item()
                         total_samples += targets.size(0)
 
@@ -1330,13 +1386,18 @@ class LwFTrainer(SupervisedTemplate):
                 with torch.no_grad():
                     for self.mbatch in eval_dataloader:
                         self.unpack_minibatch()
-                        targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
+                        # TODO: NEW! In testing for re-mapping labels in aggregated model
+                        targets = self.map_targets()
+                        #targets = self.map_labels_expanding_classifier() #targets = self.map_targets() # targets = self.mb_y
 
                         student_logits = self.model(self.mb_x)
                         loss = self.criterion(student_logits, targets)
 
                         total_loss += loss.item() * targets.size(0)
                         predictions = torch.argmax(student_logits, dim=1)
+
+                        targets = self.map_targets_back_to_original(targets) # TODO: NEW! In testing for re-mapping labels in aggregated model
+
                         total_correct += (predictions == targets).sum().item()
                         total_samples += targets.size(0)
 
@@ -1372,7 +1433,7 @@ class LwFTrainer(SupervisedTemplate):
                                 drop_last=drop_last, )
         return eval_dataloader
 
-    def map_labels_expanding_classifier(self):
+    '''def map_labels_expanding_classifier(self):
         for fine_label in sorted(self.mb_y): #self.mb_task_id:#for fine_label in outdoors_specialised_models_train_stream_class_il.dataset.targets.uniques:
             #self.mb_y.
             fine_label_item = fine_label.item()
@@ -1388,9 +1449,57 @@ class LwFTrainer(SupervisedTemplate):
             dtype=torch.long
         )
 
-        '''for fine_label in sorted(self.experience.targets.uniques):
+        ''''''for fine_label in sorted(self.experience.targets.uniques):
             if fine_label not in self.class_to_idx.keys():
-                self.class_to_idx[fine_label] = len(self.class_to_idx)'''
+                self.class_to_idx[fine_label] = len(self.class_to_idx)'''''''''
+
+    def map_targets(self):
+        targets_tensor = torch.tensor([class_to_idx_new[int(fine_label.item())] for fine_label in self.mb_y],
+                                      device=self.mb_y.device,  # fine_label.device,
+                                      dtype=torch.long
+                                      )
+        print("print(targets_tensor)",targets_tensor)
+        return targets_tensor
+
+    def map_targets_back_to_original(self, targets_tensor):#, new_to_original=None):
+        '''if new_to_original is None:
+            new_to_original = {}
+        for new_label in self.mb_y:
+            for mapped_labels in class_to_idx_new.items():
+            new_to_original[int(new_label)] = new_label#new_to_original[int(new_label.item())]
+            print("new_to_original[int(new_label)] = new_label", new_to_original[int(mapped_labels)])
+        print("new_to_original AFTER for mapped_labels, new_label in class_to_idx_new.items()",new_to_original)
+        print("self.mb_y", self.mb_y)'''
+        targets_tensor_list = targets_tensor.tolist()
+        print("targets_tensor_list", targets_tensor_list)
+
+        '''for element in targets_tensor_list:
+            new_to_original[int(element)] = '''
+
+        #for mapped_labels, new_label in class_to_idx_new.items():
+            #asd = new_to_original[int(new_label)]
+            #print("new_to_original[int(new_label)] for new_label in self.mb_y", asd)
+
+        original_targets_tensor = torch.tensor(
+            [
+                new_to_original[int(element.item())] for element in targets_tensor #new_to_original[int(element)] for element in targets_tensor_list #new_to_original[int(mapped_labels)] for new_label in self.mb_y #new_to_original[int(new_label)] for mapped_labels, new_label in class_to_idx_new.items() #for new_label in self.mb_y
+            ],
+            device=self.mb_y.device,
+            dtype=torch.long
+        )
+        #print("new_to_original[int(mapped_labels)] for new_label in self.mb_y", new_to_original)
+        '''print("[new_to_original[int(new_label.item())]for new_label in self.mb_y]",
+              [new_to_original[int(new_label)] for new_label in self.mb_y])'''
+        '''print("[new_to_original[int(new_label.item())]for new_label in self.mb_y]", [new_to_original[int(new_label.item())]for new_label in self.mb_y])
+        original_targets_tensor = torch.tensor([new_to_original[int(new_label.item())]for new_label in self.mb_y],
+                                               device=self.mb_y.device,
+                                               dtype=torch.long
+                                               )'''
+        print("print(class_to_idx_new)",class_to_idx_new)
+        print("print(original_targets_tensor)",original_targets_tensor)
+
+        return original_targets_tensor
+
 
     '''def map_targets(self):
         return torch.tensor(
