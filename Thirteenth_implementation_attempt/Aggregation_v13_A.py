@@ -12,6 +12,7 @@ for client in selected_clients:
 # 3. Aggregate (Federated Averaging)
 total_data - sum(client_sizes)
 global_model = sum( (w * (size / total_data)) for w, size in zip(local_weights)"""
+import copy
 
 import torch
 import torch.nn as nn
@@ -23,10 +24,77 @@ from Thirteenth_implementation_attempt.ResNet20_v13 import ResNet20
 from Thirteenth_implementation_attempt.FedAvg_code_v3.fedavg_aggregator_backbone_only import FedAvgAggregatorBackboneOnly
 from Thirteenth_implementation_attempt.ResNet20_DynamicModel_v13 import ResNet20_DynamicModel
 
-weights_objects_and_vehicles = torch.load(f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt", map_location="cpu")
-weights_people = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model.pt", map_location="cpu")
-weights_nature = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_nature_model.pt", map_location="cpu")
+'''def mapping_original_to_aggregated(ds, original_to_aggregated=None):
+    """
+    Map labels using provided mapping, or build a new one.
+    Allows caller to control state management.
+    """
+    if original_to_aggregated is None:
+        original_to_aggregated = {}
+
+    ds = ds.tolist()
+    print("ds.tolist()", ds)
+
+    for fine_label in sorted(ds):#for fine_label in sorted(ds.targets):
+        fine_label_item = fine_label
+        if fine_label_item not in original_to_aggregated.keys():
+            original_to_aggregated[fine_label_item] = len(original_to_aggregated)
+            print("original_to_aggregated", original_to_aggregated)
+
+    return original_to_aggregated
+
+
+#OUTDOORS: {0: 12, 1: 17, 2: 23, 3: 33, 4: 37, 5: 49, 6: 60, 7: 68, 8: 71, 9: 76}
+
+def map_targets_to_aggregated(original_to_aggregated, batch_labels):
+    aggregated_targets_tensor = torch.tensor([original_to_aggregated[int(fine_label.item())] for fine_label in batch_labels],
+                                  device=batch_labels.device,  # fine_label.device,
+                                  dtype=torch.long
+                                  )
+    # print("print(targets_tensor)",targets_tensor)
+    return aggregated_targets_tensor'''
+
+'''original_to_aggregated_dict = {0: 12, 1: 17, 2: 23, 3: 33, 4: 37, 5: 49, 6: 60, 7: 68, 8: 71, 9: 76, #OUTDOORS
+                                10: 0, 11: 47, 12: 51, 13: 52, 14: 53, 15: 54, 16: 56, 17: 57, 18: 59, 19: 62, 20: 70, 21: 82, 22: 83, 23: 92, 24: 96, #NATURE
+                                25: 2, 26: 11, 27: 35, 28: 46, 29: 98, #PEOPLE
+                                30: 5, 31: 8, 32: 9, 33: 10, 34: 13, 35: 16, 36: 20, 37: 22, 38: 25, 39: 28, 40: 39, 41: 40, 42: 41, 43: 48, 44: 58, 45: 61, 46: 69, 47: 81, 48: 84, 49: 85, 50: 86, 51: 87, 52: 89, 53: 90, 54: 94
+                          }'''
+original_to_aggregated_dict = {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5, 51: 6, 47: 7, 0: 8, 54: 9, 53: 10, 52: 11, 59: 12, 57: 13, 56: 14, 2: 15, 11: 16, 35: 17, 16: 18, 13: 19,
+                               10: 20, 9: 21, 8: 22, 5: 23, 58: 24, 48: 25, 41: 26, 40: 27, 39: 28, 28: 29, 25: 30, 22: 31, 20: 32, 94: 33, 90: 34, 89: 35, 87: 36, 86: 37, 85: 38,
+                               84: 39, 81: 40, 69: 41, 61: 42}
+
+def map_original_to_aggregated(targets_tensor, original_to_aggregated=original_to_aggregated_dict):
+    ###print("print(targets_tensor)",targets_tensor)
+    aggregated_targets_tensor = torch.tensor(
+        [
+            original_to_aggregated[int(element.item())] for element in targets_tensor #if element in original_to_aggregated.keys()
+        ],
+        device=targets_tensor.device,
+        dtype=torch.long
+    )
+    # print("print(new_to_original)\n", new_to_original)
+    ###print("print(aggregated_targets_tensor)\n",aggregated_targets_tensor)
+
+    return aggregated_targets_tensor
+
+def map_original_to_aggregated_predictions(targets_tensor, original_to_aggregated=original_to_aggregated_dict):
+    aggregated_predictions_targets_tensor = torch.tensor(
+        [
+            original_to_aggregated[int(element.item())] for element in targets_tensor #if element not in original_to_aggregated.keys()
+        ],
+        device=targets_tensor.device,
+        dtype=torch.long
+    )
+    # print("print(new_to_original)\n", new_to_original)
+    ###print("print(aggregated_predictions_targets_tensor)\n",aggregated_predictions_targets_tensor)
+
+    return aggregated_predictions_targets_tensor
+
+
 weights_outdoors = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt", map_location="cpu")
+weights_nature = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_nature_model.pt", map_location="cpu")
+weights_people = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model.pt", map_location="cpu")
+weights_objects_and_vehicles = torch.load(f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt", map_location="cpu")
 
 print(f"print(type(weights_objects_and_vehicles)):{type(weights_objects_and_vehicles)}\n"
       f"print(weights_objects_and_vehicles.keys()):{print(weights_objects_and_vehicles.keys())}")
@@ -83,7 +151,7 @@ weights_outdoors = create_weight_list(weights_outdoors)'''
 
 #TODO: OPTION 2
 weights = {}
-list_load=[weights_objects_and_vehicles, weights_people, weights_nature, weights_outdoors]
+list_load=[weights_outdoors, weights_nature, weights_people, weights_objects_and_vehicles]
 for key in list_load[0]:#state_dicts[0]:
     if "weight" in key:
         weights[key] = []
@@ -105,13 +173,13 @@ for i in range(len(list_load)):
         sizes[f"weights[{key}][{i}]"]=weights[key][i].size()
         print(f"\nprint(sizes):\n{sizes}")
 
-model_paths=[#f"../Thirteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt",
+model_paths=[f"../Thirteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt",
              f"../Thirteenth_implementation_attempt/final_specialised_models/final_nature_model.pt",
              f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model.pt",
              f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt"]
 
-training_samples_per_model=[3600, 1200, 10000]
-#training_samples_per_model=[2400, 3600, 1200, 10000]
+#training_samples_per_model=[3600, 1200, 10000]
+training_samples_per_model=[2400, 3600, 1200, 10000]
 
 # Create aggregator
 aggregator = FedAvgAggregatorBackboneOnly(
@@ -183,15 +251,15 @@ print("objects_and_vehicles[weight]", objects_and_vehicles["weight"].shape)
 #biases.shape torch.Size([37])
 
 weights = torch.cat([
-    #outdoors["weight"],
-    #nature["weight"],
+    outdoors["weight"],
+    nature["weight"],
     people["weight"],
     objects_and_vehicles["weight"]
 ], dim=0)
 
 biases = torch.cat([
-    #outdoors["bias"],
-    #nature["bias"],
+    outdoors["bias"],
+    nature["bias"],
     people["bias"],
     objects_and_vehicles["bias"]
 ], dim=0)
@@ -201,15 +269,29 @@ print("biases.shape",biases.shape)
 
 # Load into model
 print("\nLoading aggregated backbone into target model...")
-target_model = ResNet20_DynamicModel(num_classes=28)#TODO:Temporary ###########(num_classes=43)  # For new classes
+target_model = ResNet20_DynamicModel(num_classes=43)#TODO:Temporary ###########(num_classes=43)  # For new classes
 
 '''target_model.linear.weight.data.copy_(weights)#(combined_weight)
 target_model.linear.bias.data.copy_(biases)#(combined_bias)'''
-#target_model.linear = torch.nn.Linear(64, 43)#TODO:Temporary ###########(64, 43)
+target_model.linear = torch.nn.Linear(64, 43)#TODO:Temporary ###########(64, 43)
 
 with torch.no_grad():
-    target_model.linear.weight.copy_(weights)
-    target_model.linear.bias.copy_(biases)
+    #target_model.linear.weight.copy_(weights)
+    #target_model.linear.bias.copy_(biases)
+    target_model.linear.weight[0:6] = outdoors["weight"].clone() #outdoors has 6 classes
+    target_model.linear.bias[0:6] = outdoors["bias"].clone() #outdoors has 6 classes
+
+    target_model.linear.weight[7:16] = nature["weight"].clone() #nature has 9 classes
+    target_model.linear.bias[7:16] = nature["bias"].clone() #nature has 9 classes
+
+    target_model.linear.weight[16:19] = people["weight"].clone() #people has 3 classes
+    target_model.linear.bias[16:19] = people["bias"].clone() #people has 3 classes
+
+    target_model.linear.weight[18:43] = objects_and_vehicles["weight"].clone() #objects_and_vehicles has 25 classes
+    target_model.linear.bias[18:43] = objects_and_vehicles["bias"].clone() #objects_and_vehicles has 25 classes
+
+    #combined_classifier.weight[23:43] = outdoors_classifier.weight
+    #combined_classifier.bias[23:43] = outdoors_classifier.bias'''
 
 aggregator.aggregate_into_model(target_model, keep_classifier=True)#target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False)
 print("  ✓ Aggregated backbone loaded")
@@ -303,18 +385,35 @@ combined_dataset_objects_and_vehicles = ConcatDataset([
 ])
 
 combined_dataset = ConcatDataset([
-    #combined_dataset_outdoors,
-    #combined_dataset_nature,
+    combined_dataset_outdoors,
+    combined_dataset_nature,
     combined_dataset_people, combined_dataset_objects_and_vehicles
 ])
 
 test_loader = DataLoader(
     combined_dataset,
-    batch_size=32,
+    batch_size=128,#32,
     shuffle=False
 )
 print("print test_loader", test_loader)
 print("print test_loader.dataset", test_loader.dataset)
+
+
+from collections import Counter
+
+all_labels = []
+
+for i in range(len(combined_dataset)):
+    sample = combined_dataset[i]
+
+    # Adjust depending on your dataset output
+    label = sample[1]
+
+    all_labels.append(int(label))
+
+print(Counter(all_labels))
+print("Unique labels:", sorted(set(all_labels)))
+print("Number of unique labels:", len(set(all_labels)))
 
 
 for batch in test_loader:
@@ -327,75 +426,100 @@ for batch in test_loader:
 
 
 #print("test_loader.batch_sampler",test_loader.batch_sampler)
-    @property
-    def mb_x(self):
-        """Current mini-batch input."""
-        mbatch = self.mbatch
-        assert mbatch is not None
-        return mbatch[0]
 
-    @property
-    def mb_y(self):
-        """Current mini-batch target."""
-        mbatch = self.mbatch
-        assert mbatch is not None
-        return mbatch[1]
+def unpack_minibatch(mbatch):
+    """Check if the current mini-batch has 3 components."""
+    mbatch = mbatch
+    assert mbatch is not None
 
-    @property
-    def mb_task_id(self):
-        """Current mini-batch task labels."""
-        mbatch = self.mbatch
-        assert mbatch is not None
-        assert len(mbatch) >= 3, "Task label not found."
-        return mbatch[-1]
-
-    def unpack_minibatch(mbatch):
-        """Check if the current mini-batch has 3 components."""
+    if isinstance(mbatch, tuple):
+        mbatch = list(mbatch)
         mbatch = mbatch
-        assert mbatch is not None
 
-        if isinstance(mbatch, tuple):
-            mbatch = list(mbatch)
-            mbatch = mbatch
+    for i in range(len(mbatch)):
+        if isinstance(mbatch[i], dict):
+            # Move all tensor values in the dictionary to the specified device
+            mbatch[i] = {
+                key: value.to(non_blocking=True)
+                for key, value in mbatch[i].items()
+            }
+        elif isinstance(mbatch[i], torch.Tensor):
+            # Directly move the tensor to the specified device
+            mbatch[i] = mbatch[i].to(non_blocking=True)
+        else:
+            # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
+            raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
 
-        for i in range(len(mbatch)):
-            if isinstance(mbatch[i], dict):
-                # Move all tensor values in the dictionary to the specified device
-                mbatch[i] = {
-                    key: value.to(non_blocking=True)
-                    for key, value in mbatch[i].items()
-                }
-            elif isinstance(mbatch[i], torch.Tensor):
-                # Directly move the tensor to the specified device
-                mbatch[i] = mbatch[i].to(non_blocking=True)
-            else:
-                # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
-                raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
+'''def new_to_original_creation(new_to_original=None):
+    if new_to_original is None:
+        new_to_original = {}
+
+    for original_label, new_idx in class_to_idx_new.items():
+        new_to_original[original_label] = new_idx
+    return new_to_original
+
+new_to_original = new_to_original_creation()
+print("new_to_original:", new_to_original)
+
+def map_targets_back_to_original(self):
+
+    original_targets_tensor = torch.tensor(
+        [
+            new_to_original[int(new_label.item())]
+            for new_label in self.mb_y
+        ],
+        device=self.mb_y.device,
+        dtype=torch.long
+    )
+
+    return original_targets_tensor'''
 
 
-correct = 0
-total = 0
+def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module):
+    correct = 0
+    total = 0
 
-#target_model.eval()
-with torch.no_grad():
-    for batch_data, batch_labels, batch_task_ids in test_loader:
-        #print(type(batch_data))
-        #print(type(batch_labels))
-        #print(type(batch_task_ids))
+    #target_model.eval()
+    with torch.no_grad():
+        for batch_data, batch_labels, batch_task_ids in test_loader:
+            #print(type(batch_data))
+            #print(type(batch_labels))
+            #print(type(batch_task_ids))
 
-        #print("print(batch_labels)",batch_labels)
-        #print("print(batch_task_ids)",batch_task_ids)
+            print("\nprint(batch_labels)\n",batch_labels)
+            ##print("print(batch_task_ids)",batch_task_ids)
 
-        outputs = target_model(batch_data)
-        targets_all_experiences = batch_labels
-        predictions = outputs.argmax(dim=1)
+            #original_to_aggregated = mapping_original_to_aggregated(batch_labels)
+            #print("original_to_aggregated:", original_to_aggregated)
+
+            outputs = target_model(batch_data)
+            targets_all_experiences = batch_labels
+
+            #outputs = map_original_to_aggregated(outputs)
+            #batch_labels = map_original_to_aggregated(batch_labels)
+            print("\nprint(batch_labels) AFFTER map_original_to_aggregated(batch_labels)\n", batch_labels)
+
+            predictions = outputs
+            print("predictions before argmax:",predictions)
+            print("predictions before argmax SHAPE:", predictions.shape)
+            print("predictions before argmax LENGTH:", len(predictions))
+            print("batch_labels before argmax SHAPE:", batch_labels.shape)
+            print("batch_labels before argmax LENGTH:", len(batch_labels))
+
+            predictions = outputs.argmax(dim=1)
+
+            print("\npredictions", predictions)
+            #predictions = map_original_to_aggregated(predictions)
+            #batch_labels = map_original_to_aggregated(batch_labels)#batch_labels = map_targets_to_aggregated(original_to_aggregated, batch_labels)
 
 
-        correct += (predictions == batch_labels).sum().item()
-        total += batch_labels.size(0)
+            correct += (predictions == batch_labels).sum().item() #correct += (predictions == batch_labels).sum().item()
+            total += batch_labels.size(0)
 
-accuracy = correct / total
-print(f"Fine-tuned model accuracy: {accuracy*100:.2%}")#print(f"Fine-tuned model accuracy: {accuracy:.2%}")
+    #accuracy = correct / total
+    accuracy = (correct / total ) if total > 0 else 0.0
+    print(f"Fine-tuned model accuracy: {accuracy:.2%}")#print(f"Fine-tuned model accuracy: {accuracy:.2%}")
+
 
 from torch.nn import Module, CrossEntropyLoss
 def evaluate_aggregated_model(model: nn.Module):
@@ -403,20 +527,34 @@ def evaluate_aggregated_model(model: nn.Module):
     total_correct_all_experiences = 0
     total_samples_all_experiences = 0
 
-    model.eval()
+    #model.eval()
     with torch.no_grad():
         for batch_data, batch_labels, batch_task_ids in test_loader:
             unpack_minibatch(batch_data)
+
+            #original_to_aggregated = mapping_original_to_aggregated(batch_labels)
+            #print("original_to_aggregated:", original_to_aggregated)
 
             logits_all_experiences = model(batch_data)
 
             targets_all_experiences = batch_labels
 
-            loss_all_experiences = CrossEntropyLoss(logits_all_experiences, targets_all_experiences, reduction='mean')
-            # print("print(self.model.training) -- evaluate all experiences after self.criterion",self.model.training)
+            #####targets_all_experiences = map_original_to_aggregated(batch_labels) #targets_all_experiences = map_targets_to_aggregated(original_to_aggregated, batch_labels) #TODO: Old location, test later if it works or not
+            #####logits_all_experiences = map_original_to_aggregated(logits_all_experiences) #TODO: COMPLETELY NEW, BEING TESTED IF NEEDED/CORRECT
+
+            #loss_all_experiences = CrossEntropyLoss(logits_all_experiences, targets_all_experiences, reduction='mean')
+            loss_all_experiences = F.cross_entropy(
+                logits_all_experiences,
+                targets_all_experiences,
+                reduction='mean'
+            )
 
             total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
             predictions_all_experiences = torch.argmax(logits_all_experiences, dim=1)
+
+            #predictions_all_experiences = map_original_to_aggregated(predictions_all_experiences)
+            #targets_all_experiences = map_original_to_aggregated(batch_labels)
+
             total_correct_all_experiences += (predictions_all_experiences == targets_all_experiences).sum().item()
             total_samples_all_experiences += targets_all_experiences.size(0)
 
@@ -427,7 +565,85 @@ def evaluate_aggregated_model(model: nn.Module):
         f"Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
     )
 
-#evaluate_aggregated_model(target_model)
+def evaluate_aggregated_model_v3(model: nn.Module):
+    total_loss_all_experiences = 0.0
+    total_correct_all_experiences = 0
+    total_samples_all_experiences = 0
 
-'''if __name__ == "__main__":
-    aggregated_model = scenario_uniform_aggregation_mine(model_paths)#, training_samples_per_model)'''
+    model.eval()
+
+    criterion = nn.CrossEntropyLoss()
+
+    with torch.no_grad():
+        for batch_data, batch_labels, batch_task_ids in test_loader:
+
+            #original_to_aggregated = mapping_original_to_aggregated(batch_labels)
+            #print("original_to_aggregated:", original_to_aggregated)
+
+            logits_all_experiences = model(batch_data)
+            targets_all_experiences = batch_labels
+
+            #print("print(type(logits_all_experiences))", type(logits_all_experiences))
+            #print("print(type(batch_data))", type(batch_data))
+            #print("print(logits_all_experiences.shape)", logits_all_experiences.shape)
+            #print("print(batch_data.shape)", batch_data.shape)
+            #print("print(batch_labels.shape)", logits_all_experiences.shape)
+            #print("print(batch_labels.shape)", batch_data.shape)
+
+            #print("batch_labels", batch_labels)
+            #print("logits_all_experiences", logits_all_experiences)
+
+            ####targets_all_experiences = map_original_to_aggregated(batch_labels) #TODO: Location being tested.  #targets_all_experiences = map_targets_to_aggregated(original_to_aggregated, batch_labels)
+            ####logits_all_experiences = map_original_to_aggregated_predictions(logits_all_experiences)  # TODO: COMPLETELY NEW, BEING TESTED IF NEEDED/CORRECT
+
+            loss_all_experiences = criterion(
+                logits_all_experiences,
+                targets_all_experiences
+            )
+
+            batch_size = targets_all_experiences.size(0)
+
+            total_loss_all_experiences += (
+                loss_all_experiences.item() * batch_size
+            )
+
+            predictions_all_experiences = torch.argmax(
+                logits_all_experiences,
+                dim=1
+            )
+
+            #predictions_all_experiences = map_original_to_aggregated(predictions_all_experiences)
+            #targets_all_experiences = map_original_to_aggregated(batch_labels)
+
+            total_correct_all_experiences += (
+                predictions_all_experiences == targets_all_experiences
+            ).sum().item()
+
+            total_samples_all_experiences += batch_size
+
+    if total_samples_all_experiences > 0:
+        avg_loss_all_experiences = (
+            total_loss_all_experiences / total_samples_all_experiences
+        )
+
+        accuracy_all_experiences = (
+            total_correct_all_experiences
+            / total_samples_all_experiences
+            * 100
+        )
+    else:
+        avg_loss_all_experiences = 0.0
+        accuracy_all_experiences = 0.0
+
+    print(
+        f"Loss = {avg_loss_all_experiences:.6f} | "
+        f"Accuracy = {accuracy_all_experiences:.2f}%"
+    )
+
+    return avg_loss_all_experiences, accuracy_all_experiences
+
+if __name__ == "__main__":
+    #aggregated_model = scenario_uniform_aggregation_mine(model_paths)#, training_samples_per_model)
+    evaluate_aggregated_model_FedAvg_code_v3(target_model)
+    evaluate_aggregated_model(target_model)
+    evaluate_aggregated_model_v3(target_model)

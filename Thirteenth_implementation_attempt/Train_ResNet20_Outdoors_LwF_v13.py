@@ -732,32 +732,11 @@ class LwFTrainer(SupervisedTemplate):
                 # ------------------------------------------------
                 # LwF -- single teacher
                 # ------------------------------------------------
-                #print("dist_loss = torch.tensor(0.0,device=self.device)")
-                '''dist_loss = torch.tensor(
-                    0.0,
-                    device=self.device
-                )'''
-                '''print("dist_loss = torch.tensor(total_dist,device=self.device)")
-                dist_loss = torch.tensor(
-                    total_dist,
-                    device=self.device
-                )'''
                 if self.teacher is not None:
                     #for classes in self.teacher_classes:
                     with torch.no_grad():
                         teacher_logits = self.teacher(self.mb_x)  # self.teacher(self.mbatch)#teacher_logits = self.teacher(batch)
 
-                        # Only old classes
-                        #classes = sorted(self.teacher_classes)
-                    '''for classes in self.teacher_classes:
-                        class_indices = torch.tensor(
-                            [
-                                self.class_to_idx[c]
-                                for c in sorted(classes)#(self.teacher_classes)
-                            ],
-                            device=self.device,
-                            dtype=torch.long
-                        )'''
                     # Only old classes
                     for classes in self.teacher_classes:
                         class_indices = torch.tensor(
@@ -769,30 +748,16 @@ class LwFTrainer(SupervisedTemplate):
                             dtype=torch.long
                         )
                     if VERBOSE:
-                        #print(f"  Classes (original): {sorted(classes)}")#{sorted(self.teacher_classes)}")
+                        print(f"  Classes (original): {sorted(classes)}")#{sorted(self.teacher_classes)}")
                         print(f"  Class indices (mapped): {class_indices.tolist()}")
                         print(f"  Student output shape: {self.mb_output.shape}")
                         print(f"  Teacher output shape: {teacher_logits.shape}")
 
-                    #student_old = self.mb_output[:, class_indices]#student_logits[:, old_classes]
-                    #teacher_old = teacher_logits[:, class_indices]
-
-                    # ALTERNATE CODE to achieve the same thing -- try if you suspect the above two lines do not work as intended
-                    #student_old = self.mb_output.index_select(1,class_indices)  # student_logits.index_select(1, classes)
-                    #teacher_old = teacher_logits.index_select(1, class_indices)
-
                     if VERBOSE:
-                        #print(f"  Student old shape: {student_old.shape}")
                         print(f"  scale used in dist_loss: {self.mb_output.size(1)}")#{student_old.size(1)}
-                        #print(f"  Teacher old shape: {teacher_old.shape}")
 
                     scale = self.mb_output.size(1)
 
-                    '''dist_loss = self.distillation_loss(
-                        student_old,
-                        teacher_old,
-                        scale=scale
-                    )'''
                     dist_loss = self.distillation_loss(
                         self.mb_output,
                         teacher_logits,
@@ -808,16 +773,18 @@ class LwFTrainer(SupervisedTemplate):
                         div = (difference_ce_dist / 0.20)
                         print(f"self.alpha BEFORE INCREASE: {self.alpha}\n")
                         self.alpha = self.original_alpha + (0.10 * div)
-                        print(f"difference_ce_dist = (ce_loss - dist_loss) = {difference_ce_dist},\n "
-                              f"div = (difference_ce_dist/0.20) = {div},\n "
-                              f"Alpha has been increased by {(0.10 * div)} --> self.alpha = self.alpha + (0.10 * div) = {self.alpha},\n"
-                              f"self.alpha AFTER INCREASE: {self.alpha}\n"
-                              f"(self.alpha * dist_loss): {self.alpha * dist_loss}\n"
-                              f"Effective difference CE loss - Distillation loss: {ce_loss.item() - (self.alpha * dist_loss)}\n")
+                        if VERBOSE:
+                            print(f"difference_ce_dist = (ce_loss - dist_loss) = {difference_ce_dist},\n "
+                                  f"div = (difference_ce_dist/0.20) = {div},\n "
+                                  f"Alpha has been increased by {(0.10 * div)} --> self.alpha = self.alpha + (0.10 * div) = {self.alpha},\n"
+                                  f"self.alpha AFTER INCREASE: {self.alpha}\n"
+                                  f"(self.alpha * dist_loss): {self.alpha * dist_loss}\n"
+                                  f"Effective difference CE loss - Distillation loss: {ce_loss.item() - (self.alpha * dist_loss)}\n")
 
                     if MATCH_AUTHOR_LOSS:
                         loss = ce_loss + (self.alpha * dist_loss)
-                        print(f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
+                        if VERBOSE:
+                            print(f"  Total loss AFTER HAVING INCREASED ALPHA, loss that is to be backpropagated: {loss.item():.6f}")
                     if MATCH_AUTHOR_LOSS == False:
                         loss = ((self.alpha * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss # loss = ((self.alpha * (self.temperature ** 2) * dist_loss) + ((1 - self.alpha) * ce_loss)) #loss = ce_loss + self.alpha * dist_loss
 
@@ -881,25 +848,15 @@ class LwFTrainer(SupervisedTemplate):
 
                 self._after_training_iteration(**kwargs) #TODO: NEW, in testing
 
-            print(
-                f"Epoch {_}/{self.train_epochs} | "
-                f"CE: {total_ce / n:.6f} | "
-                f"Distil_loss: {total_dist / n:.6f} | \n"#f"LwF: {total_dist / n:.6f} | "
-                f"Total (loss = ce_loss + (self.alpha * dist_loss)): {total_loss / n:.6f}\n"
-                f"self.alpha: {self.alpha}\n"
-                f"(self.alpha * dist_loss): {self.alpha * total_dist/n:.6f}\n"
-            )
-            '''t_ce=total_ce / n
-            t_dist=total_dist / n
-            t_total=total_loss / n
-            difference_ce_dist = (t_ce - t_dist)  # np.subtract(total_ce,total_dist)
-            if difference_ce_dist != 0 and self.teacher is not None:
-                div = (difference_ce_dist / 0.10)
-                self.alpha = self.alpha + (0.10 * div)
-                print(f"difference_ce_dist = (total_ce - total_dist) = {difference_ce_dist},\n "
-                      f"div = (difference_ce_dist/0.10) = {div},\n "
-                      f"Alpha has been increased by {(0.10 * div)} -- self.alpha = self.alpha + (0.10 * div) = {self.alpha},\n "
-                      f"Alpha has been increased to {self.alpha}")'''
+            if VERBOSE:
+                print(
+                    f"Epoch {_}/{self.train_epochs} | "
+                    f"CE: {total_ce / n:.6f} | "
+                    f"Distil_loss: {total_dist / n:.6f} | \n"#f"LwF: {total_dist / n:.6f} | "
+                    f"Total (loss = ce_loss + (self.alpha * dist_loss)): {total_loss / n:.6f}\n"
+                    f"self.alpha: {self.alpha}\n"
+                    f"(self.alpha * dist_loss): {self.alpha * total_dist/n:.6f}\n"
+                )
 
             # TODO: Commented-out for testing -- remember to uncomment later
             # TODO: uncomment whenever I want to save checkpoint per epoch to see at what point EWC stops mitigating CF for a particular experience
@@ -951,30 +908,6 @@ class LwFTrainer(SupervisedTemplate):
         print(f"lr before being increased at Experience {experience.current_experience}: {self.lr}")
         #self.lr-=0.01*self.lr
         #print(f"lr has been decreased by {self.lr_decay_factor}. It is now {self.lr}")
-        '''t_ce = total_ce / n
-        t_dist = total_dist / n
-        t_total = total_loss / n
-        difference_ce_dist = (t_ce - t_dist)  # np.subtract(total_ce,total_dist)
-        if difference_ce_dist != 0 and self.teacher is not None:
-            div = (difference_ce_dist / 0.10)
-            self.alpha = self.alpha + (0.10 * div)
-            print(f"difference_ce_dist = (total_ce - total_dist) = {difference_ce_dist}, "
-                  f"div = (difference_ce_dist/0.10) = {div}, "
-                  f"Alpha has been increased by {(0.10 * div)} -- self.alpha = self.alpha + (0.10 * div) = {self.alpha}, "
-                  f"Alpha has been increased to {self.alpha}")'''
-        '''difference_ce_dist = (total_ce - total_dist)#np.subtract(total_ce,total_dist)
-        if difference_ce_dist != 0:
-            div=(difference_ce_dist/0.10)
-            self.alpha += (0.10*div)
-            print(f"difference_ce_dist = (total_ce - total_dist) = {difference_ce_dist}, "
-                  f"div = (difference_ce_dist/0.10) = {div}, "
-                  f"Alpha has been increased by {self.alpha}")'''
-        '''div=0
-        if difference_ce_dist != 0:
-            div = difference_ce_dist/total_ce
-            print(f"Divisor is {div}")
-            self.alpha = self.alpha * div
-            print(f"Alpha has been increased by {self.alpha}")'''
 
     def step_lr(self, epoch):#def step_lr(self, epoch, lr_decay_every, lr_decay_factor):#def step_lr(self, epoch, base_lr, lr_decay_every, lr_decay_factor, optimizer):
         """Handles step decay of learning rate."""
@@ -1198,7 +1131,7 @@ class LwFTrainer(SupervisedTemplate):
             self.unpack_minibatch()
             # TODO: NEW! In testing for re-mapping labels in aggregated model
             targets = self.map_targets()
-            print("targets = self.map_targets()", targets)
+            #print("targets = self.map_targets()", targets)
             #targets = self.map_labels_expanding_classifier() #targets = self.map_targets()
             self._before_eval_iteration(**kwargs) # formerly commented-out
 
@@ -1207,9 +1140,9 @@ class LwFTrainer(SupervisedTemplate):
             self._after_eval_forward(**kwargs)# formerly commented-out
             self.loss = self.criterion(self.mb_output, targets) #self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
 
-            targets = self.map_targets_back_to_original(targets) # TODO: NEW! In testing for re-mapping labels in aggregated model
+            #targets = self.map_targets_back_to_original(targets) # TODO: NEW! In testing for re-mapping labels in aggregated model
 
-            print("targets = self.map_targets_back_to_original(targets)", targets)
+            #print("targets = self.map_targets_back_to_original(targets)", targets)
 
             self._after_eval_iteration(**kwargs) # formerly commented-out
 
@@ -1261,10 +1194,14 @@ class LwFTrainer(SupervisedTemplate):
                         student_logits = self.model(self.mb_x)
                         loss = self.criterion(student_logits, targets)
 
+                        # NOT THE CORRECT PLACE targets = self.map_targets_back_to_original(targets)  # TODO: NEW! In testing for re-mapping labels in aggregated model
+
                         total_loss += loss.item() * targets.size(0)
                         predictions = torch.argmax(student_logits, dim=1)
 
-                        targets = self.map_targets_back_to_original(targets)# TODO: NEW! In testing for re-mapping labels in aggregated model
+                        # TODO: NEW! In testing for re-mapping labels in aggregated model
+                        predictions = self.map_targets_back_to_original(predictions)# TODO: NEW! In testing for re-mapping labels in aggregated model
+                        targets = self.map_targets_back_to_original(targets)  # TODO: NEW! In testing for re-mapping labels in aggregated model
 
                         total_correct += (predictions == targets).sum().item()
                         total_samples += targets.size(0)
@@ -1393,10 +1330,11 @@ class LwFTrainer(SupervisedTemplate):
                         student_logits = self.model(self.mb_x)
                         loss = self.criterion(student_logits, targets)
 
+                        #targets = self.map_targets_back_to_original(targets)  # TODO: NEW! In testing for re-mapping labels in aggregated model
+
                         total_loss += loss.item() * targets.size(0)
                         predictions = torch.argmax(student_logits, dim=1)
 
-                        targets = self.map_targets_back_to_original(targets) # TODO: NEW! In testing for re-mapping labels in aggregated model
 
                         total_correct += (predictions == targets).sum().item()
                         total_samples += targets.size(0)
@@ -1433,52 +1371,19 @@ class LwFTrainer(SupervisedTemplate):
                                 drop_last=drop_last, )
         return eval_dataloader
 
-    '''def map_labels_expanding_classifier(self):
-        for fine_label in sorted(self.mb_y): #self.mb_task_id:#for fine_label in outdoors_specialised_models_train_stream_class_il.dataset.targets.uniques:
-            #self.mb_y.
-            fine_label_item = fine_label.item()
-            if fine_label_item not in self.class_to_idx.keys():
-                self.class_to_idx[fine_label_item] = len(self.class_to_idx)
-
-        return torch.tensor(
-            [
-                self.class_to_idx[int(fine_label.item())]
-                for fine_label in self.mb_y
-            ],
-            device=fine_label.device,
-            dtype=torch.long
-        )
-
-        ''''''for fine_label in sorted(self.experience.targets.uniques):
-            if fine_label not in self.class_to_idx.keys():
-                self.class_to_idx[fine_label] = len(self.class_to_idx)'''''''''
 
     def map_targets(self):
         targets_tensor = torch.tensor([class_to_idx_new[int(fine_label.item())] for fine_label in self.mb_y],
                                       device=self.mb_y.device,  # fine_label.device,
                                       dtype=torch.long
                                       )
-        print("print(targets_tensor)",targets_tensor)
+        #print("print(class_to_idx_new)\n", class_to_idx_new)
+        ##print("print(targets_tensor)\n",targets_tensor)
         return targets_tensor
 
     def map_targets_back_to_original(self, targets_tensor):#, new_to_original=None):
-        '''if new_to_original is None:
-            new_to_original = {}
-        for new_label in self.mb_y:
-            for mapped_labels in class_to_idx_new.items():
-            new_to_original[int(new_label)] = new_label#new_to_original[int(new_label.item())]
-            print("new_to_original[int(new_label)] = new_label", new_to_original[int(mapped_labels)])
-        print("new_to_original AFTER for mapped_labels, new_label in class_to_idx_new.items()",new_to_original)
-        print("self.mb_y", self.mb_y)'''
-        targets_tensor_list = targets_tensor.tolist()
-        print("targets_tensor_list", targets_tensor_list)
-
-        '''for element in targets_tensor_list:
-            new_to_original[int(element)] = '''
-
-        #for mapped_labels, new_label in class_to_idx_new.items():
-            #asd = new_to_original[int(new_label)]
-            #print("new_to_original[int(new_label)] for new_label in self.mb_y", asd)
+        #targets_tensor_list = targets_tensor.tolist()
+        #print("targets_tensor_list", targets_tensor_list)
 
         original_targets_tensor = torch.tensor(
             [
@@ -1487,32 +1392,12 @@ class LwFTrainer(SupervisedTemplate):
             device=self.mb_y.device,
             dtype=torch.long
         )
-        #print("new_to_original[int(mapped_labels)] for new_label in self.mb_y", new_to_original)
-        '''print("[new_to_original[int(new_label.item())]for new_label in self.mb_y]",
-              [new_to_original[int(new_label)] for new_label in self.mb_y])'''
-        '''print("[new_to_original[int(new_label.item())]for new_label in self.mb_y]", [new_to_original[int(new_label.item())]for new_label in self.mb_y])
-        original_targets_tensor = torch.tensor([new_to_original[int(new_label.item())]for new_label in self.mb_y],
-                                               device=self.mb_y.device,
-                                               dtype=torch.long
-                                               )'''
-        print("print(class_to_idx_new)",class_to_idx_new)
-        print("print(original_targets_tensor)",original_targets_tensor)
+        #print("print(new_to_original)\n", new_to_original)
+        ##print("print(original_targets_tensor)\n",original_targets_tensor)
 
         return original_targets_tensor
 
-
-    '''def map_targets(self):
-        return torch.tensor(
-            [
-                self.class_to_idx[int(fine_label.item())]
-                for fine_label in self.mb_y
-            ],
-            device=self.mb_y.device, #fine_label.device,
-            dtype=torch.long
-        )'''
-
-    '''
-    def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
+    '''def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
         if exclude is None:
             exclude = []
         ended_experience_counter = self.clock.train_exp_counter
@@ -1893,7 +1778,7 @@ if __name__ == "__main__":
 
     MATCH_AUTHOR_DISTILL = True#False#True
     MATCH_AUTHOR_LOSS = True#False #True
-    VERBOSE=True #False
+    VERBOSE=False
     #DYNAMIC_MODELS = True
     print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 

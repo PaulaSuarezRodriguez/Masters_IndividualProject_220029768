@@ -247,6 +247,18 @@ def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
 class_to_idx_new = map_labels_expanding_classifier_benchmark(objects_and_vehicles_specialised_models_train_subset.dataset)
 print("class_to_idx_new:", class_to_idx_new)
 
+def new_to_original_creation(new_to_original=None):
+    if new_to_original is None:
+        new_to_original = {}
+
+    for original_label, new_idx in class_to_idx_new.items():
+        new_to_original[new_idx] = original_label #new_to_original[original_label] = new_idx #TEST LATER: new_to_original[new_idx] = original_label #
+    return new_to_original
+
+new_to_original = new_to_original_creation()
+print("new_to_original:", new_to_original)
+
+
 if DEBUG:
     print(
         "type(objects_and_vehicles_specialised_models_train_subset.dataset) AFTER BEING PASSED TO make_avalanche_dataset and re-named avl_train",
@@ -1637,6 +1649,8 @@ class LwFTrainer(SupervisedTemplate):
             self.loss = self.criterion(self.mb_output,
                                        targets)  # self.loss = self.criterion(self.mb_output, self.mb_y) #loss = self.criterion(self.mb_output, self.mb_y)
 
+            #targets = self.map_targets_back_to_original() #TODO: NEW! In testing for re-mapping labels in aggregated model
+
             self._after_eval_iteration(**kwargs)  # formerly commented-out
 
     def evaluate_all_experiences(self, experience: CLExperience, eval_streams: Optional[
@@ -1704,13 +1718,16 @@ class LwFTrainer(SupervisedTemplate):
 
                         total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
                         predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
-                        total_correct_all_experiences += (
-                                    predictions_all_experiences == targets_all_experiences).sum().item()
+
+                        # TODO: NEW! In testing for re-mapping labels in aggregated model
+                        predictions_all_experiences = self.map_targets_back_to_original(predictions_all_experiences)  # TODO: NEW! In testing for re-mapping labels in aggregated model
+                        targets_all_experiences = self.map_targets_back_to_original(targets_all_experiences)  # TODO: NEW! In testing for re-mapping labels in aggregated model
+
+                        total_correct_all_experiences += (predictions_all_experiences == targets_all_experiences).sum().item()
                         total_samples_all_experiences += targets_all_experiences.size(0)
 
                 avg_loss_all_experiences = total_loss_all_experiences / total_samples_all_experiences if total_samples_all_experiences > 0 else 0.0
-                accuracy_all_experiences = (
-                            total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
+                accuracy_all_experiences = (total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
 
                 # Store results
                 self.experience_accuracies[current_exp_id_all_experiences][
@@ -1975,15 +1992,24 @@ class LwFTrainer(SupervisedTemplate):
                                       device=self.mb_y.device,  # fine_label.device,
                                       dtype=torch.long
                                       )
-        # print("print(targets_tensor)",targets_tensor)
+        #print("print(class_to_idx_new)\n", class_to_idx_new)
+        ##print("print(targets_tensor)\n",targets_tensor)
         return targets_tensor
 
-    def map_targets_back_to_original(self):
-        original_targets_tensor = torch.tensor([self.mb_y[int(fine_label)] for fine_label in class_to_idx_new],
-                                               device=self.mb_y.device,  # fine_label.device,
-                                               dtype=torch.long
-                                               )
-        # print("print(original_targets_tensor)",original_targets_tensor)
+    def map_targets_back_to_original(self, targets_tensor):#, new_to_original=None):
+        #targets_tensor_list = targets_tensor.tolist()
+        #print("targets_tensor_list", targets_tensor_list)
+
+        original_targets_tensor = torch.tensor(
+            [
+                new_to_original[int(element.item())] for element in targets_tensor #new_to_original[int(element)] for element in targets_tensor_list #new_to_original[int(mapped_labels)] for new_label in self.mb_y #new_to_original[int(new_label)] for mapped_labels, new_label in class_to_idx_new.items() #for new_label in self.mb_y
+            ],
+            device=self.mb_y.device,
+            dtype=torch.long
+        )
+        #print("print(new_to_original)\n", new_to_original)
+        ##print("print(original_targets_tensor)\n",original_targets_tensor)
+
         return original_targets_tensor
 
     def evaluate_all_experiences_post_training(self, eval_streams: Optional[
