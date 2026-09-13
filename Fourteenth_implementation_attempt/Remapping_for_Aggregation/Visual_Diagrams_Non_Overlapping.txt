@@ -1,0 +1,284 @@
+================================================================================
+         VISUAL DIAGRAMS: AGGREGATING NON-OVERLAPPING MODELS
+================================================================================
+
+DIAGRAM 1: YOUR 4 SPECIALIZED MODELS (NON-OVERLAPPING)
+================================================================================
+
+CIFAR-100 Classes (0-99):
+
+  Outdoors Model:         [12][17][23][33][37][49]
+                          ████  ████  ████  ████  ████  ████
+                          6 classes
+
+  Nature Model:           [0][47][51][52][53][54][56][57][59]
+                          ████  ████  ████  ████  ████  ████  ████  ████  ████
+                          9 classes
+
+  People Model:           [2][11][35]
+                          ████  ████  ████
+                          3 classes
+
+  Objects/Vehicles:       [5][8][9][10][13][16][20][22][25][28]...[94]
+                          ████  ████  ████  ████  ████  ████  ████  ████  ████  ████ ... ████
+                          25 classes
+
+  Unassigned (57 classes):
+  ░░░░  ░░░░  ░░░░  ... (positions 1, 3, 4, 6, 7, etc. not assigned to any model)
+
+Legend: ████ = Trained    ░░░░ = Not trained
+
+
+KEY FEATURE: NO OVERLAP!
+  - Each CIFAR class belongs to AT MOST one model
+  - After training: know exactly which model trained which classes
+  - During aggregation: no conflicts when combining weights
+
+
+================================================================================
+DIAGRAM 2: THE LABEL MAPPING PROBLEM (BEFORE AGGREGATION)
+================================================================================
+
+Model 1 (Outdoors) - During Training:
+  Dataset provides CIFAR labels: {12, 17, 23, 33, 37, 49}
+                      ↓ map_targets()
+  Model sees labels:   {0, 1, 2, 3, 4, 5}
+                      ↓ train with CE loss
+  Classifier learns:   [row 0 ← CIFAR class 12]
+                       [row 1 ← CIFAR class 17]
+                       [row 2 ← CIFAR class 23]
+                       [row 3 ← CIFAR class 33]
+                       [row 4 ← CIFAR class 37]
+                       [row 5 ← CIFAR class 49]
+
+After Training:
+  Model predicts labels in RANGE 0-5 only
+  
+  If you input a CIFAR-100 label 12:
+    "Model 1 thinks: 'What is class 12? I only know 0-5!'"
+    Problem: ❌ Model predicts in wrong label space
+
+
+Model 2, 3, 4: Same issue with their respective label spaces
+
+
+Trying to aggregate without remapping:
+  Model 1 outputs: logits[0-5]
+  Model 2 outputs: logits[0-8]
+  Model 3 outputs: logits[0-2]
+  Model 4 outputs: logits[0-24]
+  
+  ❌ Incompatible - can't combine these!
+  ❌ No way to know which row corresponds to which CIFAR class
+
+
+================================================================================
+DIAGRAM 3: THE SOLUTION - CLASSIFIER REMAPPING
+================================================================================
+
+Step 1: Identify Mappings
+  Model 1 new_to_original: {0→12, 1→17, 2→23, 3→33, 4→37, 5→49}
+  Model 2 new_to_original: {0→0, 1→47, 2→51, 3→52, 4→53, 5→54, 6→56, 7→57, 8→59}
+  Model 3 new_to_original: {0→2, 1→11, 2→35}
+  Model 4 new_to_original: {0→5, 1→8, 2→9, ..., 24→94}
+
+
+Step 2: Remap Each Classifier
+  
+  Model 1 Original Classifier:     Model 1 After Remapping:
+  ┌─────────────────────┐          ┌──────────────────────────────────────────────────┐
+  │ [row 0] for class 0 │          │ Position 0:  zeros (not trained)                 │
+  │ [row 1] for class 1 │          │ Position 1:  zeros (not trained)                 │
+  │ [row 2] for class 2 │          │ ...                                              │
+  │ [row 3] for class 3 │          │ Position 12: [copied from row 0]  ← class 12    │
+  │ [row 4] for class 4 │          │ Position 13-16: zeros                            │
+  │ [row 5] for class 5 │          │ Position 17: [copied from row 1]  ← class 17    │
+  └─────────────────────┘          │ ...                                              │
+  Size: [6, 512]                   │ Position 23: [copied from row 2]  ← class 23    │
+                                   │ ...                                              │
+                                   │ Position 49: [copied from row 5]  ← class 49    │
+                                   │ ...                                              │
+                                   │ Position 99: zeros (not trained)                 │
+                                   └──────────────────────────────────────────────────┘
+                                   Size: [100, 512]
+  
+  Result: Now row 12 = what Model 1 learned about class 12
+          Row 17 = what Model 1 learned about class 17, etc.
+
+
+  Similarly for Models 2, 3, 4:
+  Model 2 remapped:  [100, 512] with rows 0, 47, 51, 52, 53, 54, 56, 57, 59 filled
+  Model 3 remapped:  [100, 512] with rows 2, 11, 35 filled
+  Model 4 remapped:  [100, 512] with rows 5, 8, 9, 10, ... 94 filled
+
+
+Step 3: Aggregate (Combine Non-Overlapping Classes)
+  
+  Since classes don't overlap, each position in global classifier comes from AT MOST one model:
+  
+  Global Model Classifier (after aggregation):
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │ Position 0:  from Model 2 (nature)           ← class 0               │
+  │ Position 1:  zeros (not trained)                                     │
+  │ Position 2:  from Model 3 (people)           ← class 2               │
+  │ Position 3:  zeros (not trained)                                     │
+  │ ...                                                                  │
+  │ Position 5:  from Model 4 (objects/vehicles) ← class 5               │
+  │ ...                                                                  │
+  │ Position 12: from Model 1 (outdoors)         ← class 12              │
+  │ ...                                                                  │
+  │ Position 49: from Model 1 (outdoors)         ← class 49              │
+  │ ...                                                                  │
+  │ Position 100: zeros (not trained) [out of range]                     │
+  └──────────────────────────────────────────────────────────────────────┘
+  
+  Size: [100, 512]  ← Now compatible with CIFAR-100!
+
+
+Step 4: Use Global Model
+  
+  Input: Test image with CIFAR-100 label 12
+         ↓
+  Global model forward:
+    Features extracted (512-dim)
+         ↓
+    Classifier matrix multiply: [512-dim] × [100, 512]ᵀ = [100-dim logits]
+         ↓
+    Prediction: argmax(logits) → predicted class
+                (predicted class is 0-99, same space as input!)
+         ↓
+  ✓ CORRECT! No label space mismatch!
+
+
+================================================================================
+DIAGRAM 4: COMPARISON - BEFORE VS AFTER
+================================================================================
+
+BEFORE AGGREGATION (WRONG):
+  ╔════════════════════════════════════════════╗
+  ║ Model 1 predicts: [logit_0, logit_1, logit_2, logit_3, logit_4, logit_5]
+  ║ Input CIFAR label: 12
+  ║ Problem: logit_0 ≠ CIFAR class 12 (model doesn't know about 12)
+  ║ ❌ Incompatible!
+  ╚════════════════════════════════════════════╝
+
+
+AFTER AGGREGATION (CORRECT):
+  ╔════════════════════════════════════════════╗
+  ║ Global model predicts: [logit_0, logit_1, ..., logit_12, ..., logit_99]
+  ║ Input CIFAR label: 12
+  ║ Expected output: high logit_12 (trained on class 12)
+  ║ ✓ Compatible!
+  ╚════════════════════════════════════════════╝
+
+
+================================================================================
+DIAGRAM 5: CODE FLOW COMPARISON
+================================================================================
+
+CURRENT (WRONG):                    AFTER ADDING AGGREGATION (RIGHT):
+
+Training Loop:                      Training Loop:
+  ├─ Get CIFAR label 12               ├─ Get CIFAR label 12
+  ├─ Map to 0 (Model 1)               ├─ Map to 0 (Model 1)
+  ├─ Train: CE loss                   ├─ Train: CE loss
+  └─ Model learns row 0               └─ Model learns row 0
+
+[Continue for all models]           [Continue for all models]
+
+Try to use trained models:          Save mapping: {0→12}
+  ├─ Load models                      └─ Save {0→12} with model
+
+Aggregate weights:                  Aggregation Phase (NEW):
+  ├─ ???                              ├─ Load models + mappings
+  ├─ Dimension mismatch!              ├─ FOR each model:
+  └─ ❌ WRONG                         │  └─ Remap(model, mapping)
+                                     ├─ Combine remapped weights
+Test on CIFAR-100:                  └─ Create global model [100, 512]
+  ├─ Input: label 12
+  ├─ Model predicts: label 0         Test on CIFAR-100:
+  ├─ Comparison: 0 ≠ 12              ├─ Input: label 12
+  └─ ❌ Wrong prediction!            ├─ Model predicts: label 12
+                                     ├─ Comparison: 12 = 12
+                                     └─ ✓ Correct!
+
+
+================================================================================
+DIAGRAM 6: COVERAGE MAP - WHICH CLASSES TRAINED BY WHICH MODEL
+================================================================================
+
+Class 0:   Nature          ████
+Class 1:   (untrained)     ░░░░
+Class 2:   People          ████
+Class 3:   (untrained)     ░░░░
+Class 4:   (untrained)     ░░░░
+Class 5:   Objects/Veh     ████
+Classes 6-7: (untrained)   ░░░░  ░░░░
+Class 8:   Objects/Veh     ████
+...
+Class 12:  Outdoors        ████
+...
+Class 47:  Nature          ████
+...
+Class 99:  (untrained)     ░░░░
+
+Summary:
+  43 classes with ████ (trained by one of 4 models)
+  57 classes with ░░░░ (untrained, zero-initialized)
+
+
+Expected inference behavior:
+  ████ Classes: Good predictions (learned from training data)
+  ░░░░ Classes: Random predictions (zero logits)
+
+
+================================================================================
+DIAGRAM 7: THE AGGREGATION IS SIMPLE!
+================================================================================
+
+Why? Because classes don't overlap!
+
+Position 0 in global classifier:
+  - Could come from Model 2? YES (maps 0→0)
+  - Could come from Model 1? NO (doesn't train on class 0)
+  - Could come from Model 3? NO (doesn't train on class 0)
+  - Could come from Model 4? NO (doesn't train on class 0)
+  
+  Result: COPY weights from Model 2's position 0
+
+Position 12 in global classifier:
+  - Could come from Model 1? YES (maps 0→12)
+  - Could come from Model 2? NO (doesn't train on class 12)
+  - Could come from Model 3? NO (doesn't train on class 12)
+  - Could come from Model 4? NO (doesn't train on class 12)
+  
+  Result: COPY weights from Model 1's position 0
+
+Each position has exactly ONE source (or zero source if untrained)
+→ No ambiguity!
+→ No averaging needed!
+→ Simple concatenation!
+
+
+================================================================================
+                           FINAL SUMMARY
+================================================================================
+
+1. During training: Keep labels MAPPED (0-N for each model) ✅
+
+2. After training: Save new_to_original mappings ✅
+
+3. During aggregation (NEW STEP):
+   ├─ FOR each model:
+   │  └─ Remap its classifier using new_to_original mapping
+   └─ Combine all remapped classifiers (simple concatenation)
+
+4. Test on CIFAR-100: Model predicts in correct label space ✅
+
+The aggregation is straightforward because:
+  - Non-overlapping classes → No conflicts
+  - Each weight knows where it belongs → Unambiguous placement
+  - Simple remapping function → Easy implementation
+  - Clear coverage tracking → Easy validation
+
+================================================================================
