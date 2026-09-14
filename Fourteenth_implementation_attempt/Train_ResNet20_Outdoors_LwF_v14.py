@@ -1826,7 +1826,7 @@ if __name__ == "__main__":
         seen_experiences_val = []
         seen_experiences_sizes = 0
 
-        checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\checkpoints")
+        #MAY BE CAUSING ISSUE, DIRECTORY ALREADY SPECIFIED ABOVE!!! checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\checkpoints")
         for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:#4:
