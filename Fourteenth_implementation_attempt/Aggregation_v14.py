@@ -21,38 +21,25 @@ import torch.nn.init as init
 from Fourteenth_implementation_attempt.ResNet20_v14 import ResNet20
 from Fourteenth_implementation_attempt.FedAvg_code_v3_Fourteenth_implementation_attempt.fedavg_aggregator_backbone_only_Fourteenth import FedAvgAggregatorBackboneOnly
 from Fourteenth_implementation_attempt.ResNet20_DynamicModel_v14 import ResNet20_DynamicModel
+############ Imports for Evaluating: ##############################################################################################################################################
+from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
+from avalanche.benchmarks.utils.data import make_avalanche_dataset
+from avalanche.benchmarks.utils.data_attribute import DataAttribute
+from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
+from typing import Optional
+from torch.utils.data import DataLoader
+from torch.utils.data.dataset import Dataset, _T_co
+from avalanche.benchmarks.utils import AvalancheDataset
+from avalanche.benchmarks.utils.dataset_definitions import T_co
+from Fourteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v14 import outdoors_specialised_models_test_stream_class_il
+from Fourteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v14 import nature_specialised_models_test_stream_class_il
+from Fourteenth_implementation_attempt.Train_ResNet20_People_LwF_v14 import people_specialised_models_test_stream_class_il
+from Fourteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v14 import objects_and_vehicles_specialised_models_test_stream_class_il
+#TODO: TEMPORARY!!!! Change to that of v14 once I have final Objects_and_Vehicles model!!!!!
+from torch.utils.data import ConcatDataset, DataLoader
+####################################################################################################################################################################################
 
 VERBOSE = False
-
-'''def mapping_original_to_aggregated(ds, original_to_aggregated=None):
-    """
-    Map labels using provided mapping, or build a new one.
-    Allows caller to control state management.
-    """
-    if original_to_aggregated is None:
-        original_to_aggregated = {}
-
-    ds = ds.tolist()
-    print("ds.tolist()", ds)
-
-    for fine_label in sorted(ds):#for fine_label in sorted(ds.targets):
-        fine_label_item = fine_label
-        if fine_label_item not in original_to_aggregated.keys():
-            original_to_aggregated[fine_label_item] = len(original_to_aggregated)
-            print("original_to_aggregated", original_to_aggregated)
-
-    return original_to_aggregated
-
-
-#OUTDOORS: {0: 12, 1: 17, 2: 23, 3: 33, 4: 37, 5: 49, 6: 60, 7: 68, 8: 71, 9: 76}
-
-def map_targets_to_aggregated(original_to_aggregated, batch_labels):
-    aggregated_targets_tensor = torch.tensor([original_to_aggregated[int(fine_label.item())] for fine_label in batch_labels],
-                                  device=batch_labels.device,  # fine_label.device,
-                                  dtype=torch.long
-                                  )
-    # print("print(targets_tensor)",targets_tensor)
-    return aggregated_targets_tensor'''
 
 '''original_to_aggregated_dict = {0: 12, 1: 17, 2: 23, 3: 33, 4: 37, 5: 49, 6: 60, 7: 68, 8: 71, 9: 76, #OUTDOORS
                                 10: 0, 11: 47, 12: 51, 13: 52, 14: 53, 15: 54, 16: 56, 17: 57, 18: 59, 19: 62, 20: 70, 21: 82, 22: 83, 23: 92, 24: 96, #NATURE
@@ -74,7 +61,6 @@ def map_original_to_aggregated(targets_tensor, original_to_aggregated=original_t
         device=targets_tensor.device,
         dtype=torch.long
     )
-    # print("print(new_to_original)\n", new_to_original)
     ###print("print(aggregated_targets_tensor)\n",aggregated_targets_tensor)
 
     return aggregated_targets_tensor
@@ -87,16 +73,40 @@ def map_original_to_aggregated_predictions(targets_tensor, original_to_aggregate
         device=targets_tensor.device,
         dtype=torch.long
     )
-    # print("print(new_to_original)\n", new_to_original)
     ###print("print(aggregated_predictions_targets_tensor)\n",aggregated_predictions_targets_tensor)
 
     return aggregated_predictions_targets_tensor
 
+def aggregate_into_model_from_checkpoint(checkpoint,
+                         model: nn.Module,) -> nn.Module:
+    """
+    Load aggregated backbone weights into a model.
+    Args:
+        model (nn.Module): Target model to load weights
+    Returns:
+        nn.Module: Model with aggregated backbone loaded
+    """
+    # Get target model's state dict
+    target_state = model.state_dict()
+
+    # Create new state dict with aggregated backbone + original classifier
+    new_state = {}
+
+    for key, value in target_state.items():
+        # Load aggregated backbone weights
+        if key in checkpoint:
+            new_state[key] = checkpoint[key]
+        else:
+            new_state[key] = value
+
+    model.load_state_dict(new_state)
+    target_state_after = model.state_dict()
+    return model
 
 weights_outdoors = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt", map_location="cpu")
 weights_nature = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_nature_model.pt", map_location="cpu")
 weights_people = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model.pt", map_location="cpu")
-weights_objects_and_vehicles = torch.load(f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt", map_location="cpu")
+weights_objects_and_vehicles = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt", map_location="cpu")
 
 print(f"print(type(weights_objects_and_vehicles)):{type(weights_objects_and_vehicles)}\n"
       f"print(weights_objects_and_vehicles.keys()):{print(weights_objects_and_vehicles.keys())}")
@@ -180,7 +190,7 @@ if VERBOSE:
 model_paths=[f"../Fourteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt",
              f"../Fourteenth_implementation_attempt/final_specialised_models/final_nature_model.pt",
              f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model.pt",
-             f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt"]
+             f"../Fourteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt"]
 
 #training_samples_per_model=[3600, 1200, 10000]
 training_samples_per_model=[2400, 3600, 1200, 10000]
@@ -188,7 +198,7 @@ training_samples_per_model=[2400, 3600, 1200, 10000]
 # Create aggregator
 aggregator = FedAvgAggregatorBackboneOnly(
     weighting_strategy='data_driven',#'uniform',#'data_driven',
-    exclude_layers=['linear', 'num_batches_tracked']#exclude_layers=['classifier']  # ← Skip classifier
+    exclude_layers=['linear']#exclude_layers=['linear', 'num_batches_tracked']#exclude_layers=['classifier']  # ← Skip classifier
 )
 
 # Load models
@@ -197,116 +207,19 @@ aggregator.load_model_weights_from_files(
     dataset_sizes=training_samples_per_model
 )
 
-#TODO: This was the ORIGINAL LOCATION, I moved it below
-# See aggregation details
-#aggregator.print_report()
-# Aggregate
-#aggregator.save_aggregated_weights('aggregated_backbone.pth')
-
-# TODO: BRANCH 1
-'''combined_classifier = torch.nn.Linear(64, 43)
-
-with torch.no_grad():
-    combined_classifier.weight[:3].load_state_dict(torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model_CLASSIFIER.pt"))
-    combined_classifier.bias[:3] = people_classifier.bias
-
-    combined_classifier.weight[3:23] = nature_classifier.weight
-    combined_classifier.bias[3:23] = nature_classifier.bias
-
-    combined_classifier.weight[23:43] = outdoors_classifier.weight
-    combined_classifier.bias[23:43] = outdoors_classifier.bias'''
-
-#TODO: BRANCH 2
-'''#load_state_dict(torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model_CLASSIFIER_WEIGHT.pt"))
-combined_weight = torch.cat([
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_outdoors_model_CLASSIFIER_WEIGHT.pt"),#people_head.weight,
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_nature_model_CLASSIFIER_WEIGHT.pt"),#nature_head.weight,
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model_CLASSIFIER_WEIGHT.pt"),#people_head.weight,
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_WEIGHT.pt"),#objects_and_vehicles_head.weight,
-], dim=0)
-
-combined_bias = torch.cat([
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_outdoors_model_CLASSIFIER_BIAS.pt"),#people_head.BIAS,
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt"),#nature_head.BIAS,
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model_CLASSIFIER_BIAS.pt"),#people_head.BIAS,
-    torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_BIAS.pt"),#objects_and_vehicles_head.BIAS,
-], dim=0)'''
-
-#TODO: BRANCH 2, OPTION 2:
-people = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_people_model_CLASSIFIER.pt")
-nature = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_nature_model_CLASSIFIER.pt")
-outdoors = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_outdoors_model_CLASSIFIER.pt")
-#TODO:Temporary ###########objects_and_vehicles = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
-objects_and_vehicles = torch.load(f"../Fourteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
-
-#print("people[weight]", people["weight"])
-print("people[weight]", people["weight"].shape) #lwf_trainer.model.linear Linear(in_features=64, out_features=3, bias=True)
-#print("nature[weight]", nature["weight"])
-print("nature[weight]", nature["weight"].shape)
-#print("outdoors[weight]", outdoors["weight"])
-print("outdoors[weight]", outdoors["weight"].shape)
-print("objects_and_vehicles[weight]", objects_and_vehicles["weight"].shape)
-#OUTPUTS OF THE ABOVE PRINTS:
-#people[weight] torch.Size([3, 64])
-#nature[weight] torch.Size([9, 64])
-#outdoors[weight] torch.Size([6, 64])
-#objects_and_vehicles[weight] torch.Size([25, 64])
-#print(weights.shape) torch.Size([37, 64])
-#biases.shape torch.Size([37])
-
-weights = torch.cat([
-    outdoors["weight"],
-    nature["weight"],
-    people["weight"],
-    objects_and_vehicles["weight"]
-], dim=0)
-
-biases = torch.cat([
-    outdoors["bias"],
-    nature["bias"],
-    people["bias"],
-    objects_and_vehicles["bias"]
-], dim=0)
-
-print("print(weights.shape)",weights.shape)
-print("biases.shape",biases.shape)
 
 # Load into model
 print("\nLoading aggregated backbone into target model...")
-target_model = ResNet20_DynamicModel(num_classes=43)#TODO:Temporary ###########(num_classes=43)  # For new classes
+target_model = ResNet20_DynamicModel(num_classes=100)#TODO:Temporary ###########(num_classes=43)  # For new classes
 
-'''target_model.linear.weight.data.copy_(weights)#(combined_weight)
-target_model.linear.bias.data.copy_(biases)#(combined_bias)'''
-target_model.linear = torch.nn.Linear(64, 43)#TODO:Temporary ###########(64, 43)
-
-with torch.no_grad():
-    #target_model.linear.weight.copy_(weights)
-    #target_model.linear.bias.copy_(biases)
-    target_model.linear.weight[0:6] = outdoors["weight"].clone() #outdoors has 6 classes
-    target_model.linear.bias[0:6] = outdoors["bias"].clone() #outdoors has 6 classes
-
-    target_model.linear.weight[7:16] = nature["weight"].clone() #nature has 9 classes
-    target_model.linear.bias[7:16] = nature["bias"].clone() #nature has 9 classes
-
-    target_model.linear.weight[16:19] = people["weight"].clone() #people has 3 classes
-    target_model.linear.bias[16:19] = people["bias"].clone() #people has 3 classes
-
-    target_model.linear.weight[18:43] = objects_and_vehicles["weight"].clone() #objects_and_vehicles has 25 classes
-    target_model.linear.bias[18:43] = objects_and_vehicles["bias"].clone() #objects_and_vehicles has 25 classes
-
-    #combined_classifier.weight[23:43] = outdoors_classifier.weight
-    #combined_classifier.bias[23:43] = outdoors_classifier.bias'''
-
-aggregator.aggregate_into_model(target_model, keep_classifier=True)#target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False)
+target_model = aggregator.aggregate_into_model(target_model, keep_classifier=True)#keep_classifier NEVER USED IN FUNCTION CODE, so, set to true as reminder that classifier from target_model IS PRESENT. target_model = aggregator.aggregate_into_model(target_model, keep_classifier=False) #target_model = aggregator.aggregate_into_model(target_model, keep_classifier=True)#
 print("  ✓ Aggregated backbone loaded")
 print("  ✓ Classifier from target model preserved")
+###print("SAME AS THOSE FOR global_model PRINTED BELOW?????? THEY SHOULD BE!!!!! ANSWER:THEY ARE THE SAME! :")#TODO:THEY ARE THE SAME!
+###print("print(target_model.linear.weight)",target_model.linear.weight) #TODO: IMPORTANT! PROVES keep_classifier ALWAYS TRUE regardless of whether True or False is passed as argument!!!!
+###print("print(target_model.state_dict())",target_model.state_dict()) #TODO: IMPORTANT! PROVES keep_classifier ALWAYS TRUE regardless of whether True or False is passed as argument!!!!
 
-#target_model.linear = torch.nn.Linear(64, 18)#TODO:Temporary ###########(64, 43)
-
-'''with torch.no_grad():
-    target_model.linear.weight.copy_(weights)
-    target_model.linear.bias.copy_(biases)'''
-
+torch.save(target_model.state_dict(), 'aggregated_backbone_state_dict.pth')
 # See aggregation details
 aggregator.print_report()
 # Aggregate
@@ -319,25 +232,186 @@ print(f"  Aggregated parameters:")
 for key in agg_state.keys():
     print(f"    - {key}: {agg_state[key].shape}")
 
+
+
+
+
+
+import torch
+import torch.nn as nn
+import pickle
+
+
+def remap_classifier_to_cifar100(model, new_to_original, num_subset_classes, num_classes=100):
+    """
+    Remap a specialized model's classifier from local space to CIFAR-100 space.
+
+    new_to_original = {0→12, 1→17, 2→23, 3→33, 4→37, 5→49} for outdoors model
+
+    Maps model's local classifier [6, feature_dim] to global [100, feature_dim]
+    placing each row at its correct CIFAR-100 position.
+    """
+    model.eval()
+    classifier = model.linear
+    feature_dim = classifier.weight.shape[1]
+
+    with torch.no_grad():
+        # Initialize 100×feature_dim with zeros (untrained classes)
+        remapped_weights = torch.zeros(num_classes, feature_dim)
+        remapped_bias = torch.zeros(num_classes)
+
+        local_idx_count = 0
+        # Place each trained class at its CIFAR-100 position
+        for local_idx, cifar_class in new_to_original.items():
+            print("new_to_original", new_to_original)
+            print("print(local_idx, cifar_class)",local_idx, cifar_class)
+            local_idx_count +=1
+            print("print(local_idx_count)",local_idx_count)
+            print("print(num_subset_classes)",num_subset_classes)
+            if local_idx_count >= num_subset_classes:
+                print("print(num_subset_classes) THAT CAUSED BREAK",num_subset_classes)
+                break
+            # local_idx: 0-5 for outdoors (position in model's classifier)
+            # cifar_class: 12, 17, 23, ... (actual CIFAR class)
+            remapped_weights[cifar_class] = classifier.weight[local_idx]
+            remapped_bias[cifar_class] = classifier.bias[local_idx]
+
+        if VERBOSE:
+            print("remapped_weights", remapped_weights)
+            print("remapped_bias", remapped_bias)
+
+    return remapped_weights, remapped_bias
+
+
+#with torch.no_grad():
+global_weights = torch.zeros(100, 64)# Feature dimension of first model
+global_bias = torch.zeros(100)
+# Load model
+model = ResNet20_DynamicModel(num_classes=6)#model = ResNet20_DynamicModel(num_classes=num_subset_classes) #model = ResNet20(num_classes=num_subset_classes) #model = ResNet20_DynamicModel(num_classes=0) # ORIGINALLY: model = ResNet20(num_classes=None)
+model.eval()
+with torch.no_grad():
+    model.load_state_dict(torch.load(f'./final_specialised_models/final_outdoors_model.pt'))
+    print(f"LOADED MODEL WEIGHTS (final_outdoors_model):\n{model.state_dict()}")
+# Remap this model's classifier
+w, b = remap_classifier_to_cifar100(model, {0: 12, 1: 17, 2: 23, 3: 33, 4: 37, 5: 49, 6: 60, 7: 68, 8: 71, 9: 76}, 6, num_classes=100)#w, b = remap_classifier_to_cifar100(model, mapping, num_subset_classes, num_classes=100)
+print(f"w to see what it looks like after additions (final_outdoors_model):\n", w)
+print(f"b to see what it looks like after additions (final_outdoors_model):\n", b)
+# Add to global classifier (no averaging - classes don't overlap!)
+global_weights += w
+global_bias += b
+print(f"global_weights += w to see what it looks like after additions (final_outdoors_model):\n", global_weights)
+print(f"global_bias += b to see what it looks like after additions (final_outdoors_model):\n", global_bias)
+
+print(f"✓ Aggregated final_outdoors_model")
+
+
+# Load all trained models
+models = {}
+mappings = {}
+num_subset_classes = {}
+feature_dim = {}
+for model_name in ['outdoors', 'nature', 'people', 'objects_and_vehicles']:
+    # Load mapping
+    with open(f'./final_specialised_models/{model_name}_metadata.pkl', 'rb') as f:
+        metadata = pickle.load(f)
+    mappings[model_name] = metadata['new_to_original']
+    num_subset_classes[model_name] = metadata['num_subset_classes']
+    feature_dim[model_name] = metadata['feature_dim']
+    print(f"print(feature_dim) for {model_name}:\n{feature_dim}")
+
+
+    # Load model
+    model = ResNet20_DynamicModel(num_classes=num_subset_classes[model_name])#model = ResNet20_DynamicModel(num_classes=num_subset_classes) #model = ResNet20(num_classes=num_subset_classes) #model = ResNet20_DynamicModel(num_classes=0) # ORIGINALLY: model = ResNet20(num_classes=None)
+    model.eval()
+    with torch.no_grad():
+        model.load_state_dict(torch.load(f'./final_specialised_models/final_{model_name}_model.pt'))
+        print(f"LOADED MODEL WEIGHTS ({model_name}):\n{model.state_dict()}")
+    models[model_name] = model
+
+    #feature_dim = model.linear.weight.shape[1] # Feature dimension of first model
+
+# Remap and aggregate
+with torch.no_grad():
+    global_weights = torch.zeros(100, feature_dim['outdoors'])# Feature dimension of first model
+    print(f"print(feature_dim) passed to global_weights = torch.zeros(100, feature_dim):\n{feature_dim}")
+    global_bias = torch.zeros(100)
+
+for model_name in ['outdoors', 'nature', 'people', 'objects_and_vehicles']:
+    model = models[model_name]
+    print("model = models[model_name]", model) if VERBOSE else None
+    mapping = mappings[model_name]
+    ####num_subset_classes = num_subset_classes[model_name]
+
+    # Remap this model's classifier
+    w, b = remap_classifier_to_cifar100(model, mapping, num_subset_classes[model_name], num_classes=100)#w, b = remap_classifier_to_cifar100(model, mapping, num_subset_classes, num_classes=100)
+    print(f"w to see what it looks like after additions ({model_name}):\n", w)
+    print(f"b to see what it looks like after additions ({model_name}):\n", b)
+    # Add to global classifier (no averaging - classes don't overlap!)
+    global_weights += w
+    global_bias += b
+    print(f"global_weights += w to see what it looks like after additions ({model_name}):\n", global_weights)
+    print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_bias)
+
+    print(f"✓ Aggregated {model_name}")
+
+
+# Create global model
+#global_model = ResNet20(num_classes=100) #global_model = ResNet20_DynamicModel(num_classes=100) #ORIGINALLY: global_model = ResNet20(num_classes=100)
+#TODO: CHANGE: Since feature extractor layers were aggregated first, the global_model already exists. It is the target_model!
+global_model=target_model
+###print("SAME AS THOSE FOR target_model PRINTED ABOVE?????? THEY SHOULD BE!!!!! ANSWER:THEY ARE THE SAME! :")#TODO:THEY ARE THE SAME!
+###print("print(global_model.linear.weights)",global_model.linear.weight)
+###print("print(global_model.state_dict())",global_model.state_dict())
+###print("global_weights", global_weights)
+#TODO: If this fails, try setting keep_classifier=False instead of true and build a new classifier layer that is instantiated with the two lines below, as if current code does not work,
+# it is probably due to the overwriting that is supposed to occur if linear layer is "kept" (i.e. if keep_classifier=True) DID NOT WORK AS INTENDED and not keeping the linear layer,
+# creating a new one, and instantiating the new one with the two lines of code below, should be attempted.
+# Code for creating new linear layer: target_model.linear = torch.nn.Linear(64, 100)
+global_model.linear = torch.nn.Linear(64, 100)
+with torch.no_grad():
+    global_model.linear.weight = nn.Parameter(global_weights)
+    global_model.linear.bias = nn.Parameter(global_bias)
+
+print(f"✓ Created global model")
+print(f"  - Classifier shape: {global_model.linear.weight.shape}")
+print(f"  - Output: 100 classes\n")
+
+# Save
+torch.save(global_model.state_dict(), './final_specialised_models/global_model.pt')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================================
 # PHASE 4: EVALUATION
 # ============================================================================
-from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
-from avalanche.benchmarks.utils.data import make_avalanche_dataset
-from avalanche.benchmarks.utils.data_attribute import DataAttribute
-from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
-from typing import Optional
-from torch.utils.data import DataLoader
-from torch.utils.data.dataset import Dataset, _T_co
-from avalanche.benchmarks.utils import AvalancheDataset
-from avalanche.benchmarks.utils.dataset_definitions import T_co
-from Fourteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v14 import outdoors_specialised_models_test_stream_class_il
-from Fourteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v14 import nature_specialised_models_test_stream_class_il
-from Fourteenth_implementation_attempt.Train_ResNet20_People_LwF_v14 import people_specialised_models_test_stream_class_il
-from Twelfth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v12 import objects_and_vehicles_specialised_models_test_stream_class_il
-#TODO: TEMPORARY!!!! Change to that of v14 once I have final Objects_and_Vehicles model!!!!!
-from torch.utils.data import ConcatDataset, DataLoader
-
 # NEW NEW NEW
 test_stream_dict ={}
 test_stream_dict["outdoors_specialised_models_test_stream_class_il_variable"]= outdoors_specialised_models_test_stream_class_il
@@ -454,36 +528,12 @@ def unpack_minibatch(mbatch):
             # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
             raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
 
-'''def new_to_original_creation(new_to_original=None):
-    if new_to_original is None:
-        new_to_original = {}
-
-    for original_label, new_idx in class_to_idx_new.items():
-        new_to_original[original_label] = new_idx
-    return new_to_original
-
-new_to_original = new_to_original_creation()
-print("new_to_original:", new_to_original)
-
-def map_targets_back_to_original(self):
-
-    original_targets_tensor = torch.tensor(
-        [
-            new_to_original[int(new_label.item())]
-            for new_label in self.mb_y
-        ],
-        device=self.mb_y.device,
-        dtype=torch.long
-    )
-
-    return original_targets_tensor'''
-
 
 def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module):
     correct = 0
     total = 0
 
-    #target_model.eval()
+    target_model.eval() #TODO: IN TESTING! If it leads to problems, comment-out again
     with torch.no_grad():
         for batch_data, batch_labels, batch_task_ids in test_loader:
             #print(type(batch_data))
@@ -531,7 +581,7 @@ def evaluate_aggregated_model(model: nn.Module):
     total_correct_all_experiences = 0
     total_samples_all_experiences = 0
 
-    #model.eval()
+    model.eval() #TODO: IN TESTING! If it leads to problems, comment-out again
     with torch.no_grad():
         for batch_data, batch_labels, batch_task_ids in test_loader:
             unpack_minibatch(batch_data)
@@ -646,8 +696,24 @@ def evaluate_aggregated_model_v3(model: nn.Module):
 
     return avg_loss_all_experiences, accuracy_all_experiences
 
+
+# ============================================================================
+# TEST BEHAVIOUR
+# ============================================================================
+# Test on CIFAR-100 with original labels (0-99)
+'''correct=0
+for image, label, task_id in test_loader:
+    prediction = global_model(image)  # Outputs logits for classes 0-99
+    predicted_class = torch.argmax(prediction)
+
+    # Now predicted_class and label are in the same space!
+    # ✓ This comparison makes sense
+    if predicted_class == label:
+        correct += 1'''
+
+
+
 if __name__ == "__main__":
-    #aggregated_model = scenario_uniform_aggregation_mine(model_paths)#, training_samples_per_model)
     evaluate_aggregated_model_FedAvg_code_v3(target_model)
     evaluate_aggregated_model(target_model)
     evaluate_aggregated_model_v3(target_model)

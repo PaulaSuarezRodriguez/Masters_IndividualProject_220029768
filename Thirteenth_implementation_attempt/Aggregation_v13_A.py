@@ -24,6 +24,8 @@ from Thirteenth_implementation_attempt.ResNet20_v13 import ResNet20
 from Thirteenth_implementation_attempt.FedAvg_code_v3.fedavg_aggregator_backbone_only import FedAvgAggregatorBackboneOnly
 from Thirteenth_implementation_attempt.ResNet20_DynamicModel_v13 import ResNet20_DynamicModel
 
+VERBOSE = False
+
 '''def mapping_original_to_aggregated(ds, original_to_aggregated=None):
     """
     Map labels using provided mapping, or build a new one.
@@ -59,9 +61,11 @@ def map_targets_to_aggregated(original_to_aggregated, batch_labels):
                                 25: 2, 26: 11, 27: 35, 28: 46, 29: 98, #PEOPLE
                                 30: 5, 31: 8, 32: 9, 33: 10, 34: 13, 35: 16, 36: 20, 37: 22, 38: 25, 39: 28, 40: 39, 41: 40, 42: 41, 43: 48, 44: 58, 45: 61, 46: 69, 47: 81, 48: 84, 49: 85, 50: 86, 51: 87, 52: 89, 53: 90, 54: 94
                           }'''
-original_to_aggregated_dict = {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5, 51: 6, 47: 7, 0: 8, 54: 9, 53: 10, 52: 11, 59: 12, 57: 13, 56: 14, 2: 15, 11: 16, 35: 17, 16: 18, 13: 19,
-                               10: 20, 9: 21, 8: 22, 5: 23, 58: 24, 48: 25, 41: 26, 40: 27, 39: 28, 28: 29, 25: 30, 22: 31, 20: 32, 94: 33, 90: 34, 89: 35, 87: 36, 86: 37, 85: 38,
-                               84: 39, 81: 40, 69: 41, 61: 42}
+original_to_aggregated_dict = {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5, #OUTDOORS
+                               51: 6, 47: 7, 0: 8, 54: 9, 53: 10, 52: 11, 59: 12, 57: 13, 56: 14, #NATURE
+                               2: 15, 11: 16, 35: 17, #PEOPLE
+                               16: 18, 13: 19, 10: 20, 9: 21, 8: 22, 5: 23, 58: 24, 48: 25, 41: 26, 40: 27, 39: 28, 28: 29, 25: 30, 22: 31, 20: 32, 94: 33, #OBJECTS_AND_VEHICLES
+                               90: 34, 89: 35, 87: 36, 86: 37, 85: 38, 84: 39, 81: 40, 69: 41, 61: 42} #OBJECTS_AND_VEHICLES
 
 def map_original_to_aggregated(targets_tensor, original_to_aggregated=original_to_aggregated_dict):
     ###print("print(targets_tensor)",targets_tensor)
@@ -94,7 +98,7 @@ def map_original_to_aggregated_predictions(targets_tensor, original_to_aggregate
 weights_outdoors = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt", map_location="cpu")
 weights_nature = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_nature_model.pt", map_location="cpu")
 weights_people = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model.pt", map_location="cpu")
-weights_objects_and_vehicles = torch.load(f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt", map_location="cpu")
+weights_objects_and_vehicles = torch.load(f"../Thirteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt", map_location="cpu")
 
 print(f"print(type(weights_objects_and_vehicles)):{type(weights_objects_and_vehicles)}\n"
       f"print(weights_objects_and_vehicles.keys()):{print(weights_objects_and_vehicles.keys())}")
@@ -159,24 +163,26 @@ for key in list_load[0]:#state_dicts[0]:
         for state_dict in list_load:#state_dicts:
             weights[key].append(state_dict[key])
 
-print("print(weights.keys())",weights.keys())
-print("print(weights)",weights)
+if VERBOSE:
+    print("print(weights.keys())",weights.keys())
+    print("print(weights)",weights)
 
-for i in range(len(list_load)):
-    sizes={}
-    for key in weights.keys():
-        print("key:",key)
-        print("i:",i)
-        print(f"weights[key][i] is therefore --> weights[{key}][{i}]")
-        #print(f"print(weights[key][i]). That is, print(weights[{key}][{i}])\n",weights[key][i],"\n")
-        print(f"print(weights[{key}][{i}])\n", weights[key][i],"\n")
-        sizes[f"weights[{key}][{i}]"]=weights[key][i].size()
-        print(f"\nprint(sizes):\n{sizes}")
+if VERBOSE:
+    for i in range(len(list_load)):
+        sizes={}
+        for key in weights.keys():
+            print("key:",key)
+            print("i:",i)
+            print(f"weights[key][i] is therefore --> weights[{key}][{i}]")
+            #print(f"print(weights[key][i]). That is, print(weights[{key}][{i}])\n",weights[key][i],"\n")
+            print(f"print(weights[{key}][{i}])\n", weights[key][i],"\n")
+            sizes[f"weights[{key}][{i}]"]=weights[key][i].size()
+            print(f"\nprint(sizes):\n{sizes}")
 
 model_paths=[f"../Thirteenth_implementation_attempt/final_specialised_models/final_outdoors_model.pt",
              f"../Thirteenth_implementation_attempt/final_specialised_models/final_nature_model.pt",
              f"../Thirteenth_implementation_attempt/final_specialised_models/final_people_model.pt",
-             f"../Twelfth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt"]
+             f"../Thirteenth_implementation_attempt/final_specialised_models/final_objects_and_vehicles_model.pt"]
 
 #training_samples_per_model=[3600, 1200, 10000]
 training_samples_per_model=[2400, 3600, 1200, 10000]
@@ -330,7 +336,7 @@ from avalanche.benchmarks.utils.dataset_definitions import T_co
 from Thirteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v13 import outdoors_specialised_models_test_stream_class_il
 from Thirteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v13 import nature_specialised_models_test_stream_class_il
 from Thirteenth_implementation_attempt.Train_ResNet20_People_LwF_v13 import people_specialised_models_test_stream_class_il
-from Twelfth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v12 import objects_and_vehicles_specialised_models_test_stream_class_il
+from Thirteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v13 import objects_and_vehicles_specialised_models_test_stream_class_il
 #TODO: TEMPORARY!!!! Change to that of v13 once I have final Objects_and_Vehicles model!!!!!
 from torch.utils.data import ConcatDataset, DataLoader
 
@@ -486,7 +492,7 @@ def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module):
             #print(type(batch_labels))
             #print(type(batch_task_ids))
 
-            print("\nprint(batch_labels)\n",batch_labels)
+            ######print("\nprint(batch_labels)\n",batch_labels)
             ##print("print(batch_task_ids)",batch_task_ids)
 
             #original_to_aggregated = mapping_original_to_aggregated(batch_labels)
@@ -497,18 +503,18 @@ def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module):
 
             #outputs = map_original_to_aggregated(outputs)
             #batch_labels = map_original_to_aggregated(batch_labels)
-            print("\nprint(batch_labels) AFFTER map_original_to_aggregated(batch_labels)\n", batch_labels)
+            #####print("\nprint(batch_labels) AFFTER map_original_to_aggregated(batch_labels)\n", batch_labels)
 
             predictions = outputs
-            print("predictions before argmax:",predictions)
-            print("predictions before argmax SHAPE:", predictions.shape)
-            print("predictions before argmax LENGTH:", len(predictions))
-            print("batch_labels before argmax SHAPE:", batch_labels.shape)
-            print("batch_labels before argmax LENGTH:", len(batch_labels))
+            #####print("predictions before argmax:",predictions)
+            #####print("predictions before argmax SHAPE:", predictions.shape)
+            #####print("predictions before argmax LENGTH:", len(predictions))
+            #####print("batch_labels before argmax SHAPE:", batch_labels.shape)
+            #####print("batch_labels before argmax LENGTH:", len(batch_labels))
 
             predictions = outputs.argmax(dim=1)
 
-            print("\npredictions", predictions)
+            #####print("\npredictions", predictions)
             #predictions = map_original_to_aggregated(predictions)
             #batch_labels = map_original_to_aggregated(batch_labels)#batch_labels = map_targets_to_aggregated(original_to_aggregated, batch_labels)
 

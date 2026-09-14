@@ -250,6 +250,24 @@ def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
 class_to_idx_new = map_labels_expanding_classifier_benchmark(outdoors_specialised_models_train_subset.dataset)
 print("class_to_idx_new:", class_to_idx_new)
 
+'''def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
+    """
+    Map labels using provided mapping, or build a new one.
+    Allows caller to control state management.
+    """
+    if class_to_idx_new is None:
+        class_to_idx_new = {}
+
+    #class_to_idx_new = {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5}
+    class_to_idx_new = {12: 0, 17: 1, 23: 2, 33: 3, 37: 4, 49: 5} # TODO: I think this is the order in which the classes actually appear across experiences.
+                                                            # TODO: I am not sure, DOUBLE-CHECK if ever testing this version of map_labels_expanding_classifier_benchmark()
+
+    return class_to_idx_new
+
+
+class_to_idx_new = map_labels_expanding_classifier_benchmark(outdoors_specialised_models_train_subset.dataset)
+print("class_to_idx_new:", class_to_idx_new)'''
+
 def new_to_original_creation(new_to_original=None):
     if new_to_original is None:
         new_to_original = {}

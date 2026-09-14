@@ -2382,6 +2382,20 @@ if __name__ == "__main__":
                 torch.save(lwf_trainer.model.linear.state_dict(),f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
                 #torch.save(lwf_trainer.model.linear.weight,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_WEIGHTS.pt")
                 #torch.save(lwf_trainer.model.linear.bias,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_BIAS.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(lwf_trainer.old_classes),
+                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'subset_name': 'objects_and_vehicles_specialised_models_train_subset'    # Change this for different subsets
+                }
+                with open('./final_specialised_models/objects_and_vehicles_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for aggregation")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
                 break
             print("Start of experience -- current TRAIN experience: ", experience.current_experience)

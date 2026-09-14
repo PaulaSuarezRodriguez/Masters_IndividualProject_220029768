@@ -1722,11 +1722,11 @@ class LwFTrainer(SupervisedTemplate):
                         loss_all_experiences = self.criterion(student_logits_all_experiences, targets_all_experiences)
                         # print("print(self.model.training) -- evaluate all experiences after self.criterion",self.model.training)
 
-                        print("predictions before argmax:", student_logits_all_experiences)
-                        print("predictions before argmax SHAPE:", student_logits_all_experiences.shape)
-                        print("predictions before argmax LENGTH:", len(student_logits_all_experiences))
-                        print("batch_labels before argmax SHAPE:", self.mb_y.shape)
-                        print("batch_labels before argmax LENGTH:", len(self.mb_y))
+                        ####print("predictions before argmax:", student_logits_all_experiences)
+                        ####print("predictions before argmax SHAPE:", student_logits_all_experiences.shape)
+                        ####print("predictions before argmax LENGTH:", len(student_logits_all_experiences))
+                        ####print("batch_labels before argmax SHAPE:", self.mb_y.shape)
+                        ####print("batch_labels before argmax LENGTH:", len(self.mb_y))
                         total_loss_all_experiences += loss_all_experiences.item() * targets_all_experiences.size(0)
                         predictions_all_experiences = torch.argmax(student_logits_all_experiences, dim=1)
 
@@ -1734,8 +1734,8 @@ class LwFTrainer(SupervisedTemplate):
                         predictions_all_experiences = self.map_targets_back_to_original(predictions_all_experiences)  # TODO: NEW! In testing for re-mapping labels in aggregated model
                         targets_all_experiences = self.map_targets_back_to_original(targets_all_experiences)  # TODO: NEW! In testing for re-mapping labels in aggregated model
 
-                        print("\n","predictions_all_experiences", predictions_all_experiences)
-                        print("\n", "targets_all_experiences",targets_all_experiences)
+                        ####print("\n","predictions_all_experiences", predictions_all_experiences)
+                        ####print("\n", "targets_all_experiences",targets_all_experiences)
 
                         total_correct_all_experiences += (predictions_all_experiences == targets_all_experiences).sum().item()
                         total_samples_all_experiences += targets_all_experiences.size(0)
