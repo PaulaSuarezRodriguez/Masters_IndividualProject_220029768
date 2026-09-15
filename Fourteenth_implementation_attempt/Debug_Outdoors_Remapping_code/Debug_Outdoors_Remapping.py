@@ -16,6 +16,7 @@ Possible causes:
 import torch
 import pickle
 from pathlib import Path
+from Fourteenth_implementation_attempt.ResNet20_DynamicModel_v14 import ResNet20_DynamicModel
 
 
 def debug_outdoors_remapping():
@@ -28,15 +29,14 @@ def debug_outdoors_remapping():
     print("="*80 + "\n")
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model_dir = Path('./final_specialised_models')
-    
+    #model_dir = Path('./final_specialised_models')
+    model_dir = Path('C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\\final_specialised_models')
     # ========================================================================
     # STEP 1: Load outdoors model directly
     # ========================================================================
     
     print("STEP 1: Loading Outdoors model directly...")
-    
-    from ResNet20_DynamicModel_v13 import ResNet20_DynamicModel
+
     
     outdoors_model_path = model_dir / 'final_outdoors_model.pt'
     
@@ -101,6 +101,7 @@ def debug_outdoors_remapping():
         metadata = pickle.load(f)
     
     new_to_original = metadata['new_to_original']
+    num_subset_classes = metadata['num_subset_classes']
     
     print(f"  Mapping: {new_to_original}")
     print(f"  Expected for outdoors: {{0: 12, 1: 17, 2: 23, 3: 33, 4: 37, 5: 49}}\n")
@@ -124,7 +125,17 @@ def debug_outdoors_remapping():
     # Manually do the remapping for debugging
     print("  Performing remapping:")
     
+    local_idx_count = 0
+    # Place each trained class at its CIFAR-100 position
     for local_idx, cifar_class in new_to_original.items():
+        #print("new_to_original", new_to_original)
+        #print("print(local_idx, cifar_class)", local_idx, cifar_class)
+        local_idx_count += 1
+        #print("print(local_idx_count)", local_idx_count)
+        #print("print(num_subset_classes)", num_subset_classes)
+        if local_idx_count > num_subset_classes:
+            #print("print(num_subset_classes) THAT CAUSED BREAK", num_subset_classes)
+            break
         # Get the weight and bias from classifier
         weight_row = classifier.weight[local_idx]
         bias_val = classifier.bias[local_idx]

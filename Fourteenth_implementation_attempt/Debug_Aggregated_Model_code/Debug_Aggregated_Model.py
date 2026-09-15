@@ -13,11 +13,14 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-from ResNet20_DynamicModel_v13 import ResNet20_DynamicModel
+from Fourteenth_implementation_attempt.ResNet20_DynamicModel_v14 import ResNet20_DynamicModel
 import pickle
+from pathlib import Path
+
+model_dir = Path('C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\\final_specialised_models')
 
 
-def debug_aggregated_model(model_path='./final_specialised_models/global_model_with_averaged_features.pt'):
+def debug_aggregated_model(model_path='C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\\final_specialised_models\\global_model_with_averaged_features.pt'):
     """
     Comprehensive debugging of the aggregated model.
     """
@@ -215,7 +218,7 @@ def debug_aggregated_model(model_path='./final_specialised_models/global_model_w
                            (0.2675, 0.2565, 0.2761))
     ])
     
-    test_data = datasets.CIFAR100(root='./data', train=False, transform=transform)
+    test_data = datasets.CIFAR100(root='C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\data', train=False, transform=transform)
     
     # Sample 20 random images
     sample_indices = [0, 10, 20, 30, 40, 50, 100, 200, 500, 1000,

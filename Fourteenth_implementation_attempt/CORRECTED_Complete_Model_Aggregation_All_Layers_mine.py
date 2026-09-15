@@ -39,10 +39,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset, _T_co
 from avalanche.benchmarks.utils import AvalancheDataset
 from avalanche.benchmarks.utils.dataset_definitions import T_co
-from Fourteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v14 import outdoors_specialised_models_test_stream_class_il, outdoors_specialised_models_train_stream_class_il
+#from Fourteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v14 import outdoors_specialised_models_test_stream_class_il, outdoors_specialised_models_train_stream_class_il
 from Fourteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v14 import nature_specialised_models_test_stream_class_il, nature_specialised_models_train_stream_class_il
 from Fourteenth_implementation_attempt.Train_ResNet20_People_LwF_v14 import people_specialised_models_test_stream_class_il, people_specialised_models_train_stream_class_il
-from Fourteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v14 import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il
+#from Fourteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v14 import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il
 from Fourteenth_implementation_attempt.Load_cifar100_v14 import avl_test
 #TODO: TEMPORARY!!!! Change to that of v14 once I have final Objects_and_Vehicles model!!!!!
 from torch.utils.data import ConcatDataset, DataLoader
@@ -57,10 +57,10 @@ VERBOSE = False
 # ============================================================================
 # NEW NEW NEW
 test_stream_dict ={}
-test_stream_dict["outdoors_specialised_models_test_stream_class_il_variable"]= outdoors_specialised_models_test_stream_class_il
+#test_stream_dict["outdoors_specialised_models_test_stream_class_il_variable"]= outdoors_specialised_models_test_stream_class_il
 test_stream_dict["nature_specialised_models_test_stream_class_il_variable"]= nature_specialised_models_test_stream_class_il
 test_stream_dict["people_specialised_models_test_stream_class_il_variable"]= people_specialised_models_test_stream_class_il
-test_stream_dict["objects_and_vehicles_specialised_models_test_stream_class_il_variable"]=objects_and_vehicles_specialised_models_test_stream_class_il
+#test_stream_dict["objects_and_vehicles_specialised_models_test_stream_class_il_variable"]=objects_and_vehicles_specialised_models_test_stream_class_il
 
 for test_stream_name, test_stream in test_stream_dict.items():
     for test_exp in test_stream:
@@ -75,7 +75,7 @@ for test_stream_name, test_stream in test_stream_dict.items():
                 test_exp.dataset.targets.uniques
             )
 
-print("type", type(outdoors_specialised_models_test_stream_class_il[0].dataset))
+'''print("type", type(outdoors_specialised_models_test_stream_class_il[0].dataset))
 
 combined_dataset_outdoors = ConcatDataset([
     outdoors_specialised_models_test_stream_class_il[0].dataset,
@@ -83,7 +83,7 @@ combined_dataset_outdoors = ConcatDataset([
     outdoors_specialised_models_test_stream_class_il[2].dataset,
     #outdoors_specialised_models_test_stream_class_il[3].dataset,
     #outdoors_specialised_models_test_stream_class_il[4].dataset,
-])
+])'''
 
 combined_dataset_nature = ConcatDataset([
     nature_specialised_models_test_stream_class_il[0].dataset,
@@ -99,16 +99,17 @@ combined_dataset_people = ConcatDataset([
     people_specialised_models_test_stream_class_il[2].dataset,
 ])
 
-combined_dataset_objects_and_vehicles = ConcatDataset([
+'''combined_dataset_objects_and_vehicles = ConcatDataset([
     objects_and_vehicles_specialised_models_test_stream_class_il[0].dataset,
     objects_and_vehicles_specialised_models_test_stream_class_il[1].dataset,
     objects_and_vehicles_specialised_models_test_stream_class_il[2].dataset,
-])
+])'''
 
 combined_dataset = ConcatDataset([
-    combined_dataset_outdoors,
+    #combined_dataset_outdoors,
     combined_dataset_nature,
-    combined_dataset_people, combined_dataset_objects_and_vehicles
+    combined_dataset_people,
+    #combined_dataset_objects_and_vehicles
 ])
 
 test_loader = DataLoader(
@@ -144,21 +145,6 @@ for batch in test_loader:
         print(i, type(item), getattr(item, "shape", None))
         print(type(batch))
     break
-
-
-combined_train_dataset = ConcatDataset([
-    outdoors_specialised_models_train_stream_class_il,
-    nature_specialised_models_train_stream_class_il,
-    people_specialised_models_train_stream_class_il,
-    objects_and_vehicles_specialised_models_train_stream_class_il])
-
-train_loader = DataLoader(
-    combined_train_dataset,
-    batch_size=128,#32,
-    shuffle=False
-)
-print("print train_loader",train_loader)
-print("print train_loader.dataset", train_loader.dataset)
 
 avl_test_loader = DataLoader(
     avl_test,
@@ -208,7 +194,7 @@ def extract_feature_layers(model: nn.Module) -> Dict[str, torch.Tensor]:
 
     feature_layers = OrderedDict()
 
-    # Copy input layers
+    '''# Copy input layers
     feature_layers['conv1.weight'] = state_dict['conv1.weight'].clone()
     feature_layers['bn1.weight'] = state_dict['bn1.weight'].clone()
     feature_layers['bn1.bias'] = state_dict['bn1.bias'].clone()
@@ -219,7 +205,13 @@ def extract_feature_layers(model: nn.Module) -> Dict[str, torch.Tensor]:
     # Copy all residual block layers (layer1, layer2, layer3)
     for key in state_dict.keys():
         if key.startswith('layer'):  # layer1, layer2, layer3
+            feature_layers[key] = state_dict[key].clone()'''
+
+    # Copy all residual block layers (layer1, layer2, layer3)
+    for key in state_dict.keys():
+        if "linear" not in key and not key.endswith("running_mean") and not key.endswith("running_var") and not key.endswith("num_batches_tracked"):#if key.startswith('layer') or key.endswith("wight") or key.endswith("bias") and "linear" not in key:  # layer1, layer2, layer3
             feature_layers[key] = state_dict[key].clone()
+    print("feature_layers.keys()",feature_layers.keys())
 
     return feature_layers
 
@@ -250,10 +242,12 @@ def average_feature_layers(features_list: list) -> Dict[str, torch.Tensor]:
     # Average each layer across all models
     for key in features_list[0].keys():
         # Stack all models' values for this layer
-        stacked = torch.stack([features[key].float() for features in features_list])
+        stacked = torch.stack([features_list[0][key].float(), features_list[1][key].float()])#stacked = torch.stack([features[key].float() for features in features_list])
+        print("print(stacked.shape)",stacked.shape)
+        print("stacked.dim()",stacked.dim())
 
         # Take mean across models (dim=0)
-        averaged = torch.mean(stacked, dim=0)
+        averaged = torch.mean(stacked, dim=0)#averaged = torch.mean(stacked, dim=0)
 
         # Preserve original dtype
         averaged_features[key] = averaged.to(features_list[0][key].dtype)
@@ -286,7 +280,51 @@ def load_averaged_feature_layers(global_model: nn.Module,
 # STEP 2: Classifier Remapping (UNCHANGED)
 # ==============================================================================
 
+'''original_to_aggregated_dict = {"17": 0, "12": 1, "33": 2, "23": 3, "49": 4, "37": 5, #OUTDOORS
+                               "51": 6, "47": 7, "0": 8, "54": 9, "53": 10, "52": "11", "59": 12, "57": 13, "56": 14, #NATURE
+                               "2": 15, "11": 16, "35": 17, #PEOPLE
+                               "16": 18, "13": 19, "10": 20, "9": 21, "8": 22, "5": 23, "58": 24, "48": 25, "41": 26, "40": 27, "39": 28, "28": 29, "25": 30, "22": 31, "20": 32, "94": 33, #OBJECTS_AND_VEHICLES
+                               "90": 34, "89": 35, "87": 36, "86": 37, "85": 38, "84": 39, "81": 40, "69": 41, "61": 42} #OBJECTS_AND_VEHICLES'''
+
+'''original_to_aggregated_dict = {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5, #OUTDOORS
+                               51: 6, 47: 7, 0: 8, 54: 9, 53: 10, 52: 11, 59: 12, 57: 13, 56: 14, #NATURE
+                               2: 15, 11: 16, 35: 17, #PEOPLE
+                               16: 18, 13: 19, 10: 20, 9: 21, 8: 22, 5: 23, 58: 24, 48: 25, 41: 26, 40: 27, 39: 28, 28: 29, 25: 30, 22: 31, 20: 32, 94: 33, #OBJECTS_AND_VEHICLES
+                               90: 34, 89: 35, 87: 36, 86: 37, 85: 38, 84: 39, 81: 40, 69: 41, 61: 42} #OBJECTS_AND_VEHICLES'''
+
+'''original_to_aggregated_dict = {
+"outdoors" : {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5},#, #OUTDOORS}
+"nature": {51: 6, 47: 7, 0: 8, 54: 9, 53: 10, 52: 11, 59: 12, 57: 13, 56: 14},#, #NATURE}
+"people" : {2: 15, 11: 16, 35: 17}, #, #PEOPLE
+"objects_and_vehicles" : {16: 18, 13: 19, 10: 20, 9: 21, 8: 22, 5: 23, 58: 24, 48: 25, 41: 26, 40: 27, 39: 28, 28: 29, 25: 30, 22: 31, 20: 32, 94: 33, #OBJECTS_AND_VEHICLES
+                               90: 34, 89: 35, 87: 36, 86: 37, 85: 38, 84: 39, 81: 40, 69: 41, 61: 42} }'''
+
+original_to_aggregated_dict = {
+"nature": {0: 0, 47: 1, 51: 2, 52: 3, 53: 4, 54: 5, 56: 6, 57: 7, 59: 8}, #, 62: 9}, #70, 82, 83, 92, 96}#{51: 0, 47: 1, 0: 2, 54: 3, 53: 4, 52: 5, 59: 6, 57: 7, 56: 8},#, #NATURE}
+"people" : {2: 9, 11: 10, 35: 11}#3: 46, 4: 98},#{2: 9, 11: 10, 35: 11}, #, #PEOPLE
+}
+
+original_to_aggregated_dict_ALL = {0: 0, 47: 1, 51: 2, 52: 3, 53: 4, 54: 5, 56: 6, 57: 7, 59: 8, #, 62: 9}, #70, 82, 83, 92, 96}#{51: 0, 47: 1, 0: 2, 54: 3, 53: 4, 52: 5, 59: 6, 57: 7, 56: 8},#, #NATURE}
+2: 9, 11: 10, 35: 11}#3: 46, 4: 98},#{2: 9, 11: 10, 35: 11}, #, #PEOPLE
+
+
+
+
+def map_original_to_aggregated(targets_tensor, original_to_aggregated=original_to_aggregated_dict_ALL):
+    ###print("print(targets_tensor)",targets_tensor)
+    aggregated_targets_tensor = torch.tensor(
+        [
+            original_to_aggregated[int(element.item())] for element in targets_tensor #if element in original_to_aggregated.keys()
+        ],
+        device=targets_tensor.device,
+        dtype=torch.long
+    )
+    ###print("print(aggregated_targets_tensor)\n",aggregated_targets_tensor)
+
+    return aggregated_targets_tensor
+
 def remap_classifier_to_cifar100(
+    model_name,
     model: nn.Module,
     new_to_original: Dict[int, int],
     num_subset_classes,
@@ -329,11 +367,13 @@ def remap_classifier_to_cifar100(
         local_idx_count += 1
         print("print(local_idx_count)", local_idx_count)
         print("print(num_subset_classes)", num_subset_classes)
-        if local_idx_count >= num_subset_classes:
+        if local_idx_count > num_subset_classes:
             print("print(num_subset_classes) THAT CAUSED BREAK", num_subset_classes)
             break
         # local_idx: 0-5 for outdoors (position in model's classifier)
         # cifar_class: 12, 17, 23, ... (actual CIFAR class)
+        print(f"print(cifar_class = new_to_original[local_idx]) --> {cifar_class}")
+        print(f"print(classifier.weight[local_idx] for {model_name})", classifier.weight[local_idx])
         remapped_weights[cifar_class] = classifier.weight[local_idx].to(device)
         remapped_bias[cifar_class] = classifier.bias[local_idx].to(device)
 
@@ -343,6 +383,93 @@ def remap_classifier_to_cifar100(
 
     return remapped_weights, remapped_bias
 
+def remap_classifier_to_aggregated(
+    #model_name,
+    model: nn.Module,
+    w,
+    b,
+    original_to_aggregated_dict: Dict[int, int],
+    #num_subset_classes,
+    num_classes: int = 12,
+    device: str = 'cpu'
+) -> Tuple[torch.Tensor, torch.Tensor]:
+
+    classifier = model.linear
+    feature_dim = classifier.weight.shape[1]
+
+    remapped_weights = torch.zeros(
+        num_classes,
+        feature_dim,
+        device=device,
+        dtype=model.linear.weight.dtype #dtype=classifier.weight.dtype
+    )
+
+    remapped_bias = torch.zeros(
+        num_classes,
+        device=device,
+        dtype=model.linear.bias.dtype  #dtype=classifier.bias.dtype
+    )
+    '''remapped_weights = w
+    remapped_bias = b'''
+
+    cifar_idx_count = 0
+    # Place each trained class at its CIFAR-100 position
+    for cifar_idx, aggregated_idx in original_to_aggregated_dict.items():
+        print("original_to_aggregated_dict", original_to_aggregated_dict)
+        print("print(cifar_idx, aggregated_idx)", cifar_idx, aggregated_idx)
+        cifar_idx_count += 1
+        print("print(cifar_idx_count)", cifar_idx_count)
+        #print("print(num_subset_classes)", num_subset_classes)
+        #if cifar_idx_count > num_subset_classes:
+         #   print("print(num_subset_classes) THAT CAUSED BREAK", num_subset_classes)
+          #  break
+        # local_idx: 0-5 for outdoors (position in model's classifier)
+        # cifar_class: 12, 17, 23, ... (actual CIFAR class)
+        print(f"print(cifar_class = new_to_original[cifar_idx]) --> {cifar_idx}")
+        #print(f"print(w[cifar_idx])", w[cifar_idx])
+        remapped_weights[aggregated_idx] = w[cifar_idx].to(device)
+        remapped_bias[aggregated_idx] = b[cifar_idx].to(device)
+
+    if VERBOSE:
+        print("remapped_weights", remapped_weights)
+        print("remapped_bias", remapped_bias)
+
+    return remapped_weights, remapped_bias
+
+
+'''def remap_classifier_to_cifar100(model_name, model, new_to_original, num_trained_classes, num_classes=100, device='cpu'):
+    """
+    Remap classifier from local to CIFAR-100 space.
+
+    Only maps the first num_trained_classes indices, since those are the ones
+    that were actually trained. Ignore extra entries in new_to_original that
+    came from untrained experiences.
+    """
+    classifier = model.linear
+    feature_dim = classifier.weight.shape[1]
+
+    remapped_weights = torch.zeros(
+        num_classes,
+        feature_dim,
+        device=device,
+        dtype=classifier.weight.dtype
+    )
+    remapped_bias = torch.zeros(
+        num_classes,
+        device=device,
+        dtype=classifier.bias.dtype
+    )
+
+    # Only map indices 0 to num_trained_classes-1
+    for local_idx in range(num_trained_classes):
+        if local_idx in new_to_original:
+            cifar_class = new_to_original[local_idx]
+            print(f"print(cifar_class = new_to_original[local_idx]) --> {cifar_class}")
+            print(f"print(classifier.weight[local_idx] for {model_name})",classifier.weight[local_idx])
+            remapped_weights[cifar_class] = classifier.weight[local_idx]#.to(device)
+            remapped_bias[cifar_class] = classifier.bias[local_idx]#.to(device)
+
+    return remapped_weights, remapped_bias'''
 # ==============================================================================
 # STEP 3: Main Aggregation Pipeline (CORRECTED)
 # ==============================================================================
@@ -392,9 +519,10 @@ def aggregate_models_all_layers_with_feature_averaging(
 
             # Determine number of classes from classifier weight shape
             classifier_size = state_dict['linear.weight'].shape[0]
+            print(f"classifier_size for {model_name}", classifier_size)
             model = ResNet20_DynamicModel(num_classes=classifier_size)
             model.load_state_dict(state_dict)
-            model = model.to(device)
+            #model = model.to(device)
             models[model_name] = model
 
             # Load mapping
@@ -466,8 +594,8 @@ def aggregate_models_all_layers_with_feature_averaging(
 
     print("Step 4: Creating global model with averaged features...")
 
-    global_model = ResNet20_DynamicModel(num_classes=100)
-    global_model = global_model.to(device)
+    global_model = ResNet20_DynamicModel(num_classes=100)#ResNet20_DynamicModel(num_classes=100)
+    global_model = global_model#.to(device)
 
     # Load averaged feature extraction layers
     global_model = load_averaged_feature_layers(global_model, averaged_features)#load_averaged_feature_layers(global_model, averaged_features) #TODO: IMPORTANT CHANGE
@@ -485,8 +613,17 @@ def aggregate_models_all_layers_with_feature_averaging(
     print("Step 5: Remapping classifiers to CIFAR-100 space...")
     with torch.no_grad():
         feature_dim = models[model_names[0]].linear.weight.shape[1]
-        global_classifier_weights = torch.zeros(100, feature_dim, device=device)
-        global_classifier_bias = torch.zeros(100, device=device)
+
+        global_classifier_weights = torch.zeros(
+            100, feature_dim,
+            device=device,
+            dtype=global_model.linear.weight.dtype  # ORIGINALLY: #global_classifier_weights = torch.zeros(100, feature_dim, device=device)
+        )
+        global_classifier_bias = torch.zeros(
+            100,
+            device=device,
+            dtype=global_model.linear.bias.dtype  # ORIGINALLY: #global_classifier_bias = torch.zeros(100, device=device)
+        )
 
         class_coverage = {}
 
@@ -495,24 +632,52 @@ def aggregate_models_all_layers_with_feature_averaging(
             mapping = mappings[model_name]
 
             w, b = remap_classifier_to_cifar100(
-                model, mapping, num_subset_classes[model_name], num_classes=100, device=device
+                model_name, model, mapping, num_subset_classes[model_name], num_classes=100, device=device
             )
             print(f"w to see what it looks like after additions ({model_name}):\n", w)
             print(f"b to see what it looks like after additions ({model_name}):\n", b)
-            # Add to global classifier (no averaging - classes don't overlap!)
-            global_classifier_weights += w
-            global_classifier_bias += b
+
+            #FAILED map_original_to_aggregated(w)
+            #FAILED map_original_to_aggregated(b)
+            '''w, b = remap_classifier_to_aggregated(
+                model_name, model, w, b, original_to_aggregated_dict[model_name], num_classes=100, device=device
+            )'''
+            '''w, b = remap_classifier_to_aggregated(
+                model_name, model, w, b, original_to_aggregated_dict[model_name], num_subset_classes[model_name], num_classes=13, device=device
+            )
+
+            print(f"w to see what it looks like after remap_classifier_to_aggregated ({model_name}):\n", w)
+            print(f"b to see what it looks like after remap_classifier_to_aggregated ({model_name}):\n", b)'''
+
+            '''# Add to global classifier (no averaging - classes don't overlap!)
+            if model_name not in class_coverage:
+                global_classifier_weights = w
+                global_classifier_bias = b
+            else:
+                global_classifier_weights += w #global_classifier_weights = w + w #global_classifier_weights += w
+                global_classifier_bias += b #global_classifier_bias = b + b #global_classifier_bias += b
             print(f"global_weights += w to see what it looks like after additions ({model_name}):\n", global_classifier_weights)
+            print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_classifier_bias)'''
+            global_classifier_weights += w  # global_classifier_weights = w + w #global_classifier_weights += w
+            global_classifier_bias += b  # global_classifier_bias = b + b #global_classifier_bias += b
+            print(f"global_weights += w to see what it looks like after additions ({model_name}):\n",global_classifier_weights)
             print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_classifier_bias)
 
-        for local_idx, cifar_class in mapping.items():
-            if cifar_class not in class_coverage:
-                class_coverage[cifar_class] = []
-            class_coverage[cifar_class].append(model_name)
+            #FAILED map_original_to_aggregated(global_classifier_weights)
+            #FAILED map_original_to_aggregated(global_classifier_bias)
 
-        print(f"  ✓ Remapped {model_name}")
-        print(f"    - Classes: {len(mapping)}")
-        print(f"    - Positions: {sorted(mapping.values())}")
+            for local_idx, cifar_class in mapping.items():
+                if cifar_class not in class_coverage:
+                    class_coverage[cifar_class] = []
+                class_coverage[cifar_class].append(model_name)
+
+            print(f"  ✓ Remapped {model_name}")
+            print(f"    - Classes: {len(mapping)}")
+            print(f"    - Positions: {sorted(mapping.values())}")
+
+    #global_classifier_weights, global_classifier_bias = remap_classifier_to_aggregated(global_model, global_classifier_weights, global_classifier_bias, original_to_aggregated_dict_ALL, num_classes=13, device=device)
+    print(f"w to see what it looks like after remap_classifier_to_aggregated:\n", global_classifier_weights)
+    print(f"b to see what it looks like after remap_classifier_to_aggregated:\n", global_classifier_bias)
 
     print()
 
@@ -523,7 +688,34 @@ def aggregate_models_all_layers_with_feature_averaging(
     print("Step 6: Loading remapped classifier into global model...")
 
     global_model.linear.weight = nn.Parameter(global_classifier_weights)
+    #transposed_weight = nn.Parameter(global_classifier_weights).transpose(0, -1)#.to(device)
     global_model.linear.bias = nn.Parameter(global_classifier_bias)
+    #transposed_bias = nn.Parameter(global_classifier_bias).transpose(0, -1)#.to(device)
+
+    #FAILED global_model.linear.weight = nn.Parameter(global_classifier_weights).data
+    #FAILED global_model.linear.bias = nn.Parameter(global_classifier_bias).data
+
+    ###print("global_model.state_dict()",global_model.state_dict())
+    ###print("global_model.linear.state_dict()", global_model.linear.state_dict())
+
+    test={}
+    for layer_name, layer in global_model.state_dict().items():
+        #print(f"{layer_name}.shape:",layer.shape)
+        test[layer_name]=layer.shape
+
+    #WORKS but does not seem to have any effect so, back to original
+    #global_model.linear.weight.data = nn.Parameter(global_classifier_weights).data
+    #global_model.linear.bias.data = nn.Parameter(global_classifier_bias).data
+
+    ###print("global_model.state_dict() AFTER nn.Parameter",global_model.state_dict())
+    ###print("global_model.linear.state_dict() AFTER nn.Parameter", global_model.linear.state_dict())
+
+    for layer_name, layer in global_model.state_dict().items():
+        #print(f"{layer_name}.shape AFTER nn.Parameter:",layer.shape)
+        if test[layer_name] == layer.shape:
+            print(f"{test[layer_name]} EQUAL SHAPE {layer.shape}")
+        if test[layer_name] != layer.shape:
+            print(f"{test[layer_name]} NOT equal SHAPE {layer.shape}")
 
     print(f"  ✓ Classifier loaded: {global_model.linear.weight.shape}")
 
@@ -631,8 +823,9 @@ def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoa
             #unpack_minibatch(batch_data)
 
             logits_all_experiences = model(batch_data)
-            print("logits_all_experiences.dim()",logits_all_experiences.dim())
+            #print("logits_all_experiences.dim()",logits_all_experiences.dim())
             targets_all_experiences = batch_labels
+            #targets_all_experiences = map_original_to_aggregated(batch_labels)
 
 
             #loss_all_experiences = CrossEntropyLoss(logits_all_experiences, targets_all_experiences, reduction='mean')
@@ -671,6 +864,7 @@ def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module, loader: to
 
             outputs = target_model(batch_data)
             targets_all_experiences = batch_labels
+            #batch_labels = map_original_to_aggregated(batch_labels)
             #####print("predictions before argmax:",predictions)
             #####print("predictions before argmax SHAPE:", predictions.shape)
             #####print("predictions before argmax LENGTH:", len(predictions))
@@ -695,11 +889,13 @@ def main():
     Complete pipeline with feature averaging.
     """
 
-    MODEL_DIR = Path(f"../Fourteenth_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR = Path("./final_specialised_models") #MODEL_DIR = Path(f"../Fourteenth_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR.mkdir(parents=True, exist_ok=True) #MODEL_DIR = Path(f"../Fourteenth_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     OUTPUT_DIR = Path('./final_specialised_models')
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     DEVICE = 'cpu'#'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model_names = ['outdoors', 'nature', 'people', 'objects_and_vehicles']
+    model_names = ['nature', 'people']#model_names = ['outdoors', 'nature', 'people', 'objects_and_vehicles']#TODO: Testing if index out of bounds error occurs regardless of models
 
     try:
         # ============================================================
@@ -741,12 +937,12 @@ def main():
 
 if __name__ == '__main__':
     global_model = main()
-    #evaluate_aggregated_model(global_model)
+    evaluate_aggregated_model_FedAvg_code_v3(global_model, test_loader)
+    evaluate_aggregated_model(global_model, test_loader)
     global_model_reload = torch.load("../Fourteenth_implementation_attempt/final_specialised_models/global_model_with_averaged_features.pt")
-    global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)
+    global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)#global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)
     global_model_reload_architecture.load_state_dict(global_model_reload)
     evaluate_aggregated_model_FedAvg_code_v3(global_model_reload_architecture, test_loader)
     evaluate_aggregated_model(global_model_reload_architecture, test_loader)
-    #evaluate_aggregated_model(global_model_reload_architecture, train_loader)
     #evaluate_aggregated_model(global_model_reload_architecture,outdoors_specialised_models_train_stream_class_il)
     #evaluate_aggregated_model(global_model_reload_architecture, avl_test_loader)
