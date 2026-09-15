@@ -283,7 +283,7 @@ def remap_classifier_to_cifar100(model, new_to_original, num_subset_classes, num
     return remapped_weights, remapped_bias
 
 
-#with torch.no_grad():
+'''#with torch.no_grad():
 global_weights = torch.zeros(100, 64)# Feature dimension of first model
 global_bias = torch.zeros(100)
 # Load model
@@ -302,7 +302,7 @@ global_bias += b
 print(f"global_weights += w to see what it looks like after additions (final_outdoors_model):\n", global_weights)
 print(f"global_bias += b to see what it looks like after additions (final_outdoors_model):\n", global_bias)
 
-print(f"✓ Aggregated final_outdoors_model")
+print(f"✓ Aggregated final_outdoors_model")'''
 
 
 # Load all trained models
@@ -553,7 +553,7 @@ def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module):
             #batch_labels = map_original_to_aggregated(batch_labels)
             #####print("\nprint(batch_labels) AFFTER map_original_to_aggregated(batch_labels)\n", batch_labels)
 
-            predictions = outputs
+            #predictions = outputs
             #####print("predictions before argmax:",predictions)
             #####print("predictions before argmax SHAPE:", predictions.shape)
             #####print("predictions before argmax LENGTH:", len(predictions))

@@ -275,7 +275,53 @@ class ResNet20_Compact_S(nn.Module):
         out = self.linear(out)
         return out
 
+class ResNet20_XL(nn.Module):
+    """
+    Very compact ResNet20 for maximum regularization on tiny datasets.
 
+    Changes from original (75% reduction):
+    - Layer1: 16 → 4 channels
+    - Layer2: 32 → 8 channels
+    - Layer3: 64 → 16 channels
+    - Final features: 64 → 16
+
+    Use only if overfitting is severe.
+    """
+
+    def __init__(self, num_classes: int):
+        super(ResNet20_XL, self).__init__()
+        self.num_classes = num_classes
+        self.in_features = 128  # Changed: 64 → 16
+        self.in_planes = 32  # Changed: 16 → 4
+
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False)  # Changed: 16 → 4
+        self.bn1 = nn.BatchNorm2d(32)  # Changed: 16 → 4
+
+        self.layer1 = self._make_layer(32, 3, stride=1)  # Changed: 16 → 4
+        self.layer2 = self._make_layer(64, 3, stride=2)  # Changed: 32 → 8
+        self.layer3 = self._make_layer(128, 3, stride=2)  # Changed: 64 → 16
+
+        self.linear = nn.Linear(in_features=self.in_features, out_features=self.num_classes)
+
+        self.apply(_weights_init)
+
+    def _make_layer(self, planes, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(BasicBlock_DynamicModel(self.in_planes, planes, stride))
+            self.in_planes = planes
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = F.avg_pool2d(out, out.size()[3])
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        return out
 # ============================================================================
 # USAGE
 # ============================================================================
