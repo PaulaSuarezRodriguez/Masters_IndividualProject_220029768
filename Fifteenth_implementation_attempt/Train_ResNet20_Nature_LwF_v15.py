@@ -1524,7 +1524,7 @@ class LwFTrainer(SupervisedTemplate):
                 # Teacher is already large enough, skip
                 return False
 
-            print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
+            #print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
 
             # Create new classifier for teacher
             teacher_new_classifier = nn.Linear(
@@ -2228,53 +2228,57 @@ Process finished with exit code 0
 
 '''
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+# TODO: Removed to test if results of aggregation improve when models are not trained, saved and then loaded for aggregation, but used for aggregation directly after training without
+#  saving first. CHNAGE BACK IF IT DOES NOT IMPROVE RESULTS ONCE TESTING IS COMPLETE!!!!
 
-    MATCH_AUTHOR_DISTILL = True
-    MATCH_AUTHOR_LOSS = True
+MATCH_AUTHOR_DISTILL = True
+MATCH_AUTHOR_LOSS = True
 
-    EARLY_STOPPING_LOOP_1 = False  # True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
-    #                                  EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
-    #                                  "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
-    EARLY_STOPPING_LOOP_2 = False
-    EARLY_STOPPING_LOOP_3 = False
-    EARLY_STOPPING_LOOP_4 = False
-    EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC = False
-    EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
-    #                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
-    #                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
+EARLY_STOPPING_LOOP_1 = False  # True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
+#                                  EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
+#                                  "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
+EARLY_STOPPING_LOOP_2 = False
+EARLY_STOPPING_LOOP_3 = False
+EARLY_STOPPING_LOOP_4 = False
+EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC = False
+EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
+#                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
+#                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
 
-    acc_limit=80 # best for binary strategy
-    #acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
-    freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
-                    # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
-                    # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
-                    # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
+acc_limit=80 # best for binary strategy
+#acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
+freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
+                # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
+                # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
+                # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-    VERBOSE = False  # True
-    # DYNAMIC_MODELS = True
+VERBOSE = False  # True
+# DYNAMIC_MODELS = True
 
-    DIFFERENCE_CE_DIST = True
-    # DIFFERENCE_CE_DIST= False
+DIFFERENCE_CE_DIST = True
+# DIFFERENCE_CE_DIST= False
 
-    TRAINING_WITH_LOOP_LwF =True# False
-    # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-    FREEZING_ORIGINAL=False#True #False
-    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False
-    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
-    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
-    FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=True
-    FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
+TRAINING_WITH_LOOP_LwF =True# False
+# TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
+FREEZING_ORIGINAL=False#True #False
+FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False
+FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
+FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
+FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=True
+FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
 
-    print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
+print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
-    final_specialised_models_dir = Path("./final_specialised_models")
-    final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+final_specialised_models_dir = Path("./final_specialised_models")
+final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+
+def train_nature():
 
     if TRAINING_WITH_LOOP_LwF:
 
         # lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-        lwf_trainer = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
+        lwf_trainer_nature = LwFTrainer(model=nature_specialised_model, device="cpu", lr=0.01, momentum=0.9, weight_decay=5e-4, lr_decay_factor=0.1,
                                  temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                                  train_mb_size=43, train_epochs=10, eval_mb_size=43, #eval_mb_size=32, #device=DEVICE,
                                  patience=5, ft_shared_after=8,
@@ -2292,24 +2296,26 @@ if __name__ == "__main__":
         for experience in nature_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of nature_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:  # 4:#3:
-                torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_nature_model.pt")
+                # TODO: Removed to test if results of aggregation improve when models are not trained, saved and then loaded for aggregation, but used for aggregation directly after training without
+                #  saving first. CHNAGE BACK IF IT DOES NOT IMPROVE RESULTS ONCE TESTING IS COMPLETE!!!!
+                '''torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_nature_model.pt")
                 torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_nature_model_CLASSIFIER.pt")
                 torch.save(lwf_trainer.model.linear.weight.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_WEIGHTS.pt")
-                torch.save(lwf_trainer.model.linear.bias.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt")
-                new_to_original = new_to_original_creation()  # Your existing function
-                class_to_idx_new = class_to_idx_new  # Your existing variable
+                torch.save(lwf_trainer.model.linear.bias.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt")'''
+                new_to_original_nature = new_to_original_creation()  # Your existing function
+                class_to_idx_new_nature = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
                 metadata = {
-                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
-                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    'class_to_idx_new': class_to_idx_new_nature,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original_nature,  # YOUR EXISTING VARIABLE
                     #'num_subset_classes': len(class_to_idx_new),
-                    'num_subset_classes': len(lwf_trainer.old_classes),
-                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'num_subset_classes': len(lwf_trainer_nature.old_classes),
+                    'feature_dim': lwf_trainer_nature.model.linear.weight.shape[1],
                     'subset_name': 'nature_specialised_models_train_subset'  # Change this for different subsets
                 }
                 with open('./final_specialised_models/nature_metadata.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
-                print("✓ Saved metadata for aggregation")
+                print("✓ Saved metadata for aggregation (nature)")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
                 break
             print("Start of experience -- current TRAIN experience: ", experience.current_experience)
@@ -2333,19 +2339,19 @@ if __name__ == "__main__":
             # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
             # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
             # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-            print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
+            print("print(lwf_trainer_nature.plugins) BEFORE call to .train()", lwf_trainer_nature.plugins)
             seen_experiences.append(experience)
             seen_experiences_sizes += len(experience.dataset)
             print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
             seen_experiences_val.append(nature_specialised_models_val_stream_class_il[i])
-            lwf_trainer.train(experience, [seen_experiences,
-                                           seen_experiences_val])  # lwf_trainer.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
-            print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
+            lwf_trainer_nature.train(experience, [seen_experiences,
+                                           seen_experiences_val])  # lwf_trainer_nature.train(experience, [nature_specialised_models_train_stream_class_il,nature_specialised_models_val_stream_class_il])
+            print("Temperature:", lwf_trainer_nature.temperature, "Alpha:", lwf_trainer_nature.alpha)
             if EARLY_STOPPING_LOOP_5:
                 print("acc_limit:", acc_limit)
 
         print('Training completed WITH LwFTrainer')
-        print("lwf_trainer.results", lwf_trainer.results)
+        print("lwf_trainer_nature.results", lwf_trainer_nature.results)
         # print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
         '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
         print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
@@ -2353,3 +2359,5 @@ if __name__ == "__main__":
         print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
         # print("lwf_trainer.evaluate_all_experiences(nature_specialised_models_val_stream_class_il)")
         # lwf_trainer.evaluate_all_experiences_post_training(nature_specialised_models_val_stream_class_il)#(seen_experiences_val)
+
+        return lwf_trainer_nature.model

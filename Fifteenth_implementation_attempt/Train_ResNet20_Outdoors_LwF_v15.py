@@ -1021,7 +1021,7 @@ class LwFTrainer(SupervisedTemplate):
                 # Teacher is already large enough, skip
                 return False
 
-            print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
+            #print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
 
             # Create new classifier for teacher
             teacher_new_classifier = nn.Linear(
@@ -1792,21 +1792,25 @@ After training Experience 3:
   - Tested on Experience 3: 2.00%  
 '''
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+# TODO: Removed to test if results of aggregation improve when models are not trained, saved and then loaded for aggregation, but used for aggregation directly after training without
+#  saving first. CHNAGE BACK IF IT DOES NOT IMPROVE RESULTS ONCE TESTING IS COMPLETE!!!!
 
-    MATCH_AUTHOR_DISTILL = True#False#True
-    MATCH_AUTHOR_LOSS = True#False #True
-    VERBOSE=False
-    #DYNAMIC_MODELS = True
-    print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
+MATCH_AUTHOR_DISTILL = True#False#True
+MATCH_AUTHOR_LOSS = True#False #True
+VERBOSE=False
+#DYNAMIC_MODELS = True
+print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
-    final_specialised_models_dir = Path("./final_specialised_models")
-    final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+final_specialised_models_dir = Path("./final_specialised_models")
+final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+
+def train_outdoors(MATCH_AUTHOR_DISTILL = True, MATCH_AUTHOR_LOSS = True, VERBOSE=False):
 
     if TRAINING_WITH_LOOP_LwF:
 
         #lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cuda", lr=0.001, momentum=0.9, weight_decay=5e-4,temperature=2.0, alpha=1.0)
-        lwf_trainer = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.001, momentum=0.9, weight_decay=5e-4, #lr_decay_factor=0.009,
+        lwf_trainer_outdoors = LwFTrainer(model=outdoors_specialised_model, device="cpu", lr=0.001, momentum=0.9, weight_decay=5e-4, #lr_decay_factor=0.009,
                                  temperature=2.0, alpha=1.0, #temperature=2.0, alpha=1.0,#temperature=4.0, alpha=5.0,
                                  train_mb_size=32, train_epochs=5, eval_mb_size=32, #eval_mb_size=32, #device=DEVICE,
                                  #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
@@ -1816,7 +1820,7 @@ if __name__ == "__main__":
                                                             loggers=InteractiveLogger(), collect_all=True),
                                  eval_every=1)
 
-        print("print(lwf_trainer.plugins) AFTER initialisation, before entering training loop", lwf_trainer.plugins)
+        print("print(lwf_trainer_outdoors.plugins) AFTER initialisation, before entering training loop", lwf_trainer_outdoors.plugins)
 
         print('Starting experiment WITH LwFTrainer')
         results = []
@@ -1830,19 +1834,21 @@ if __name__ == "__main__":
         for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:#4:
-                torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_outdoors_model.pt")
+                # TODO: Removed to test if results of aggregation improve when models are not trained, saved and then loaded for aggregation, but used for aggregation directly after training without
+                #  saving first. CHNAGE BACK IF IT DOES NOT IMPROVE RESULTS ONCE TESTING IS COMPLETE!!!!
+                '''torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_outdoors_model.pt")
                 torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_outdoors_model_CLASSIFIER.pt")
                 torch.save(lwf_trainer.model.linear.weight, f"./final_specialised_models/final_outdoors_model_CLASSIFIER_WEIGHTS.pt")
-                torch.save(lwf_trainer.model.linear.bias, f"./final_specialised_models/final_outdoors_model_CLASSIFIER_BIAS.pt")
-                new_to_original = new_to_original_creation()  # Your existing function
-                class_to_idx_new = class_to_idx_new  # Your existing variable
+                torch.save(lwf_trainer.model.linear.bias, f"./final_specialised_models/final_outdoors_model_CLASSIFIER_BIAS.pt")'''
+                new_to_original_outdoors = new_to_original_creation()  # Your existing function
+                class_to_idx_new_outdoors = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
                 metadata = {
-                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
-                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    'class_to_idx_new': class_to_idx_new_outdoors,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original_outdoors,  # YOUR EXISTING VARIABLE
                     #'num_subset_classes': len(class_to_idx_new),
-                    'num_subset_classes': len(lwf_trainer.old_classes),
-                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'num_subset_classes': len(lwf_trainer_outdoors.old_classes),
+                    'feature_dim': lwf_trainer_outdoors.model.linear.weight.shape[1],
                     'subset_name': 'outdoors_specialised_models_train_subset'  # Change this for different subsets
                 }
                 with open('./final_specialised_models/outdoors_metadata.pkl', 'wb') as f:
@@ -1864,36 +1870,37 @@ if __name__ == "__main__":
             # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
             # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
             # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-            print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
+            print("print(lwf_trainer_outdoors.plugins) BEFORE call to .train()", lwf_trainer_outdoors.plugins)
             seen_experiences.append(experience)
             seen_experiences_sizes += len(experience.dataset)
             print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
             seen_experiences_val.append(outdoors_specialised_models_val_stream_class_il[i])
-            lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [outdoors_specialised_models_train_stream_class_il,outdoors_specialised_models_val_stream_class_il])
-            print("Temperature:" ,lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
+            lwf_trainer_outdoors.train(experience, [seen_experiences,seen_experiences_val])#lwf_trainer.train(experience, [outdoors_specialised_models_train_stream_class_il,outdoors_specialised_models_val_stream_class_il])
+            print("Temperature:" ,lwf_trainer_outdoors.temperature, "Alpha:", lwf_trainer_outdoors.alpha)
             #lwf_trainer.train(experience, outdoors_specialised_models_val_stream_class_il)
             #lwf_trainer.train_experience(experience, outdoors_specialised_models_val_stream_class_il)
             #lwf_trainer.train_experience(experience, [outdoors_specialised_models_train_stream_class_il,outdoors_specialised_models_val_stream_class_il])
-            print("print(lwf_trainer.plugins) AFTER call to .train()", lwf_trainer.plugins)
+            print("print(lwf_trainer_outdoors.plugins) AFTER call to .train()", lwf_trainer_outdoors.plugins)
             # print("print(criterion_masked.current_classes) AFTER CALL TO cl_strategy.train", criterion_masked.current_classes)
             # print("print(criterion_masked.old_classes) AFTER CALL TO cl_strategy.train", criterion_masked.old_classes)
         print('Training completed WITH LwFTrainer')
         #lwf_trainer.eval(outdoors_specialised_models_val_stream_class_il)#(seen_experiences_val)
+        return lwf_trainer_outdoors.model
 
 
-    '''
-        checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
-        for checkpoint_file in checkpoint_files:
-            print(f"Loading {checkpoint_file}")
-            cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
-            print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITH LOOP VERSION 2'")
-            cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
-    
-    '''
-        #print('Computing accuracy on the whole val set OUTSIDE training LOOP')
-        #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
-        #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
-        #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
+'''
+    checkpoint_files = sorted(checkpoint_dir_path.glob("*.pkl"))
+    for checkpoint_file in checkpoint_files:
+        print(f"Loading {checkpoint_file}")
+        cl_strategy_evaluation = load_entire_checkpoint(checkpoint_file)
+        print(f"Computing val accuracy on {checkpoint_file.name} AFTER 'Training completed WITH LOOP VERSION 2'")
+        cl_strategy_evaluation.eval(outdoors_specialised_models_val_stream_class_il)
+
+'''
+    #print('Computing accuracy on the whole val set OUTSIDE training LOOP')
+    #cl_strategy.eval(outdoors_specialised_models_val_stream_class_il)
+    #results.append(cl_strategy.eval(outdoors_specialised_models_val_stream_class_il))
+    #print("Computing accuracy on the whole val set OUTSIDE training LOOP (i.e. print(results)):", results)
 
 
 

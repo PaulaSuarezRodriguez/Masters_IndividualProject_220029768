@@ -1521,7 +1521,7 @@ class LwFTrainer(SupervisedTemplate):
                 # Teacher is already large enough, skip
                 return False
 
-            print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
+            #print(f"Expanding teacher {i} from {old_teacher_size} to {new_num_classes} classes")
 
             # Create new classifier for teacher
             teacher_new_classifier = nn.Linear(
@@ -2261,48 +2261,53 @@ Process finished with exit code 0
 
 '''
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+# TODO: Removed to test if results of aggregation improve when models are not trained, saved and then loaded for aggregation, but used for aggregation directly after training without
+#  saving first. CHNAGE BACK IF IT DOES NOT IMPROVE RESULTS ONCE TESTING IS COMPLETE!!!!
 
-    MATCH_AUTHOR_DISTILL = True
-    MATCH_AUTHOR_LOSS = True
+MATCH_AUTHOR_DISTILL = True
+MATCH_AUTHOR_LOSS = True
 
-    EARLY_STOPPING_LOOP_1 = False  # True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
-    #                                  EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
-    #                                  "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
-    EARLY_STOPPING_LOOP_2 = False
-    EARLY_STOPPING_LOOP_3 = False
-    EARLY_STOPPING_LOOP_4 = False
-    EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC = False
-    EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
-    #                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
-    #                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
+EARLY_STOPPING_LOOP_1 = False  # True #TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
+#                                  EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
+#                                  "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
+EARLY_STOPPING_LOOP_2 = False
+EARLY_STOPPING_LOOP_3 = False
+EARLY_STOPPING_LOOP_4 = False
+EARLY_STOPPING_LOOP_FORMERLY_5_BUT_CHANGED_TO_CONDITIONS_THAT_RESULT_IN_WORSE_EARLY_STOPPING_LOGIC = False
+EARLY_STOPPING_LOOP_5 = True  # TODO:Change back to EARLY_STOPPING_LOOP_1=True once I am done testing "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch...".
+#                            EARLY_STOPPING_LOOP_5 is identical to EARLY_STOPPING_LOOP_1, but with 85% limit accuracy instead of 75%, such that it is appropriate for
+#                            "ALTERNATIVE CODE (in testing) --> EVALUATING Epoch..."
 
-    #acc_limit=80 # best for binary strategy
-    acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
-    freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
-                    # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
-                    # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
-                    # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
+#acc_limit=80 # best for binary strategy
+acc_limit=85  # best for 'delayed_start', {'freeze_start_experience': 2}
+freeze_onwards=2 # for Nature or Outdoors model (I can't remember), {'freeze_start_experience': 2} was best. This is a manual {'freeze_start_experience': 2} with some additional things,
+                # like whether the freezing of the old classifier rows is included in the condition controlled by self.fet_shared_after or not, which is needed, as I am unsure of whether
+                # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
+                # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-    VERBOSE = False#True
-    # DYNAMIC_MODELS = True
+VERBOSE = False#True
+# DYNAMIC_MODELS = True
 
-    DIFFERENCE_CE_DIST = True
-    # DIFFERENCE_CE_DIST= False
+DIFFERENCE_CE_DIST = True
+# DIFFERENCE_CE_DIST= False
 
-    TRAINING_WITH_LOOP_LwF =True# False
-    # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-    FREEZING_ORIGINAL=False#True #False
-    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #False
-    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
-    FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
-    FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=False #True
-    FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
+TRAINING_WITH_LOOP_LwF =True# False
+# TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
+FREEZING_ORIGINAL=False#True #False
+FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #False
+FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
+FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
+FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS=False #True
+FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after=False #True
 
-    print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
+print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
-    final_specialised_models_dir = Path("./final_specialised_models")
-    final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+final_specialised_models_dir = Path("./final_specialised_models")
+final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
+
+
+def train_people():
 
     if TRAINING_WITH_LOOP_LwF:
 
@@ -2327,7 +2332,7 @@ if __name__ == "__main__":
 
         #"people": ["woman", "girl", "baby", "man", "boy"],
 
-        lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
+        lwf_trainer_people = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                                  temperature=2.0, alpha=1.0,
                                  train_mb_size=128, train_epochs=5, eval_mb_size=128,
                                  patience=3, ft_shared_after=10,
@@ -2356,31 +2361,33 @@ if __name__ == "__main__":
                 lwf_trainer.train_mb_size=128
                 lwf_trainer.eval_mb_size =128'''
             if i == 1:
-                lwf_trainer.lr = 0.00001
-                lwf_trainer.train_epochs = 5
-                lwf_trainer.train_mb_size=128
-                lwf_trainer.eval_mb_size = 128
-                lwf_trainer.ft_shared_after=5
+                lwf_trainer_people.lr = 0.00001
+                lwf_trainer_people.train_epochs = 5
+                lwf_trainer_people.train_mb_size=128
+                lwf_trainer_people.eval_mb_size = 128
+                lwf_trainer_people.ft_shared_after=5
             if i == 2:
-                lwf_trainer.lr = 0.001
-                lwf_trainer.train_epochs = 10
-                lwf_trainer.train_mb_size=128
-                lwf_trainer.eval_mb_size =128
-                lwf_trainer.ft_shared_after=3
+                lwf_trainer_people.lr = 0.001
+                lwf_trainer_people.train_epochs = 10
+                lwf_trainer_people.train_mb_size=128
+                lwf_trainer_people.eval_mb_size =128
+                lwf_trainer_people.ft_shared_after=3
             if i == 3:
-                torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
-                torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_CLASSIFIER.pt")
-                print("lwf_trainer.model.linear", lwf_trainer.model.linear)
-                print("lwf_trainer.model.linear.state_dict", lwf_trainer.model.linear.weight.shape)
-                new_to_original = new_to_original_creation()  # Your existing function
-                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # TODO: Removed to test if results of aggregation improve when models are not trained, saved and then loaded for aggregation, but used for aggregation directly after training without
+                #  saving first. CHNAGE BACK IF IT DOES NOT IMPROVE RESULTS ONCE TESTING IS COMPLETE!!!!
+                '''torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
+                torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_CLASSIFIER.pt")'''
+                #print("lwf_trainer.model.linear", lwf_trainer.model.linear)
+                #print("lwf_trainer.model.linear.state_dict", lwf_trainer.model.linear.weight.shape)
+                new_to_original_people = new_to_original_creation()  # Your existing function
+                class_to_idx_new_people = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
                 metadata = {
-                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
-                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    'class_to_idx_new': class_to_idx_new_people,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original_people,  # YOUR EXISTING VARIABLE
                     #'num_subset_classes': len(class_to_idx_new),
-                    'num_subset_classes': len(lwf_trainer.old_classes),
-                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'num_subset_classes': len(lwf_trainer_people.old_classes),
+                    'feature_dim': lwf_trainer_people.model.linear.weight.shape[1],
                     'subset_name': 'people_specialised_models_train_subset'  # Change this for different subsets
                 }
                 with open('./final_specialised_models/people_metadata.pkl', 'wb') as f:
@@ -2411,18 +2418,18 @@ if __name__ == "__main__":
             # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
             # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
             # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-            print("print(lwf_trainer.plugins) BEFORE call to .train()", lwf_trainer.plugins)
+            print("print(lwf_trainer_people.plugins) BEFORE call to .train()", lwf_trainer_people.plugins)
             seen_experiences.append(experience)
             seen_experiences_sizes += len(experience.dataset)
             print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
             seen_experiences_val.append(people_specialised_models_val_stream_class_il[i])
-            lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [people_specialised_models_train_stream_class_il,people_specialised_models_val_stream_class_il])
-            print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
+            lwf_trainer_people.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer_people.train(experience, [people_specialised_models_train_stream_class_il,people_specialised_models_val_stream_class_il])
+            print("Temperature:", lwf_trainer_people.temperature, "Alpha:", lwf_trainer_people.alpha)
             if EARLY_STOPPING_LOOP_5:
                 print("acc_limit:", acc_limit)
 
         print('Training completed WITH LwFTrainer')
-        print("lwf_trainer.results", lwf_trainer.results)
+        print("lwf_trainer_people.results", lwf_trainer_people.results)
         # print("lwf_trainer.compare_experiments() AFTER ALL EXPERIMENTS HAVE CONCLUDED:\n", lwf_trainer.compare_experiments())
         '''print("lwf_trainer.results[exp_name]",lwf_trainer.results[exp_name])
         print("lwf_trainer.results[exp_name]['gradient_stats']",lwf_trainer.results[exp_name]['gradient_stats'])
@@ -2430,7 +2437,10 @@ if __name__ == "__main__":
         print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
         # print("lwf_trainer.evaluate_all_experiences(people_specialised_models_val_stream_class_il)")
         # lwf_trainer.evaluate_all_experiences_post_training(people_specialised_models_val_stream_class_il)#(seen_experiences_val)
-        print("lwf_trainer.model.linear", lwf_trainer.model.linear)
-        print("lwf_trainer.model.linear.state_dict", lwf_trainer.model.linear.weight.shape)
+        print("lwf_trainer_people.model.linear", lwf_trainer_people.model.linear)
+        print("lwf_trainer_people.model.linear.state_dict", lwf_trainer_people.model.linear.weight.shape)
         print("people_specialised_model.linear", people_specialised_model.linear)
         print("people_specialised_model.linear.state_dict", people_specialised_model.linear.weight.shape)
+
+        return lwf_trainer_people.model
+
