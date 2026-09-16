@@ -68,22 +68,22 @@ from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 from avalanche.training.templates.base import TExperienceType, _experiences_parameter_as_iterable, \
     _group_experiences_by_stream
 
-from Fifteenth_implementation_attempt.Config_v15 import set_seed
+from Fourteenth_implementation_attempt.Config_v14 import set_seed
 
 set_seed()  # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Fifteenth_implementation_attempt.Config_v15 import set_device
+from Fourteenth_implementation_attempt.Config_v14 import set_device
 
 DEVICE = set_device()
-from Fifteenth_implementation_attempt.Config_v15 import SEED
+from Fourteenth_implementation_attempt.Config_v14 import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 
 RNGManager.set_random_seeds(SEED)
-from Fifteenth_implementation_attempt.ResNet20_v15 import ResNet20
-from Fifteenth_implementation_attempt.ResNet20_DynamicModel_v15 import ResNet20_DynamicModel
-#from Fifteenth_implementation_attempt.ResNet20_DynamicModel_v15 import ResNet20_Compact_S #ResNet20_Compact
-from Fifteenth_implementation_attempt.Load_cifar100_v15 import (objects_and_vehicles_specialised_models_train_subset)
-from Fifteenth_implementation_attempt.Load_cifar100_v15 import (objects_and_vehicles_specialised_models_val_subset)
-from Fifteenth_implementation_attempt.Load_cifar100_v15 import (objects_and_vehicles_specialised_models_test_subset)
+from Fourteenth_implementation_attempt.ResNet20_v14 import ResNet20
+from Fourteenth_implementation_attempt.ResNet20_DynamicModel_v14 import ResNet20_DynamicModel
+#from Fourteenth_implementation_attempt.ResNet20_DynamicModel_v14 import ResNet20_Compact_S #ResNet20_Compact
+from Fourteenth_implementation_attempt.Load_cifar100_v14 import (objects_and_vehicles_specialised_models_train_subset)
+from Fourteenth_implementation_attempt.Load_cifar100_v14 import (objects_and_vehicles_specialised_models_val_subset)
+from Fourteenth_implementation_attempt.Load_cifar100_v14 import (objects_and_vehicles_specialised_models_test_subset)
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
@@ -193,7 +193,7 @@ TRAINING_WITHOUT_LOOP = False  # True #TODO: Remember to change TRAINING_WITHOUT
 # TRAINING_WITH_RUN_SEVERAL_EXPERIMENTS_LwF = True
 DYNAMIC_MODELS = True
 print(
-    "\n\n\n################################ HERE BEGINS Train_ResNet20_Objects_and_Vehicles_v15.py ################################ \n\n\n")
+    "\n\n\n################################ HERE BEGINS Train_ResNet20_Objects_and_Vehicles_v14.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
     resnet20_global_model = ResNet20(num_classes=100)
@@ -1230,7 +1230,7 @@ class LwFTrainer(SupervisedTemplate):
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     checkpoint_dir = Path(
-                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Fifteenth_implementation_attempt\checkpoints")
+                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\checkpoints")
                     checkpoint_dir.mkdir(parents=True, exist_ok=True)
                     torch.save({
                         'epoch': _,
@@ -2094,7 +2094,7 @@ class LwFTrainer(SupervisedTemplate):
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
         #torch.save(checkpoint, path)
-        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Fifteenth_implementation_attempt\checkpoints")
+        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Fourteenth_implementation_attempt\checkpoints")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         torch.save(checkpoint, fname, pickle_module=dill)
 
