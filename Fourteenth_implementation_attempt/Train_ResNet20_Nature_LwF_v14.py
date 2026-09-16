@@ -2144,7 +2144,7 @@ class LwFTrainer(SupervisedTemplate):
 
 '''
 ######################################################################################################################################################
-#### Train_ResNet20_Nature_LwF_v14 ###
+#### Train_ResNet20_Nature_LwF_v13 ###
 ######################################################################################################################################################
 ### PERHAPS, NEW BEST Nature model? Even better than that already registered as best in 
     "All_gradient_freezing_strategies_results_NATURE_MODEL.txt"???????????

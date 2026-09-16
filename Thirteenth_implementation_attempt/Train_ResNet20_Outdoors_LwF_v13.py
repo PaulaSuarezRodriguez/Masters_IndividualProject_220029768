@@ -1483,7 +1483,7 @@ class LwFTrainer(SupervisedTemplate):
     '''
 '''
 ######################################################################################################################################################
-#### Train_ResNet20_Outdoors_Naive_Baseline_v13 ###
+#### Train_ResNet20_Outdoors_Naive_Baseline_v11 ###
 ######################################################################################################################################################
 Accuracy Results:
 
@@ -1512,7 +1512,7 @@ After training Experience 4:
   - Tested on Experience 3: 0.00%
   - Tested on Experience 4: 68.00%
 ######################################################################################################################################################
-#### Train_ResNet20_Outdoors_LwF_v13D ###
+#### Train_ResNet20_Outdoors_LwF_v11D ###
 ######################################################################################################################################################
 Accuracy Results:
 
@@ -1542,7 +1542,7 @@ After training Experience 4:
   - Tested on Experience 4: 65.50%
 
 ######################################################################################################################################################
-#### Train_ResNet20_Outdoors_LwF_v13F ###
+#### Train_ResNet20_Outdoors_LwF_v11F ###
 ######################################################################################################################################################
 
 temperature=0.4, alpha=0.5, train_epochs=5 -- struggles to learn new experiences (definitely by more that 11D), but retains previous experiences way better than 11D (where loss is LwF loss instead of KD final loss)
@@ -1573,7 +1573,7 @@ lr=0.0001, temperature=0.2, alpha=0.1, train_mb_size=100, train_epochs=100, eval
                                                                metric_name="Loss_Exp", mode="min", peval_mode="epoch",
                                                                margin=0.3, verbose=True)],
 
-# BEST NON-EXPANDING CLASSIFIER, that of "Train_ResNet20_Outdoors_LwF_v13_G.py"
+# BEST NON-EXPANDING CLASSIFIER, that of "Train_ResNet20_Outdoors_LwF_v11_G.py"
 
 After training Experience 0:
   - Tested on Experience 0: 49.50%
@@ -1682,7 +1682,7 @@ After training Experience 3:
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Best expanding classifier FROM BEFORE SWITCHING TO DISTILLATION OF SINGLE TEACHER THAT DOES EXPAND AND BEFORE DISTILL_LOSS 
-BETWEEN TEACHER AND CURRENT CLASSES, that is , classifier from "Train_ResNet20_Outdoors_LwF_v13_ai_ORIGINAL.py"
+BETWEEN TEACHER AND CURRENT CLASSES, that is , classifier from "Train_ResNet20_Outdoors_LwF_v11_ai_ORIGINAL.py"
 Accuracy Results for temperature=2.0, alpha=1.0 without increase across experiences,  lr=0.001, train_mb_size=32, train_epochs=5, eval_mb_size=32, MATCH_AUTHOR_DISTILL =False, 
 MATCH_AUTHOR_LOSS = False DYNAMIC_MODELS = True --- teacher expanded AND freezing layers:
 
@@ -1727,7 +1727,7 @@ After training Experience 3:
   
   
 31/08/2026:
-Train_ResNet20_Outdoors_LwF_v13_K.py ----- that is, expanding teacher, single-teacher set-up, and MASSIVE CHANGE IN LOGIC: Distillation is computed between teacher and student on current 
+Train_ResNet20_Outdoors_LwF_v11_K.py ----- that is, expanding teacher, single-teacher set-up, and MASSIVE CHANGE IN LOGIC: Distillation is computed between teacher and student on current 
 classes, NOT between teacher and student of past classes (hence why teacher had to be expanded!), so expanding teacher and freezing YES:
 
 lr=0.001, momentum=0.9, weight_decay=5e-4, temperature=2.0, alpha=0.5, train_mb_size=32, train_epochs=5, eval_mb_size=32, NO EarlyStopping, NO step_lr:
@@ -1755,7 +1755,7 @@ After training Experience 3:
 MATCH_AUTHOR_DISTILL = True, MATCH_AUTHOR_LOSS = True, DYNAMIC_MODELS = True, 
 lr=0.001, momentum=0.9, weight_decay=5e-4, temperature = 2.0, alpha = 1.0,train_mb_size=32, train_epochs=5, eval_mb_size=32, 
 NO EarlyStopping, NO step_lr, 
-Main characteristic of v13_K --> Distillation is computed between teacher and student on current classes, NOT between teacher and student of past classes 
+Main characteristic of v11_K --> Distillation is computed between teacher and student on current classes, NOT between teacher and student of past classes 
 (hence why teacher had to be expanded!), so expanding teacher and freezing YES
                     difference_ce_dist = (ce_loss.item() - dist_loss.item())
                     if difference_ce_dist !=0:
