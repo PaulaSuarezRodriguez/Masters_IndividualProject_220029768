@@ -153,6 +153,109 @@ objects_and_vehicles_TRAIN_loader = DataLoader(
     shuffle=False
 )
 
+
+combined_dataset_without_objects_and_vehicles = ConcatDataset([
+    combined_dataset_outdoors,
+    combined_dataset_nature,
+    combined_dataset_people #,
+    #combined_dataset_objects_and_vehicles
+])
+
+test_loader_without_objects_and_vehicles = DataLoader(
+    combined_dataset_without_objects_and_vehicles,
+    batch_size=32,
+    shuffle=False
+)
+
+
+combined_dataset_outdoors_train = ConcatDataset([
+    outdoors_specialised_models_train_stream_class_il[0].dataset,
+    outdoors_specialised_models_train_stream_class_il[1].dataset,
+    outdoors_specialised_models_train_stream_class_il[2].dataset,
+    #outdoors_specialised_models_train_stream_class_il[3].dataset,
+    #outdoors_specialised_models_train_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature_train = ConcatDataset([
+    nature_specialised_models_train_stream_class_il[0].dataset,
+    nature_specialised_models_train_stream_class_il[1].dataset,
+    nature_specialised_models_train_stream_class_il[2].dataset,
+    #nature_specialised_models_train_stream_class_il[3].dataset,
+    #nature_specialised_models_train_stream_class_il[4].dataset,
+])
+
+combined_dataset_people_train = ConcatDataset([
+    people_specialised_models_train_stream_class_il[0].dataset,
+    people_specialised_models_train_stream_class_il[1].dataset,
+    people_specialised_models_train_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_train = ConcatDataset([
+    objects_and_vehicles_specialised_models_train_stream_class_il[0].dataset,
+    objects_and_vehicles_specialised_models_train_stream_class_il[1].dataset,
+    objects_and_vehicles_specialised_models_train_stream_class_il[2].dataset,
+])
+
+combined_dataset_train = ConcatDataset([
+    combined_dataset_outdoors_train,
+    combined_dataset_nature_train,
+    combined_dataset_people_train,
+    combined_dataset_objects_and_vehicles_train
+])
+
+train_loader = DataLoader(
+    combined_dataset_train,
+    batch_size=32,
+    shuffle=True
+)
+print("print train_loader", train_loader)
+print("print train_loader.dataset", train_loader.dataset)
+
+
+combined_dataset_outdoors_last_experience_train = ConcatDataset([
+    #outdoors_specialised_models_train_stream_class_il[0].dataset,
+    #outdoors_specialised_models_train_stream_class_il[1].dataset,
+    outdoors_specialised_models_train_stream_class_il[2].dataset,
+    #outdoors_specialised_models_train_stream_class_il[3].dataset,
+    #outdoors_specialised_models_train_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature_last_experience_train = ConcatDataset([
+    #nature_specialised_models_train_stream_class_il[0].dataset,
+    #nature_specialised_models_train_stream_class_il[1].dataset,
+    nature_specialised_models_train_stream_class_il[2].dataset,
+    #nature_specialised_models_train_stream_class_il[3].dataset,
+    #nature_specialised_models_train_stream_class_il[4].dataset,
+])
+
+combined_dataset_people_last_experience_train = ConcatDataset([
+    #people_specialised_models_train_stream_class_il[0].dataset,
+    #people_specialised_models_train_stream_class_il[1].dataset,
+    people_specialised_models_train_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_last_experience_train = ConcatDataset([
+    #objects_and_vehicles_specialised_models_train_stream_class_il[0].dataset,
+    #objects_and_vehicles_specialised_models_train_stream_class_il[1].dataset,
+    objects_and_vehicles_specialised_models_train_stream_class_il[2].dataset,
+])
+
+combined_dataset_last_experience_train = ConcatDataset([
+    combined_dataset_outdoors_last_experience_train,
+    combined_dataset_nature_last_experience_train,
+    combined_dataset_people_last_experience_train,
+    combined_dataset_objects_and_vehicles_last_experience_train
+])
+
+last_experience_train_loader = DataLoader(
+    combined_dataset_last_experience_train,
+    batch_size=32,
+    shuffle=True
+)
+print("print last_experience_train_loader", last_experience_train_loader)
+print("print last_experience_train_loader.dataset", last_experience_train_loader.dataset)
+
+
 from collections import Counter
 
 all_labels = []
@@ -678,48 +781,64 @@ def aggregate_models_all_layers_with_feature_averaging(
             print(f"w to see what it looks like after additions ({model_name}):\n", w)
             print(f"b to see what it looks like after additions ({model_name}):\n", b)
 
-            #FAILED map_original_to_aggregated(w)
-            #FAILED map_original_to_aggregated(b)
-            '''w, b = remap_classifier_to_aggregated(
-                model_name, model, w, b, original_to_aggregated_dict[model_name], num_classes=100, device=device
-            )'''
+            row_norms = w.norm(p=2, dim=1)
+
+            nonzero_rows = torch.where(row_norms > 1e-12)[0]
+
+            print(f"\n{model_name} non-zero classifier rows:")
+            print(nonzero_rows.tolist())
+
+            for row in nonzero_rows.tolist():
+                print(
+                    f"CIFAR row {row}: "
+                    f"norm={row_norms[row].item():.8f}, "
+                    f"first values={w[row, :8]}"
+                )
+
+            print("\nSOURCE classifier:")
+            for local_idx in range(model.linear.weight.shape[0]):
+                print(
+                    local_idx,
+                    model.linear.weight[local_idx].norm().item()
+                )
+
+            print("\nREMAPPED classifier:")
+            for cifar_idx in [12, 17, 23, 33, 37, 49]:
+                print(
+                    cifar_idx,
+                    w[cifar_idx].norm().item()
+                )
+
             '''w, b = remap_classifier_to_aggregated(
                 model_name, model, w, b, original_to_aggregated_dict[model_name], num_subset_classes[model_name], num_classes=13, device=device
             )
-
             print(f"w to see what it looks like after remap_classifier_to_aggregated ({model_name}):\n", w)
             print(f"b to see what it looks like after remap_classifier_to_aggregated ({model_name}):\n", b)'''
 
-            '''# Add to global classifier (no averaging - classes don't overlap!)
-            if model_name not in class_coverage:
-                global_classifier_weights = w
-                global_classifier_bias = b
-            else:
-                global_classifier_weights += w #global_classifier_weights = w + w #global_classifier_weights += w
-                global_classifier_bias += b #global_classifier_bias = b + b #global_classifier_bias += b
-            print(f"global_weights += w to see what it looks like after additions ({model_name}):\n", global_classifier_weights)
-            print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_classifier_bias)'''
-            ########global_classifier_weights += w  # global_classifier_weights = w + w #global_classifier_weights += w
-            ########global_classifier_bias += b  # global_classifier_bias = b + b #global_classifier_bias += b
+            #TODO: Original code for global_classifier_weights += w and global_classifier_bias += b. This and the version I developed seem to do the same!!!
+            #Add to global classifier (no averaging - classes don't overlap!)
+            #########global_classifier_weights += w
+            #########global_classifier_bias += b
+            #########print(f"global_weights += w to see what it looks like after additions ({model_name}):\n", global_classifier_weights)
+            #########print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_classifier_bias)
 
             all_weights[model_name] = w
             all_bias[model_name] =b
 
-            #for i in all_weights:
             '''global_classifier_weights = torch.stack([m.float() for m in all_weights.values()])
             global_classifier_bias = torch.stack([b.float() for b in all_bias.values()])'''
 
             '''global_classifier_weights = torch.cat([m.float() for m in all_weights.values()], dim=0)
             global_classifier_bias = torch.cat([b.float() for b in all_bias.values()], dim=0)'''
 
+            # TODO: Back to original code for global_classifier_weights += w and global_classifier_bias += b. This and the version I developed seem to do the same!!!
+            # TODO: This is the version I developed
             global_classifier_weights = torch.stack([m.float() for m in all_weights.values()]).sum(dim=0)
             global_classifier_bias = torch.stack([b.float() for b in all_bias.values()]).sum(dim=0)
 
             print(f"global_weights += w to see what it looks like after additions ({model_name}):\n",global_classifier_weights)
             print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_classifier_bias)
 
-            #FAILED map_original_to_aggregated(global_classifier_weights)
-            #FAILED map_original_to_aggregated(global_classifier_bias)
 
             for local_idx, cifar_class in mapping.items():
                 if cifar_class not in class_coverage:
@@ -870,7 +989,284 @@ def test_global_model(global_model: nn.Module, device: str = 'cpu'):
     return output
 
 
-def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoader):
+def fine_tune_aggregated_model(
+        model: nn.Module,
+        loader: torch.utils.data.DataLoader,
+        fine_tune_epochs: int = 10,
+        lr: float = 1e-4,
+        momentum: float=0.9,
+        weight_decay:float=5e-4,
+):
+    """
+    Fine-tune an aggregated/global model.
+
+    Args:
+        model:
+            Aggregated model to fine-tune.
+
+        loader:
+            DataLoader containing:
+                batch_data, batch_labels, batch_task_ids
+
+        fine_tune_epochs:
+            Number of fine-tuning epochs.
+
+        lr:
+            Learning rate used for fine-tuning.
+
+    Returns:
+        Fine-tuned model.
+    """
+
+    '''# Determine the device on which the model resides
+    device = next(model.parameters()).device
+
+    # Fine-tuning optimizer
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=lr
+    )'''
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=lr,  # lr,
+        momentum=momentum,  # momentum,
+        weight_decay=weight_decay,  # weight_decay,
+    )
+
+    model.train()
+
+    for epoch in range(fine_tune_epochs):
+
+        # Reset statistics at the beginning of EACH epoch
+        total_loss = 0.0
+        total_correct = 0
+        total_samples = 0
+
+        for batch_data, batch_labels, batch_task_ids in loader:
+            # Move minibatch to the same device as the model
+            #batch_data = batch_data .to(device)
+            #batch_labels = batch_labels.to(device)
+
+            # Clear gradients from previous minibatch
+            optimizer.zero_grad()
+
+            # Forward pass
+            logits = model(batch_data)
+
+            # Calculate loss
+            loss = F.cross_entropy(
+                logits,
+                batch_labels,
+                reduction="mean"
+            )
+
+            # Calculate gradients
+            loss.backward()
+
+            # Update model parameters
+            optimizer.step()
+
+            # ---------------------------------
+            # Statistics
+            # ---------------------------------
+
+            batch_size = batch_labels.size(0)
+
+            total_loss += loss.item() * batch_size
+
+            predictions = torch.argmax(
+                logits,
+                dim=1
+            )
+
+            total_correct += (
+                    predictions == batch_labels
+            ).sum().item()
+
+            total_samples += batch_size
+
+        # ---------------------------------
+        # Epoch statistics
+        # ---------------------------------
+
+        avg_loss = (
+            total_loss / total_samples
+            if total_samples > 0
+            else 0.0
+        )
+
+        accuracy = (
+            100.0 * total_correct / total_samples
+            if total_samples > 0
+            else 0.0
+        )
+
+        print(
+            f"Epoch {epoch + 1}/{fine_tune_epochs} | "
+            f"Loss: {avg_loss:.6f} | "
+            f"Accuracy: {accuracy:.2f}%"
+        )
+
+    return model
+
+def fine_tune_aggregated_model_GPU(
+    model: nn.Module,
+    loader: torch.utils.data.DataLoader,
+    fine_tune_epochs: int = 10,
+    lr: float = 1e-4,
+    momentum: float=0.9,
+    weight_decay:float=5e-4,
+    device: str = "cpu"
+):
+    """
+    Fine-tune an aggregated/global model.
+
+    Args:
+        model:
+            Aggregated PyTorch model to fine-tune.
+
+        loader:
+            DataLoader yielding:
+                batch_data, batch_labels, batch_task_ids
+
+        fine_tune_epochs:
+            Number of fine-tuning epochs.
+
+        lr:
+            Learning rate used for fine-tuning.
+
+        device:
+            Device on which training should be performed.
+
+            Examples:
+                "cpu"
+                "cuda"
+                "cuda:0"
+                "cuda:1"
+
+    Returns:
+        Fine-tuned model. The returned model remains on the
+        specified device.
+    """
+
+    # ---------------------------------------------------------
+    # Device
+    # ---------------------------------------------------------
+
+    device = torch.device(device)
+
+    # Check that CUDA is actually available if requested
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA device requested, but CUDA is not available."
+        )
+
+    # Move the entire model, including its parameters and
+    # registered buffers, to the selected device.
+    model = model.to(device)
+
+    # ---------------------------------------------------------
+    # Optimizer
+    # ---------------------------------------------------------
+
+    '''optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=lr
+    )'''
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=lr,  # lr,
+        momentum=momentum,  # momentum,
+        weight_decay=weight_decay,  # weight_decay,
+    )
+
+    model.train()
+
+    # ---------------------------------------------------------
+    # Training
+    # ---------------------------------------------------------
+
+    for epoch in range(fine_tune_epochs):
+
+        # Reset statistics for this epoch
+        total_loss = 0.0
+        total_correct = 0
+        total_samples = 0
+
+        for batch_data, batch_labels, batch_task_ids in loader:
+
+            # Move tensors required for computation to the
+            # same device as the model.
+            batch_data = batch_data.to(device)
+            batch_labels = batch_labels.to(device)
+
+            # If your model actually uses task IDs, also do:
+            #
+            # batch_task_ids = batch_task_ids.to(device)
+
+            # Remove gradients left from previous minibatch
+            optimizer.zero_grad()
+
+            # Forward pass
+            logits = model(batch_data)
+
+            # Calculate loss
+            loss = F.cross_entropy(
+                logits,
+                batch_labels,
+                reduction="mean"
+            )
+
+            # Backpropagation
+            loss.backward()
+
+            # Update model parameters
+            optimizer.step()
+
+            # -------------------------------------------------
+            # Statistics
+            # -------------------------------------------------
+
+            batch_size = batch_labels.size(0)
+
+            total_loss += loss.item() * batch_size
+
+            predictions = torch.argmax(
+                logits,
+                dim=1
+            )
+
+            total_correct += (
+                predictions == batch_labels
+            ).sum().item()
+
+            total_samples += batch_size
+
+        # -----------------------------------------------------
+        # Epoch statistics
+        # -----------------------------------------------------
+
+        avg_loss = (
+            total_loss / total_samples
+            if total_samples > 0
+            else 0.0
+        )
+
+        accuracy = (
+            100.0 * total_correct / total_samples
+            if total_samples > 0
+            else 0.0
+        )
+
+        print(
+            f"Epoch {epoch + 1}/{fine_tune_epochs} | "
+            f"Loss: {avg_loss:.6f} | "
+            f"Accuracy: {accuracy:.2f}%"
+        )
+
+    return model
+
+def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoader, output_message:str):
     total_loss_all_experiences = 0.0
     total_correct_all_experiences = 0
     total_samples_all_experiences = 0
@@ -903,7 +1299,7 @@ def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoa
     accuracy_all_experiences = (total_correct_all_experiences / total_samples_all_experiences * 100) if total_samples_all_experiences > 0 else 0.0
 
     print(
-        f"Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
+        f"{output_message} --> Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}%"
     )
 
 def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module, loader: torch.utils.data.DataLoader):
@@ -996,15 +1392,35 @@ def main():
 if __name__ == '__main__':
     global_model = main()
     #evaluate_aggregated_model_FedAvg_code_v3(global_model, test_loader)
-    evaluate_aggregated_model(global_model, test_loader)
-    evaluate_aggregated_model(global_model, outdoors_loader)
-    evaluate_aggregated_model(global_model, nature_loader)
-    evaluate_aggregated_model(global_model, people_loader)
-    evaluate_aggregated_model(global_model, objects_and_vehicles_loader)
-    global_model_reload = torch.load("../Sixteenth_implementation_attempt/final_specialised_models/global_model_with_averaged_features.pt")
-    global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)#global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)
+    #evaluate_aggregated_model(global_model, test_loader_without_objects_and_vehicles, "Evaluating global model on test_loader_without_objects_and_vehicles")
+    evaluate_aggregated_model(global_model, test_loader, "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(global_model, outdoors_loader, "Evaluating global model on outdoors_loader")
+    evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
+    evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
+    evaluate_aggregated_model(global_model, objects_and_vehicles_loader, "Evaluating global model on objects_and_vehicles_loader")
+    ####global_model_reload = torch.load("../Sixteenth_implementation_attempt/final_specialised_models/global_model_with_averaged_features.pt")
+    ####global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)#global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)
     ####global_model_reload_architecture.load_state_dict(global_model_reload)
     ####evaluate_aggregated_model_FedAvg_code_v3(global_model_reload_architecture, test_loader)
     ####evaluate_aggregated_model(global_model_reload_architecture, test_loader)
     #evaluate_aggregated_model(global_model_reload_architecture,outdoors_specialised_models_train_stream_class_il)
     #evaluate_aggregated_model(global_model_reload_architecture, avl_test_loader)
+    print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
+    fine_tuned_global_model = fine_tune_aggregated_model(global_model, train_loader, lr=0.001, momentum=0.9, weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    #fine_tuned_global_model = fine_tune_aggregated_model_GPU(global_model, train_loader, lr=0.001, momentum=0.9,weight_decay=5e-4, device='cuda:0')
+    #evaluate_aggregated_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
+    evaluate_aggregated_model(fine_tuned_global_model, test_loader, "Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader, "Evaluating FINE-TUNED global model on outdoors_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, nature_loader, "Evaluating FINE-TUNED global model on nature_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, people_loader, "Evaluating FINE-TUNED global model on people_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
+
+    print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
+    fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=3, lr=0.001, momentum=0.9,weight_decay=5e-4)
+    # evaluate_aggregated_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
+    evaluate_aggregated_model(fine_tuned_global_model, test_loader,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader,"Evaluating FINE-TUNED global model on outdoors_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, nature_loader,"Evaluating FINE-TUNED global model on nature_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, people_loader,"Evaluating FINE-TUNED global model on people_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")

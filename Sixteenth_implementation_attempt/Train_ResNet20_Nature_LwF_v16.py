@@ -2291,11 +2291,27 @@ if __name__ == "__main__":
 
         for experience in nature_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of nature_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+            if i == 1:
+                torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_nature_model_Experience_1.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(lwf_trainer.old_classes),
+                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'subset_name': 'nature_specialised_models_train_subset'  # Change this for different subsets
+                }
+                with open('./final_specialised_models/nature_metadata_experience_1.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for aggregation")
             if i == 3:  # 4:#3:
                 torch.save(lwf_trainer.model.state_dict(),f"./final_specialised_models/final_nature_model.pt")
-                torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_nature_model_CLASSIFIER.pt")
-                torch.save(lwf_trainer.model.linear.weight.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_WEIGHTS.pt")
-                torch.save(lwf_trainer.model.linear.bias.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt")
+                #torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_nature_model_CLASSIFIER.pt")
+                #torch.save(lwf_trainer.model.linear.weight.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_WEIGHTS.pt")
+                #torch.save(lwf_trainer.model.linear.bias.data, f"./final_specialised_models/final_nature_model_CLASSIFIER_BIAS.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
