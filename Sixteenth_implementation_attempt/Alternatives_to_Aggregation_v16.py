@@ -40,10 +40,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset, _T_co
 from avalanche.benchmarks.utils import AvalancheDataset
 from avalanche.benchmarks.utils.dataset_definitions import T_co
-from Sixteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v16 import outdoors_specialised_models_test_stream_class_il, outdoors_specialised_models_train_stream_class_il
-from Sixteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v16 import nature_specialised_models_test_stream_class_il, nature_specialised_models_train_stream_class_il
-from Sixteenth_implementation_attempt.Train_ResNet20_People_LwF_v16 import people_specialised_models_test_stream_class_il, people_specialised_models_train_stream_class_il
-from Sixteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v16 import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il
+from Sixteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v16 import outdoors_specialised_models_test_stream_class_il, outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il
+from Sixteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v16 import nature_specialised_models_test_stream_class_il, nature_specialised_models_train_stream_class_il, nature_specialised_models_val_stream_class_il
+from Sixteenth_implementation_attempt.Train_ResNet20_People_LwF_v16 import people_specialised_models_test_stream_class_il, people_specialised_models_train_stream_class_il, people_specialised_models_val_stream_class_il
+from Sixteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v16 import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il, objects_and_vehicles_specialised_models_val_stream_class_il
 from Sixteenth_implementation_attempt.Load_cifar100_v16 import avl_test
 #TODO: TEMPORARY!!!! Change to that of v16 once I have final Objects_and_Vehicles model!!!!!
 from torch.utils.data import ConcatDataset, DataLoader
@@ -167,7 +167,7 @@ test_loader_without_objects_and_vehicles = DataLoader(
     shuffle=False
 )
 
-
+# TRAIN DATASET all specialised train subsets together
 combined_dataset_outdoors_train = ConcatDataset([
     outdoors_specialised_models_train_stream_class_il[0].dataset,
     outdoors_specialised_models_train_stream_class_il[1].dataset,
@@ -256,6 +256,52 @@ print("print last_experience_train_loader", last_experience_train_loader)
 print("print last_experience_train_loader.dataset", last_experience_train_loader.dataset)
 
 
+
+# VAL DATASET all specialised val subsets together
+combined_dataset_outdoors_val = ConcatDataset([
+    outdoors_specialised_models_val_stream_class_il[0].dataset,
+    outdoors_specialised_models_val_stream_class_il[1].dataset,
+    outdoors_specialised_models_val_stream_class_il[2].dataset,
+    #outdoors_specialised_models_val_stream_class_il[3].dataset,
+    #outdoors_specialised_models_val_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature_val = ConcatDataset([
+    nature_specialised_models_val_stream_class_il[0].dataset,
+    nature_specialised_models_val_stream_class_il[1].dataset,
+    nature_specialised_models_val_stream_class_il[2].dataset,
+    #nature_specialised_models_val_stream_class_il[3].dataset,
+    #nature_specialised_models_val_stream_class_il[4].dataset,
+])
+
+combined_dataset_people_val = ConcatDataset([
+    people_specialised_models_val_stream_class_il[0].dataset,
+    people_specialised_models_val_stream_class_il[1].dataset,
+    people_specialised_models_val_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_val = ConcatDataset([
+    objects_and_vehicles_specialised_models_val_stream_class_il[0].dataset,
+    objects_and_vehicles_specialised_models_val_stream_class_il[1].dataset,
+    objects_and_vehicles_specialised_models_val_stream_class_il[2].dataset,
+])
+
+combined_dataset_val = ConcatDataset([
+    combined_dataset_outdoors_val,
+    combined_dataset_nature_val,
+    combined_dataset_people_val,
+    combined_dataset_objects_and_vehicles_val
+])
+
+val_loader = DataLoader(
+    combined_dataset_val,
+    batch_size=32,
+    shuffle=True
+)
+print("print val_loader", val_loader)
+print("print val_loader.dataset", val_loader.dataset)
+
+
 from collections import Counter
 
 all_labels = []
@@ -331,6 +377,521 @@ def build_cifar_to_global_lookup(
     return lookup
 
 
+SPECIALIST_ORDER = [
+    "outdoors",
+    "nature",
+    "people",
+    "objects_and_vehicles",
+]
+
+
+def build_global_logit_permutation(
+    local_to_global_indices,
+    specialist_order=SPECIALIST_ORDER,
+):
+    """
+    Specialist logits will initially be concatenated in this order:
+
+        [outdoors | nature | people | objects]
+
+    concat_to_global tells us where each concatenated column belongs
+    in the true global 0..42 space.
+
+    global_to_concat lets us reorder the concatenated tensor directly.
+    """
+
+    concat_to_global = torch.cat([
+        local_to_global_indices[name].long()
+        for name in specialist_order
+    ])
+
+    num_classes = concat_to_global.numel()
+
+    expected = torch.arange(num_classes)
+
+    if not torch.equal(
+        torch.sort(concat_to_global).values,
+        expected,
+    ):
+        raise RuntimeError(
+            "Specialist mappings do not cover global "
+            f"indices 0..{num_classes - 1} exactly once."
+        )
+
+    global_to_concat = torch.empty_like(
+        concat_to_global
+    )
+
+    global_to_concat[concat_to_global] = (
+        torch.arange(num_classes)
+    )
+
+    return global_to_concat
+
+
+class SpecialistLogitCalibrator(nn.Module):
+    """
+    Learns one temperature per specialist plus relative
+    specialist-level logit offsets.
+
+    calibrated_logits_i =
+        raw_logits_i / temperature_i + bias_i
+
+    The first specialist's bias is fixed to zero because adding
+    the same scalar to every one of the 43 logits has no effect
+    on softmax/argmax. This removes that redundancy.
+    """
+
+    def __init__(
+        self,
+        specialist_order=SPECIALIST_ORDER,
+    ):
+        super().__init__()
+
+        self.specialist_order = list(
+            specialist_order
+        )
+
+        num_specialists = len(
+            self.specialist_order
+        )
+
+        # log(T)=0 -> T=1 initially.
+        # Thus the calibrator initially changes nothing.
+        self.log_temperatures = nn.Parameter(
+            torch.zeros(num_specialists)
+        )
+
+        # Outdoors is used as the reference specialist:
+        #
+        # bias_outdoors = 0
+        #
+        # Other specialist biases are learned relative to it.
+        self.relative_biases = nn.Parameter(
+            torch.zeros(num_specialists - 1)
+        )
+
+    def temperatures(self):
+        return torch.exp(
+            self.log_temperatures
+        )
+
+    def biases(self):
+        reference_bias = torch.zeros(
+            1,
+            device=self.relative_biases.device,
+            dtype=self.relative_biases.dtype,
+        )
+
+        return torch.cat([
+            reference_bias,
+            self.relative_biases,
+        ])
+
+    def forward(
+        self,
+        logits_by_specialist,
+    ):
+        temperatures = self.temperatures()
+        biases = self.biases()
+
+        calibrated = {}
+
+        for specialist_idx, model_name in enumerate(
+            self.specialist_order
+        ):
+            logits = logits_by_specialist[
+                model_name
+            ]
+
+            T = temperatures[specialist_idx]
+
+            bias = biases[specialist_idx]
+
+            calibrated[model_name] = (
+                logits / T
+            ) + bias
+
+        return calibrated
+
+
+@torch.no_grad()
+def collect_calibration_logits(
+    models,
+    loader,
+    num_subset_classes,
+    original_to_aggregated_dict,
+    specialist_order=SPECIALIST_ORDER,
+    device="cpu",
+):
+    """
+    Run the frozen specialists once over calibration data.
+
+    Returns:
+        cached_logits:
+            dict containing [N, specialist_classes]
+
+        global_targets:
+            tensor [N] in global 0..42 space
+    """
+
+    for model_name in specialist_order:
+        models[model_name].to(device)
+        models[model_name].eval()
+
+    # CIFAR-100 -> global 0..42
+    cifar_to_global = torch.full(
+        (100,),
+        -1,
+        dtype=torch.long,
+        device=device,
+    )
+
+    for cifar_class, global_idx in (
+        original_to_aggregated_dict.items()
+    ):
+        cifar_to_global[
+            int(cifar_class)
+        ] = int(global_idx)
+
+    collected_logits = {
+        model_name: []
+        for model_name in specialist_order
+    }
+
+    collected_targets = []
+
+    for batch in loader:
+
+        # Works with your Avalanche batches:
+        #
+        # [images, labels, task_ids]
+        batch_data = batch[0].to(device)
+        batch_labels = batch[1].to(device)
+
+        global_targets = cifar_to_global[
+            batch_labels
+        ]
+
+        if torch.any(global_targets < 0):
+
+            invalid = torch.unique(
+                batch_labels[
+                    global_targets < 0
+                ]
+            )
+
+            raise RuntimeError(
+                "Calibration set contains CIFAR "
+                "classes outside the learned 43: "
+                f"{invalid.tolist()}"
+            )
+
+        for model_name in specialist_order:
+
+            logits = models[model_name](
+                batch_data
+            )
+
+            n = num_subset_classes[
+                model_name
+            ]
+
+            # Important for your dynamic incremental
+            # classifiers: use only actually learned rows.
+            logits = logits[:, :n]
+
+            collected_logits[
+                model_name
+            ].append(
+                logits.detach().cpu()
+            )
+
+        collected_targets.append(
+            global_targets.detach().cpu()
+        )
+
+    cached_logits = {
+        model_name: torch.cat(
+            collected_logits[model_name],
+            dim=0,
+        )
+        for model_name in specialist_order
+    }
+
+    global_targets = torch.cat(
+        collected_targets,
+        dim=0,
+    )
+
+    print("\nCalibration cache:")
+
+    for model_name in specialist_order:
+        print(
+            model_name,
+            cached_logits[model_name].shape
+        )
+
+    print(
+        "targets:",
+        global_targets.shape
+    )
+
+    return cached_logits, global_targets
+
+def make_global_logits(
+    calibrated_logits,
+    global_to_concat,
+    specialist_order=SPECIALIST_ORDER,
+):
+    """
+    Concatenate specialist outputs and then reorder them
+    into true global class positions 0..42.
+    """
+
+    concatenated = torch.cat(
+        [
+            calibrated_logits[name]
+            for name in specialist_order
+        ],
+        dim=1,
+    )
+
+    global_to_concat = global_to_concat.to(
+        concatenated.device
+    )
+
+    global_logits = concatenated[
+        :,
+        global_to_concat,
+    ]
+
+    return global_logits
+
+def fit_specialist_logit_calibrator(
+    calibrator,
+    cached_logits,
+    targets,
+    global_to_concat,
+    specialist_order=SPECIALIST_ORDER,
+    device="cpu",
+    max_iter=200,
+    class_balanced=True,
+    regularization=1e-4,
+):
+
+    calibrator = calibrator.to(device)
+
+    logits = {
+        name: cached_logits[name].to(device)
+        for name in specialist_order
+    }
+
+    targets = targets.to(device)
+
+    global_to_concat = global_to_concat.to(
+        device
+    )
+
+    # --------------------------------------------------
+    # Optional class-balanced calibration loss
+    # --------------------------------------------------
+
+    class_weights = None
+
+    if class_balanced:
+
+        num_classes = (
+            global_to_concat.numel()
+        )
+
+        counts = torch.bincount(
+            targets,
+            minlength=num_classes,
+        ).float()
+
+        if torch.any(counts == 0):
+            missing = torch.where(
+                counts == 0
+            )[0]
+
+            raise RuntimeError(
+                "Calibration set is missing global "
+                f"classes: {missing.tolist()}"
+            )
+
+        class_weights = 1.0 / counts
+
+        # Normalize so the average weight is ~1.
+        class_weights = (
+            class_weights
+            / class_weights.mean()
+        )
+
+    # --------------------------------------------------
+    # Metrics before calibration
+    # --------------------------------------------------
+
+    calibrator.eval()
+
+    with torch.no_grad():
+
+        raw_calibrated = calibrator(
+            logits
+        )
+
+        raw_global_logits = (
+            make_global_logits(
+                raw_calibrated,
+                global_to_concat,
+                specialist_order,
+            )
+        )
+
+        before_loss = F.cross_entropy(
+            raw_global_logits,
+            targets,
+            weight=class_weights,
+        ).item()
+
+        before_accuracy = (
+            raw_global_logits.argmax(dim=1)
+            == targets
+        ).float().mean().item()
+
+    print("\nBefore calibration:")
+    print(
+        f"NLL = {before_loss:.6f}"
+    )
+    print(
+        f"Accuracy = "
+        f"{before_accuracy * 100:.2f}%"
+    )
+
+    # --------------------------------------------------
+    # Optimize calibration parameters ONLY
+    # --------------------------------------------------
+
+    calibrator.train()
+
+    optimizer = torch.optim.LBFGS(
+        calibrator.parameters(),
+        lr=0.5,
+        max_iter=max_iter,
+        line_search_fn="strong_wolfe",
+    )
+
+    def closure():
+
+        optimizer.zero_grad()
+
+        calibrated = calibrator(
+            logits
+        )
+
+        global_logits = (
+            make_global_logits(
+                calibrated,
+                global_to_concat,
+                specialist_order,
+            )
+        )
+
+        loss = F.cross_entropy(
+            global_logits,
+            targets,
+            weight=class_weights,
+        )
+
+        # Keep calibration reasonably close to
+        # the identity transformation unless data
+        # strongly support moving away from it.
+        if regularization > 0:
+
+            reg = (
+                calibrator.log_temperatures.pow(2).mean()
+                +
+                calibrator.relative_biases.pow(2).mean()
+            )
+
+            loss = (
+                loss
+                + regularization * reg
+            )
+
+        loss.backward()
+
+        return loss
+
+    optimizer.step(closure)
+
+    calibrator.eval()
+
+    # --------------------------------------------------
+    # Metrics after calibration
+    # --------------------------------------------------
+
+    with torch.no_grad():
+
+        calibrated = calibrator(
+            logits
+        )
+
+        global_logits = (
+            make_global_logits(
+                calibrated,
+                global_to_concat,
+                specialist_order,
+            )
+        )
+
+        after_loss = F.cross_entropy(
+            global_logits,
+            targets,
+            weight=class_weights,
+        ).item()
+
+        after_accuracy = (
+            global_logits.argmax(dim=1)
+            == targets
+        ).float().mean().item()
+
+    print("\nAfter calibration:")
+    print(
+        f"NLL = {after_loss:.6f}"
+    )
+    print(
+        f"Accuracy = "
+        f"{after_accuracy * 100:.2f}%"
+    )
+
+    temperatures = (
+        calibrator
+        .temperatures()
+        .detach()
+        .cpu()
+    )
+
+    biases = (
+        calibrator
+        .biases()
+        .detach()
+        .cpu()
+    )
+
+    print("\nLearned calibration:")
+
+    for idx, model_name in enumerate(
+        specialist_order
+    ):
+        print(
+            f"{model_name:22s} | "
+            f"T={temperatures[idx].item():.6f} | "
+            f"bias={biases[idx].item():+.6f}"
+        )
+
+    return calibrator
+
 class GlobalSpecialistModel(nn.Module):
 
     def __init__(
@@ -376,6 +937,8 @@ class GlobalSpecialistModel(nn.Module):
 
         self.num_classes = num_classes
 
+        '''self.calibrator = calibrator'''
+
         self.register_buffer(
             "outdoors_indices",
             outdoors_indices.long()
@@ -401,30 +964,41 @@ class GlobalSpecialistModel(nn.Module):
         outdoors_logits = self.outdoors(x)[
             :, :self.outdoors_num_classes
         ]
+        prediction_outdoors_logits1 = torch.argmax(outdoors_logits, dim=0)
+        prediction_outdoors_logits2 = torch.argmax(outdoors_logits, dim=1)
+        prediction_outdoors_logits3 = torch.argmax(outdoors_logits, dim=-1)
 
         nature_logits = self.nature(x)[
             :, :self.nature_num_classes
         ]
+        prediction_nature_logits1 = torch.argmax(nature_logits, dim=-0)
+        prediction_nature_logits2 = torch.argmax(nature_logits, dim=1)
+        prediction_nature_logits3 = torch.argmax(nature_logits, dim=-1)
 
         people_logits = self.people(x)[
             :, :self.people_num_classes
         ]
+        prediction_people_logits1 = torch.argmax(people_logits, dim=0)
+        prediction_people_logits2 = torch.argmax(people_logits, dim=1)
+        prediction_people_logits3 = torch.argmax(people_logits, dim=-1)
 
         objects_logits = (
             self.objects_and_vehicles(x)[
                 :, :self.objects_num_classes
             ]
         )
+        prediction_objects_logits1 = torch.argmax(objects_logits, dim=0)
+        prediction_objects_logits2 = torch.argmax(objects_logits, dim=1)
+        prediction_objects_logits3 = torch.argmax(objects_logits, dim=-1)
 
-        '''global_logits = outdoors_logits.new_full(
+        global_logits = outdoors_logits.new_full(
             (x.size(0), self.num_classes),
             float("-inf"),
-        )'''
-        global_logits = torch.zeros(
+        )
+        '''global_logits = torch.zeros(
         self.num_classes,
         self.outdoors.size[0],
-        #dtype=model.linear.weight.dtype #dtype=classifier.weight.dtype
-    )
+        #dtype=model.linear.weight.dtype #dtype=classifier.weight.dtype)'''
 
         global_logits[
             :, self.outdoors_indices
@@ -442,9 +1016,121 @@ class GlobalSpecialistModel(nn.Module):
             :, self.objects_and_vehicles_indices
         ] = objects_logits
 
+
+        '''# ---------------------------------------
+        # Calibrate each specialist's logits.
+        # ---------------------------------------
+
+        calibrated_logits = (
+            self.calibrator(
+                global_logits
+            )
+        )'''
+
         return global_logits
 
+class CalibratedGlobalSpecialistModel(
+    nn.Module
+):
 
+    def __init__(
+        self,
+        models,
+        num_subset_classes,
+        local_to_global_indices,
+        calibrator,
+        specialist_order=SPECIALIST_ORDER,
+    ):
+        super().__init__()
+
+        self.specialist_order = list(
+            specialist_order
+        )
+
+        # Register all specialists as submodules.
+        self.specialists = nn.ModuleDict({
+            name: models[name]
+            for name in specialist_order
+        })
+
+        self.num_subset_classes = {
+            name: int(
+                num_subset_classes[name]
+            )
+            for name in specialist_order
+        }
+
+        self.calibrator = calibrator
+
+        global_to_concat = (
+            build_global_logit_permutation(
+                local_to_global_indices,
+                specialist_order,
+            )
+        )
+
+        self.register_buffer(
+            "global_to_concat",
+            global_to_concat.long(),
+        )
+
+    def forward(self, x):
+
+        raw_logits = {}
+
+        # ---------------------------------------
+        # Every input passes through every expert.
+        # NO task identifier is used.
+        # ---------------------------------------
+
+        for model_name in (
+            self.specialist_order
+        ):
+
+            logits = self.specialists[
+                model_name
+            ](x)
+
+            n = self.num_subset_classes[
+                model_name
+            ]
+
+            raw_logits[model_name] = (
+                logits[:, :n]
+            )
+
+        # ---------------------------------------
+        # Calibrate each specialist's logits.
+        # ---------------------------------------
+
+        calibrated_logits = (
+            self.calibrator(
+                raw_logits
+            )
+        )
+
+        # ---------------------------------------
+        # Concatenate.
+        # ---------------------------------------
+
+        concatenated = torch.cat(
+            [
+                calibrated_logits[name]
+                for name in self.specialist_order
+            ],
+            dim=1,
+        )
+
+        # ---------------------------------------
+        # Put columns into global 0..42 order.
+        # ---------------------------------------
+
+        global_logits = concatenated[
+            :,
+            self.global_to_concat,
+        ]
+
+        return global_logits
 # ==============================================================================
 # STEP 2: Classifier Remapping (UNCHANGED)
 # ==============================================================================
@@ -905,7 +1591,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         print(f"    - CIFAR classes: {sorted(mappings[model_name].values())}")
 
 
-    torch.cat([local_to_global_indices['outdoors'], local_to_global_indices['nature'], local_to_global_indices['people'], local_to_global_indices['objects_and_vehicles']])
+    ########torch.cat([local_to_global_indices['outdoors'], local_to_global_indices['nature'], local_to_global_indices['people'], local_to_global_indices['objects_and_vehicles']])
 
 
     validate_global_class_coverage(
@@ -913,7 +1599,70 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         num_global_classes=43,
     )
 
-    global_model = GlobalSpecialistModel(
+    global_to_concat = build_global_logit_permutation(
+        local_to_global_indices
+    )
+
+    calibrator = SpecialistLogitCalibrator(
+        specialist_order=SPECIALIST_ORDER
+    )
+
+    cached_logits, calibration_targets = (
+        collect_calibration_logits(
+            models=models,
+            loader=val_loader,
+            num_subset_classes=(
+                num_subset_classes
+            ),
+            original_to_aggregated_dict=(
+                original_to_aggregated_dict
+            ),
+            specialist_order=(
+                SPECIALIST_ORDER
+            ),
+            device=DEVICE,
+        )
+    )
+
+    for model_name in SPECIALIST_ORDER:
+
+        for parameter in models[
+            model_name
+        ].parameters():
+            parameter.requires_grad = False
+
+    calibrator = (
+        fit_specialist_logit_calibrator(
+            calibrator=calibrator,
+            cached_logits=cached_logits,
+            targets=calibration_targets,
+            global_to_concat=(
+                global_to_concat
+            ),
+            specialist_order=(
+                SPECIALIST_ORDER
+            ),
+            device=DEVICE,
+        )
+    )
+    for model_name in SPECIALIST_ORDER:
+        assert not any(
+            p.requires_grad
+            for p in models[
+                model_name
+            ].parameters()
+        )
+
+    for name, parameter in (
+            calibrator.named_parameters()
+    ):
+        print(
+            name,
+            parameter.requires_grad,
+            parameter.numel(),
+        )
+
+    '''global_model = GlobalSpecialistModel(
         outdoors_model=models["outdoors"],
 
         nature_model=models["nature"],
@@ -961,9 +1710,23 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         ),
 
         num_classes=43,
+    )'''
+
+    global_model = (
+        CalibratedGlobalSpecialistModel(
+            models=models,
+            num_subset_classes=(
+                num_subset_classes
+            ),
+            local_to_global_indices=(
+                local_to_global_indices
+            ),
+            calibrator=calibrator,
+        )
     )
 
-    print()
+    global_model.to(DEVICE)
+    global_model.eval()
 
     return global_model
 
@@ -1399,7 +2162,7 @@ def evaluate_global_specialist_model(
         f"{output_message} --> Loss = {avg_loss:.6f} | Accuracy = {accuracy * 100:.2f}%"
     )
 
-    return accuracy
+    #return accuracy
 
 def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoader, output_message:str):
     total_loss_all_experiences = 0.0
@@ -1526,6 +2289,16 @@ def main():
 
 if __name__ == '__main__':
     global_model = main()
+    # evaluate_aggregated_model_FedAvg_code_v3(global_model, test_loader)
+    # evaluate_aggregated_model(global_model, test_loader_without_objects_and_vehicles, "Evaluating global model on test_loader_without_objects_and_vehicles")
+    '''evaluate_aggregated_model(global_model, test_loader,
+                              "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(global_model, outdoors_loader, "Evaluating global model on outdoors_loader")
+    evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
+    evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
+    evaluate_aggregated_model(global_model, objects_and_vehicles_loader,
+                              "Evaluating global model on objects_and_vehicles_loader")'''
+
     #evaluate_aggregated_model_FedAvg_code_v3(global_model, test_loader)
     #evaluate_global_specialist_model(global_model, test_loader_without_objects_and_vehicles, "Evaluating global model on test_loader_without_objects_and_vehicles")
     evaluate_global_specialist_model(global_model, test_loader, original_to_aggregated_dict,"Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
