@@ -954,6 +954,16 @@ class GlobalSpecialistModel(nn.Module):
                 float("-inf"),
             )
         )
+        '''global_logits = (
+            specialist_logits[0]
+            .new_full(
+                (
+                    x.size(0),
+                    self.num_classes,
+                ),
+                float(0.0),
+            )
+        )'''
 
         global_logits[
             :,
@@ -1002,6 +1012,12 @@ class GlobalSpecialistModel(nn.Module):
                 float("-inf"),
             )
         )
+        '''global_logits = (
+            global_logits.masked_fill(
+                wrong_expert_classes,
+                float(0.0),
+            )
+        )'''
 
         if return_gate_info:
 
