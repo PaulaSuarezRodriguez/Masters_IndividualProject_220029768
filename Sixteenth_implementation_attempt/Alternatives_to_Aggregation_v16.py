@@ -1599,7 +1599,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         num_global_classes=43,
     )
 
-    global_to_concat = build_global_logit_permutation(
+    '''global_to_concat = build_global_logit_permutation(
         local_to_global_indices
     )
 
@@ -1622,7 +1622,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             ),
             #device=DEVICE,
         )
-    )
+    )'''
 
     '''for model_name in SPECIALIST_ORDER:
 
@@ -1631,7 +1631,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         ].parameters():
             parameter.requires_grad = False'''
 
-    calibrator = (
+    '''calibrator = (
         fit_specialist_logit_calibrator(
             calibrator=calibrator,
             cached_logits=cached_logits,
@@ -1644,7 +1644,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             ),
             #device=DEVICE,
         )
-    )
+    )'''
     '''for model_name in SPECIALIST_ORDER:
         assert not any(
             p.requires_grad
@@ -1662,7 +1662,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             parameter.numel(),
         )'''
 
-    '''global_model = GlobalSpecialistModel(
+    global_model = GlobalSpecialistModel(
         outdoors_model=models["outdoors"],
 
         nature_model=models["nature"],
@@ -1710,15 +1710,15 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         ),
 
         num_classes=43,
-    )'''
+    )
 
-    global_model = CalibratedGlobalSpecialistModel(models=models,
+    '''global_model = CalibratedGlobalSpecialistModel(models=models,
                                                    num_subset_classes=(num_subset_classes),
                                                    local_to_global_indices=(local_to_global_indices),
                                                    calibrator=calibrator,)
 
     #global_model.to(DEVICE)
-    global_model.eval()
+    global_model.eval()'''
 
     return global_model
 
