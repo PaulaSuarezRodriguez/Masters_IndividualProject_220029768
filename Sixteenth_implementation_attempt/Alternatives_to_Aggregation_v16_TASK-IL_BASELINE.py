@@ -211,6 +211,136 @@ train_loader = DataLoader(
 print("print train_loader", train_loader)
 print("print train_loader.dataset", train_loader.dataset)
 
+combined_dataset_outdoors_first_experience_test = ConcatDataset([
+    outdoors_specialised_models_test_stream_class_il[0].dataset,
+    #outdoors_specialised_models_test_stream_class_il[1].dataset,
+    #outdoors_specialised_models_test_stream_class_il[2].dataset,
+    #outdoors_specialised_models_test_stream_class_il[3].dataset,
+    #outdoors_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature_first_experience_test = ConcatDataset([
+    nature_specialised_models_test_stream_class_il[0].dataset,
+    #nature_specialised_models_test_stream_class_il[1].dataset,
+    #nature_specialised_models_test_stream_class_il[2].dataset,
+    #nature_specialised_models_test_stream_class_il[3].dataset,
+    #nature_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_people_first_experience_test = ConcatDataset([
+    people_specialised_models_test_stream_class_il[0].dataset,
+    #people_specialised_models_test_stream_class_il[1].dataset,
+    #people_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_first_experience_test = ConcatDataset([
+    objects_and_vehicles_specialised_models_test_stream_class_il[0].dataset,
+    #objects_and_vehicles_specialised_models_test_stream_class_il[1].dataset,
+    #objects_and_vehicles_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_first_experience_test = ConcatDataset([
+    combined_dataset_outdoors_first_experience_test,
+    combined_dataset_nature_first_experience_test,
+    combined_dataset_people_first_experience_test,
+    combined_dataset_objects_and_vehicles_first_experience_test
+])
+
+first_experience_test_loader = DataLoader(
+    combined_dataset_first_experience_test,
+    batch_size=32,
+    shuffle=True
+)
+print("print first_experience_test_loader", first_experience_test_loader)
+print("print first_experience_test_loader.dataset", first_experience_test_loader.dataset)
+
+combined_dataset_outdoors_middle_experience_test = ConcatDataset([
+    #outdoors_specialised_models_test_stream_class_il[0].dataset,
+    #outdoors_specialised_models_test_stream_class_il[1].dataset,
+    outdoors_specialised_models_test_stream_class_il[2].dataset,
+    #outdoors_specialised_models_test_stream_class_il[3].dataset,
+    #outdoors_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature_middle_experience_test = ConcatDataset([
+    #nature_specialised_models_test_stream_class_il[0].dataset,
+    #nature_specialised_models_test_stream_class_il[1].dataset,
+    nature_specialised_models_test_stream_class_il[2].dataset,
+    #nature_specialised_models_test_stream_class_il[3].dataset,
+    #nature_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_people_middle_experience_test = ConcatDataset([
+    #people_specialised_models_test_stream_class_il[0].dataset,
+    people_specialised_models_test_stream_class_il[1].dataset,
+    #people_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_middle_experience_test = ConcatDataset([
+    #objects_and_vehicles_specialised_models_test_stream_class_il[0].dataset,
+    objects_and_vehicles_specialised_models_test_stream_class_il[1].dataset,
+    #objects_and_vehicles_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_middle_experience_test = ConcatDataset([
+    combined_dataset_outdoors_middle_experience_test,
+    combined_dataset_nature_middle_experience_test,
+    combined_dataset_people_middle_experience_test,
+    combined_dataset_objects_and_vehicles_middle_experience_test
+])
+
+middle_experience_test_loader = DataLoader(
+    combined_dataset_middle_experience_test,
+    batch_size=32,
+    shuffle=True
+)
+print("print middle_experience_test_loader", middle_experience_test_loader)
+print("print middle_experience_test_loader.dataset", middle_experience_test_loader.dataset)
+
+
+combined_dataset_outdoors_last_experience_test = ConcatDataset([
+    #outdoors_specialised_models_test_stream_class_il[0].dataset,
+    #outdoors_specialised_models_test_stream_class_il[1].dataset,
+    outdoors_specialised_models_test_stream_class_il[2].dataset,
+    #outdoors_specialised_models_test_stream_class_il[3].dataset,
+    #outdoors_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_nature_last_experience_test = ConcatDataset([
+    #nature_specialised_models_test_stream_class_il[0].dataset,
+    #nature_specialised_models_test_stream_class_il[1].dataset,
+    nature_specialised_models_test_stream_class_il[2].dataset,
+    #nature_specialised_models_test_stream_class_il[3].dataset,
+    #nature_specialised_models_test_stream_class_il[4].dataset,
+])
+
+combined_dataset_people_last_experience_test = ConcatDataset([
+    #people_specialised_models_test_stream_class_il[0].dataset,
+    #people_specialised_models_test_stream_class_il[1].dataset,
+    people_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_last_experience_test = ConcatDataset([
+    #objects_and_vehicles_specialised_models_test_stream_class_il[0].dataset,
+    #objects_and_vehicles_specialised_models_test_stream_class_il[1].dataset,
+    objects_and_vehicles_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_last_experience_test = ConcatDataset([
+    combined_dataset_outdoors_last_experience_test,
+    combined_dataset_nature_last_experience_test,
+    combined_dataset_people_last_experience_test,
+    combined_dataset_objects_and_vehicles_last_experience_test
+])
+
+last_experience_test_loader = DataLoader(
+    combined_dataset_last_experience_test,
+    batch_size=32,
+    shuffle=True
+)
+print("print last_experience_test_loader", last_experience_test_loader)
+print("print last_experience_test_loader.dataset", last_experience_test_loader.dataset)
+
 
 combined_dataset_outdoors_last_experience_train = ConcatDataset([
     #outdoors_specialised_models_train_stream_class_il[0].dataset,
@@ -448,32 +578,9 @@ class GlobalSpecialistModel(nn.Module):
         self.people_task_id = [14] #"people": ["people"],
         self.objects_and_vehicles_task_id = [3, 5, 6, 18, 19] #"objects_and_vehicles": ["household_furniture","household_electrical_devices","food_containers", "vehicles_1","vehicles_2"],
 
-    def scale_specialised_logits_globally(
-        self,
-        specialised_logits_list: list[torch.Tensor],):
-
-        # 2. Define your target range (e.g., [0, 1] or [-1, 1])
-        target_min = 0.0
-        target_max = 1.0
-
-        # 3. Find the global min and max across all tensors in the list
-        global_min = min(t.min() for t in specialised_logits_list)
-        global_max = max(t.max() for t in specialised_logits_list)
-
-        # 4. Scale each tensor using the same global anchor points
-        scaled_specialised_logits_list = []
-        for specialised_logits in specialised_logits_list:
-            # Normalize to [0, 1] using global min/max
-            normalized = (specialised_logits - global_min) / (global_max - global_min)
-            # Scale to target range
-            scaled_specialised_logits = (normalized * (target_max - target_min)) + target_min
-
-            scaled_specialised_logits_list.append(scaled_specialised_logits)
-
-        return scaled_specialised_logits_list
-
     def get_batch_task_ids(self, batch_task_ids_get:torch.Tensor):
-        batch_task_ids_list = batch_task_ids_get.data.tolist()
+        batch_task_ids_get = batch_task_ids_get.unique()
+        batch_task_ids_list = batch_task_ids_get.tolist()
         self.batch_task_ids_get = batch_task_ids_list
         #return batch_task_ids_get
 
@@ -482,51 +589,36 @@ class GlobalSpecialistModel(nn.Module):
 
     def forward(self, x):
 
-        task_id = self.set_batch_task_ids()
+        task_id = self.batch_task_ids_get #task_id = self.set_batch_task_ids()
 
-        if task_id in self.outdoors_task_id:#if self.outdoors_task_id in task_id:#if task_id in self.outdoors_task_id:
-            outdoors_logits = self.outdoors(x)[
-                :, :self.outdoors_num_classes
-            ]
-        else:
-            outdoors_logits = torch.zeros_like(self.outdoors)[
-                :, :self.outdoors_num_classes
-            ]
+        outdoors_logits = self.outdoors(x)[
+            :, :self.outdoors_num_classes
+        ]
+
         prediction_outdoors_logits1 = torch.argmax(outdoors_logits, dim=0)
         prediction_outdoors_logits2 = torch.argmax(outdoors_logits, dim=1)
         prediction_outdoors_logits3 = torch.argmax(outdoors_logits, dim=-1)
 
-        if task_id in self.nature_task_id:#if self.nature_task_id in task_id:#if task_id in self.nature_task_id:
-            nature_logits = self.nature(x)[
-                :, :self.nature_num_classes
-            ]
-        else:
-            nature_logits = torch.zeros_like(self.nature)[
-                :, :self.nature_num_classes
-            ]
+        nature_logits = self.nature(x)[
+            :, :self.nature_num_classes
+        ]
+
         prediction_nature_logits1 = torch.argmax(nature_logits, dim=-0)
         prediction_nature_logits2 = torch.argmax(nature_logits, dim=1)
         prediction_nature_logits3 = torch.argmax(nature_logits, dim=-1)
 
-        if task_id in self.people_task_id:#if self.people_task_id in task_id:#if task_id in self.people_task_id:
-            people_logits = self.people(x)[
-                :, :self.people_num_classes
-            ]
-        else:
-            people_logits = torch.zeros_like(self.people)[
-                :, :self.people_num_classes
-            ]
+
+        people_logits = self.people(x)[
+            :, :self.people_num_classes
+        ]
+
         prediction_people_logits1 = torch.argmax(people_logits, dim=0)
         prediction_people_logits2 = torch.argmax(people_logits, dim=1)
         prediction_people_logits3 = torch.argmax(people_logits, dim=-1)
 
-        if task_id in self.objects_and_vehicles_task_id:#if self.objects_task_id in task_id:#if task_id in self.objects_task_id:
-            objects_logits = self.objects_and_vehicles(x)[
-                :, :self.objects_num_classes
-            ]
-        else:
-            objects_logits = torch.zeros_like(self.objects_and_vehicles)[
-                :, :self.objects_num_classes]
+        objects_logits = self.objects_and_vehicles(x)[
+            :, :self.objects_num_classes
+        ]
 
         prediction_objects_logits1 = torch.argmax(objects_logits, dim=0)
         prediction_objects_logits2 = torch.argmax(objects_logits, dim=1)
@@ -536,99 +628,6 @@ class GlobalSpecialistModel(nn.Module):
         # ---------------------------------------
         # Calibrate each specialist's logits.
         # ---------------------------------------
-        
-        '''specialised_logits_list = [outdoors_logits, nature_logits, people_logits, objects_logits]
-
-        scale_specialised_logits = self.scale_specialised_logits_globally(specialised_logits_list)
-        
-        scaled_outdoors_logits = scale_specialised_logits[0]
-        prediction_scaled_outdoors_logits1 = torch.argmax(scaled_outdoors_logits, dim=0)
-        prediction_scaled_outdoors_logits2 = torch.argmax(scaled_outdoors_logits, dim=1)
-        prediction_scaled_outdoors_logits3 = torch.argmax(scaled_outdoors_logits, dim=-1)
-
-        scaled_nature_logits = scale_specialised_logits[1]
-        prediction_scaled_nature_logits1 = torch.argmax(scaled_nature_logits, dim=-0)
-        prediction_scaled_nature_logits2 = torch.argmax(scaled_nature_logits, dim=1)
-        prediction_scaled_nature_logits3 = torch.argmax(scaled_nature_logits, dim=-1)
-
-        scaled_people_logits = scale_specialised_logits[2]
-        prediction_scaled_people_logits1 = torch.argmax(scaled_people_logits, dim=0)
-        prediction_scaled_people_logits2 = torch.argmax(scaled_people_logits, dim=1)
-        prediction_scaled_people_logits3 = torch.argmax(scaled_people_logits, dim=-1)
-
-        scaled_objects_logits = scale_specialised_logits[3]
-        prediction_scaled_objects_logits1 = torch.argmax(scaled_objects_logits, dim=0)
-        prediction_scaled_objects_logits2 = torch.argmax(scaled_objects_logits, dim=1)
-        prediction_scaled_objects_logits3 = torch.argmax(scaled_objects_logits, dim=-1)
-
-        raw_prediction_list = [
-            prediction_outdoors_logits2,
-            prediction_nature_logits2,
-            prediction_people_logits2,
-            prediction_objects_logits3
-        ]
-
-        scaled_prediction_list = [
-            prediction_scaled_outdoors_logits2,
-            prediction_scaled_nature_logits2,
-            prediction_scaled_people_logits2,
-            prediction_scaled_objects_logits3
-        ]
-
-        names = [
-            "outdoors",
-            "nature",
-            "people",
-            "objects"
-        ]
-
-        for name, raw, scaled in zip(
-                names,
-                raw_prediction_list,
-                scaled_prediction_list
-        ):
-            #print(f"\n{name}:")
-            #print("Raw predictions:   ", raw)
-            #print("Scaled predictions:", scaled)
-
-            # Compare prediction for each sample
-            for i, (raw_pred, scaled_pred) in enumerate(
-                    zip(raw, scaled)
-            ):
-                #print(
-                 #   f"Sample {i}: "
-                 #   f"raw={raw_pred.item()}, "
-                 #   f"scaled={scaled_pred.item()}"
-                #)
-
-                if raw_pred.item() != scaled_pred.item():
-                    print(
-                        f"Predictions ARE DIFFERENT. "
-                        "The prediction changed after scaling."
-                    )
-                    break
-
-        global_logits = scaled_outdoors_logits.new_full(
-            (x.size(0), self.num_classes),
-            float("-inf"),
-        )
-
-        global_logits[
-            :, self.outdoors_indices
-        ] = scaled_outdoors_logits
-
-        global_logits[
-            :, self.nature_indices
-        ] = scaled_nature_logits
-
-        global_logits[
-            :, self.people_indices
-        ] = scaled_people_logits
-
-        global_logits[
-            :, self.objects_and_vehicles_indices
-        ] = scaled_objects_logits'''
-
 
         '''global_logits = outdoors_logits.new_full(
             (x.size(0), self.num_classes),
@@ -636,24 +635,28 @@ class GlobalSpecialistModel(nn.Module):
         )'''
         global_logits = outdoors_logits.new_full(
             (x.size(0), self.num_classes),
-            float("-inf"),
+            float(0),
         )
+        for task_id_el in task_id:
+            if task_id_el in self.outdoors_task_id:
+                global_logits[
+                    :, self.outdoors_indices
+                ] = outdoors_logits
 
-        global_logits[
-            :, self.outdoors_indices
-        ] = outdoors_logits
+            if task_id_el in self.nature_task_id:
+                global_logits[
+                    :, self.nature_indices
+                ] = nature_logits
 
-        global_logits[
-            :, self.nature_indices
-        ] = nature_logits
+            if task_id_el in self.people_task_id:
+                global_logits[
+                    :, self.people_indices
+                ] = people_logits
 
-        global_logits[
-            :, self.people_indices
-        ] = people_logits
-
-        global_logits[
-            :, self.objects_and_vehicles_indices
-        ] = objects_logits
+            if task_id_el in self.objects_and_vehicles_task_id:
+                global_logits[
+                    :, self.objects_and_vehicles_indices
+                ] = objects_logits
 
         return global_logits
 
@@ -1568,9 +1571,7 @@ def evaluate_global_specialist_model(
 
             global_model.get_batch_task_ids(batch_task_ids)
 
-            global_logits = global_model(
-                batch_data
-            )
+            global_logits = global_model(batch_data)
 
             assert global_logits.shape[1] == 43
 
@@ -1774,3 +1775,10 @@ if __name__ == '__main__':
     evaluate_aggregated_model(fine_tuned_global_model, nature_loader,"Evaluating FINE-TUNED global model on nature_loader")
     evaluate_aggregated_model(fine_tuned_global_model, people_loader,"Evaluating FINE-TUNED global model on people_loader")
     evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
+    print("\n\n")
+    evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,
+                                     "Evaluating global model on first_experience_test_loader")
+    evaluate_global_specialist_model(global_model, middle_experience_test_loader, original_to_aggregated_dict,
+                                     "Evaluating global model on middle_experience_test_loader")
+    evaluate_global_specialist_model(global_model, last_experience_train_loader, original_to_aggregated_dict,
+                                     "Evaluating global model on last_experience_train_loader")
