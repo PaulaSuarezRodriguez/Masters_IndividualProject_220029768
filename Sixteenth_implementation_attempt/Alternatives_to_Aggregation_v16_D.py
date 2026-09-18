@@ -52,7 +52,6 @@ import torch.nn.functional as F
 ####################################################################################################################################################################################
 
 VERBOSE = False
-SCALE_SPECIALISED_LOGITS = False
 EXPERT_NAMES = [
     "outdoors",
     "nature",
@@ -1230,31 +1229,6 @@ class GlobalSpecialistModel(nn.Module):
             global_class_owner,
         )
 
-
-    def scale_specialised_logits_globally(
-        self,
-        specialised_logits_list: list[torch.Tensor],):
-
-        # 2. Define your target range (e.g., [0, 1] or [-1, 1])
-        target_min = 0.0
-        target_max = 1.0
-
-        # 3. Find the global min and max across all tensors in the list
-        global_min = min(t.min() for t in specialised_logits_list)
-        global_max = max(t.max() for t in specialised_logits_list)
-
-        # 4. Scale each tensor using the same global anchor points
-        scaled_specialised_logits_list = []
-        for specialised_logits in specialised_logits_list:
-            # Normalize to [0, 1] using global min/max
-            normalized = (specialised_logits - global_min) / (global_max - global_min)
-            # Scale to target range
-            scaled_specialised_logits = (normalized * (target_max - target_min)) + target_min
-
-            scaled_specialised_logits_list.append(scaled_specialised_logits)
-
-        return scaled_specialised_logits_list
-
     def forward(
             self,
             x,
@@ -1411,134 +1385,6 @@ class GlobalSpecialistModel(nn.Module):
                 best_distance <= 1.0
         )
 
-        '''outdoors_logits = self.outdoors(x)[
-            :, :self.outdoors_num_classes
-        ]
-        prediction_outdoors_logits1 = torch.argmax(outdoors_logits, dim=0)
-        prediction_outdoors_logits2 = torch.argmax(outdoors_logits, dim=1)
-        prediction_outdoors_logits3 = torch.argmax(outdoors_logits, dim=-1)
-
-        nature_logits = self.nature(x)[
-            :, :self.nature_num_classes
-        ]
-        prediction_nature_logits1 = torch.argmax(nature_logits, dim=-0)
-        prediction_nature_logits2 = torch.argmax(nature_logits, dim=1)
-        prediction_nature_logits3 = torch.argmax(nature_logits, dim=-1)
-
-        people_logits = self.people(x)[
-            :, :self.people_num_classes
-        ]
-        prediction_people_logits1 = torch.argmax(people_logits, dim=0)
-        prediction_people_logits2 = torch.argmax(people_logits, dim=1)
-        prediction_people_logits3 = torch.argmax(people_logits, dim=-1)
-
-        objects_logits = (
-            self.objects_and_vehicles(x)[
-                :, :self.objects_num_classes
-            ]
-        )
-        prediction_objects_logits1 = torch.argmax(objects_logits, dim=0)
-        prediction_objects_logits2 = torch.argmax(objects_logits, dim=1)
-        prediction_objects_logits3 = torch.argmax(objects_logits, dim=-1)'''
-
-
-        # ---------------------------------------
-        # Calibrate each specialist's logits.
-        # ---------------------------------------
-        '''if SCALE_SPECIALISED_LOGITS:
-            specialised_logits_list = [outdoors_logits, nature_logits, people_logits, objects_logits]
-
-            scale_specialised_logits = self.scale_specialised_logits_globally(specialised_logits_list)
-
-            scaled_outdoors_logits = scale_specialised_logits[0]
-            prediction_scaled_outdoors_logits1 = torch.argmax(scaled_outdoors_logits, dim=0)
-            prediction_scaled_outdoors_logits2 = torch.argmax(scaled_outdoors_logits, dim=1)
-            prediction_scaled_outdoors_logits3 = torch.argmax(scaled_outdoors_logits, dim=-1)
-
-            scaled_nature_logits = scale_specialised_logits[1]
-            prediction_scaled_nature_logits1 = torch.argmax(scaled_nature_logits, dim=-0)
-            prediction_scaled_nature_logits2 = torch.argmax(scaled_nature_logits, dim=1)
-            prediction_scaled_nature_logits3 = torch.argmax(scaled_nature_logits, dim=-1)
-
-            scaled_people_logits = scale_specialised_logits[2]
-            prediction_scaled_people_logits1 = torch.argmax(scaled_people_logits, dim=0)
-            prediction_scaled_people_logits2 = torch.argmax(scaled_people_logits, dim=1)
-            prediction_scaled_people_logits3 = torch.argmax(scaled_people_logits, dim=-1)
-
-            scaled_objects_logits = scale_specialised_logits[3]
-            prediction_scaled_objects_logits1 = torch.argmax(scaled_objects_logits, dim=0)
-            prediction_scaled_objects_logits2 = torch.argmax(scaled_objects_logits, dim=1)
-            prediction_scaled_objects_logits3 = torch.argmax(scaled_objects_logits, dim=-1)
-
-            raw_prediction_list = [
-                prediction_outdoors_logits2,
-                prediction_nature_logits2,
-                prediction_people_logits2,
-                prediction_objects_logits3
-            ]
-
-            scaled_prediction_list = [
-                prediction_scaled_outdoors_logits2,
-                prediction_scaled_nature_logits2,
-                prediction_scaled_people_logits2,
-                prediction_scaled_objects_logits3
-            ]
-
-            names = [
-                "outdoors",
-                "nature",
-                "people",
-                "objects"
-            ]
-
-            for name, raw, scaled in zip(
-                    names,
-                    raw_prediction_list,
-                    scaled_prediction_list
-            ):
-                #print(f"\n{name}:")
-                #print("Raw predictions:   ", raw)
-                #print("Scaled predictions:", scaled)
-
-                # Compare prediction for each sample
-                for i, (raw_pred, scaled_pred) in enumerate(
-                        zip(raw, scaled)
-                ):
-                    #print(
-                     #   f"Sample {i}: "
-                     #   f"raw={raw_pred.item()}, "
-                     #   f"scaled={scaled_pred.item()}"
-                    #)
-
-                    if raw_pred.item() != scaled_pred.item():
-                        print(
-                            f"Predictions ARE DIFFERENT. "
-                            "The prediction changed after scaling."
-                        )
-                        break
-
-            global_logits = scaled_outdoors_logits.new_full(
-                (x.size(0), self.num_classes),
-                float("-inf"),
-            )
-
-            global_logits[
-                :, self.outdoors_indices
-            ] = scaled_outdoors_logits
-
-            global_logits[
-                :, self.nature_indices
-            ] = scaled_nature_logits
-
-            global_logits[
-                :, self.people_indices
-            ] = scaled_people_logits
-
-            global_logits[
-                :, self.objects_and_vehicles_indices
-            ] = scaled_objects_logits
-
-        else:'''
         global_logits = outdoors_logits.new_full(
             (x.size(0), self.num_classes),
             float(-1e9), #float("-inf"),
@@ -1872,8 +1718,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
 # ==============================================================================
 
 def save_global_model(global_model: nn.Module,
-                      output_path: Path,
-                      report: Dict):
+                      output_path: Path): #,report: Dict):
     """Save the global model and aggregation report."""
 
     output_path = Path(output_path)
@@ -1884,11 +1729,11 @@ def save_global_model(global_model: nn.Module,
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
 
-    # Save report
+    '''# Save report
     report_path = output_path / 'aggregation_report.pkl'
     with open(report_path, 'wb') as f:
         pickle.dump(report, f)
-    print(f"✓ Saved aggregation report to {report_path}")
+    print(f"✓ Saved aggregation report to {report_path}")'''
 
 
 def test_global_model(global_model: nn.Module, device: str = 'cpu'):
@@ -2402,23 +2247,12 @@ def main():
         # ============================================================
         # Save
         # ============================================================
-        #save_global_model(global_model, OUTPUT_DIR, report)
+        save_global_model(global_model, OUTPUT_DIR)#, report)
 
         # ============================================================
         # Test
         # ============================================================
         #output = test_global_model(global_model, device=DEVICE)
-
-        print("="*80)
-        print("AGGREGATION COMPLETE!")
-        print("="*80)
-        print(f"\nGlobal model ready for inference:")
-        print(f"  - Feature extraction: Averaged from 4 models")
-        print(f"  - Classifier: Remapped to CIFAR-100 space")
-        print(f"  - All 43 trained classes: Ready for prediction")
-        print(f"  - 57 untrained classes: Will use averaged features")
-        print(f"\nModel saved to: {OUTPUT_DIR / 'global_model_with_averaged_features.pt'}")
-        print("="*80 + "\n")
 
         return global_model
 
