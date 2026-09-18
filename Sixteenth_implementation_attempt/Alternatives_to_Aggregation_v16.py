@@ -1620,16 +1620,16 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             specialist_order=(
                 SPECIALIST_ORDER
             ),
-            device=DEVICE,
+            #device=DEVICE,
         )
     )
 
-    for model_name in SPECIALIST_ORDER:
+    '''for model_name in SPECIALIST_ORDER:
 
         for parameter in models[
             model_name
         ].parameters():
-            parameter.requires_grad = False
+            parameter.requires_grad = False'''
 
     calibrator = (
         fit_specialist_logit_calibrator(
@@ -1642,10 +1642,10 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             specialist_order=(
                 SPECIALIST_ORDER
             ),
-            device=DEVICE,
+            #device=DEVICE,
         )
     )
-    for model_name in SPECIALIST_ORDER:
+    '''for model_name in SPECIALIST_ORDER:
         assert not any(
             p.requires_grad
             for p in models[
@@ -1660,7 +1660,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             name,
             parameter.requires_grad,
             parameter.numel(),
-        )
+        )'''
 
     '''global_model = GlobalSpecialistModel(
         outdoors_model=models["outdoors"],
@@ -1712,20 +1712,12 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         num_classes=43,
     )'''
 
-    global_model = (
-        CalibratedGlobalSpecialistModel(
-            models=models,
-            num_subset_classes=(
-                num_subset_classes
-            ),
-            local_to_global_indices=(
-                local_to_global_indices
-            ),
-            calibrator=calibrator,
-        )
-    )
+    global_model = CalibratedGlobalSpecialistModel(models=models,
+                                                   num_subset_classes=(num_subset_classes),
+                                                   local_to_global_indices=(local_to_global_indices),
+                                                   calibrator=calibrator,)
 
-    global_model.to(DEVICE)
+    #global_model.to(DEVICE)
     global_model.eval()
 
     return global_model
