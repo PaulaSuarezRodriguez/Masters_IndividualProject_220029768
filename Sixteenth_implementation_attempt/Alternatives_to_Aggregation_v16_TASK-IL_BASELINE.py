@@ -633,9 +633,13 @@ class GlobalSpecialistModel(nn.Module):
             (x.size(0), self.num_classes),
             float("-inf"),
         )'''
-        global_logits = outdoors_logits.new_full(
+        '''global_logits = outdoors_logits.new_full(
             (x.size(0), self.num_classes),
             float(0),
+        )'''
+        global_logits = outdoors_logits.new_full(
+            (x.size(0), self.num_classes),
+            -1e9,
         )
         for task_id_el in task_id:
             if task_id_el in self.outdoors_task_id:
@@ -1775,10 +1779,10 @@ if __name__ == '__main__':
     evaluate_aggregated_model(fine_tuned_global_model, nature_loader,"Evaluating FINE-TUNED global model on nature_loader")
     evaluate_aggregated_model(fine_tuned_global_model, people_loader,"Evaluating FINE-TUNED global model on people_loader")
     evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
-    print("\n\n")
+    '''print("\n\n")
     evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,
                                      "Evaluating global model on first_experience_test_loader")
     evaluate_global_specialist_model(global_model, middle_experience_test_loader, original_to_aggregated_dict,
                                      "Evaluating global model on middle_experience_test_loader")
     evaluate_global_specialist_model(global_model, last_experience_train_loader, original_to_aggregated_dict,
-                                     "Evaluating global model on last_experience_train_loader")
+                                     "Evaluating global model on last_experience_train_loader")'''
