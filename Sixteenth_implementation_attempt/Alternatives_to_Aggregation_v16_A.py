@@ -498,24 +498,71 @@ class GlobalSpecialistModel(nn.Module):
         # Calibrate each specialist's logits.
         # ---------------------------------------
         scaled_outdoors_logits = self.scale_specialised_logits(outdoors_logits)
-        prediction_scaled_outdoors_logits1 = torch.argmax(outdoors_logits, dim=0)
-        prediction_scaled_outdoors_logits2 = torch.argmax(outdoors_logits, dim=1)
-        prediction_scaled_outdoors_logits3 = torch.argmax(outdoors_logits, dim=-1)
+        prediction_scaled_outdoors_logits1 = torch.argmax(scaled_outdoors_logits, dim=0)
+        prediction_scaled_outdoors_logits2 = torch.argmax(scaled_outdoors_logits, dim=1)
+        prediction_scaled_outdoors_logits3 = torch.argmax(scaled_outdoors_logits, dim=-1)
 
         scaled_nature_logits = self.scale_specialised_logits(nature_logits)
-        prediction_scaled_nature_logits1 = torch.argmax(nature_logits, dim=-0)
-        prediction_scaled_nature_logits2 = torch.argmax(nature_logits, dim=1)
-        prediction_scaled_nature_logits3 = torch.argmax(nature_logits, dim=-1)
+        prediction_scaled_nature_logits1 = torch.argmax(scaled_nature_logits, dim=-0)
+        prediction_scaled_nature_logits2 = torch.argmax(scaled_nature_logits, dim=1)
+        prediction_scaled_nature_logits3 = torch.argmax(scaled_nature_logits, dim=-1)
 
         scaled_people_logits = self.scale_specialised_logits(people_logits)
-        prediction_scaled_people_logits1 = torch.argmax(people_logits, dim=0)
-        prediction_scaled_people_logits2 = torch.argmax(people_logits, dim=1)
-        prediction_scaled_people_logits3 = torch.argmax(people_logits, dim=-1)
+        prediction_scaled_people_logits1 = torch.argmax(scaled_people_logits, dim=0)
+        prediction_scaled_people_logits2 = torch.argmax(scaled_people_logits, dim=1)
+        prediction_scaled_people_logits3 = torch.argmax(scaled_people_logits, dim=-1)
 
         scaled_objects_logits = self.scale_specialised_logits(objects_logits)
-        prediction_scaled_objects_logits1 = torch.argmax(objects_logits, dim=0)
-        prediction_scaled_objects_logits2 = torch.argmax(objects_logits, dim=1)
-        prediction_scaled_objects_logits3 = torch.argmax(objects_logits, dim=-1)
+        prediction_scaled_objects_logits1 = torch.argmax(scaled_objects_logits, dim=0)
+        prediction_scaled_objects_logits2 = torch.argmax(scaled_objects_logits, dim=1)
+        prediction_scaled_objects_logits3 = torch.argmax(scaled_objects_logits, dim=-1)
+
+        raw_prediction_list = [
+            prediction_outdoors_logits2,
+            prediction_nature_logits2,
+            prediction_people_logits2,
+            prediction_objects_logits3
+        ]
+
+        scaled_prediction_list = [
+            prediction_scaled_outdoors_logits2,
+            prediction_scaled_nature_logits2,
+            prediction_scaled_people_logits2,
+            prediction_scaled_objects_logits3
+        ]
+
+        names = [
+            "outdoors",
+            "nature",
+            "people",
+            "objects"
+        ]
+
+        for name, raw, scaled in zip(
+                names,
+                raw_prediction_list,
+                scaled_prediction_list
+        ):
+            #print(f"\n{name}:")
+            #print("Raw predictions:   ", raw)
+            #print("Scaled predictions:", scaled)
+
+            # Compare prediction for each sample
+            for i, (raw_pred, scaled_pred) in enumerate(
+                    zip(raw, scaled)
+            ):
+                #print(
+                 #   f"Sample {i}: "
+                 #   f"raw={raw_pred.item()}, "
+                 #   f"scaled={scaled_pred.item()}"
+                #)
+
+                if raw_pred.item() != scaled_pred.item():
+                    print(
+                        f"Predictions ARE DIFFERENT. "
+                        "The prediction changed after scaling."
+                    )
+                    break
 
         '''global_logits = outdoors_logits.new_full(
             (x.size(0), self.num_classes),
