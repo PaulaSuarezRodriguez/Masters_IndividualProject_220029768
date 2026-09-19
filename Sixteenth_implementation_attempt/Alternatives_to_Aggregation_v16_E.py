@@ -58,7 +58,31 @@ EXPERT_NAMES = [
     "people",
     "objects_and_vehicles",
 ]
+# ============================================================================
+# MAHALANOBIS CONFIGURATION
+# ============================================================================
 
+MAHALANOBIS_L2_NORMALIZE = True
+
+# Options:
+#   "full"
+#   "diagonal"
+#   "shrinkage"
+MAHALANOBIS_COVARIANCE_MODE = "shrinkage"
+
+# 0 = original full covariance
+# 1 = diagonal covariance
+MAHALANOBIS_SHRINKAGE = 0.10
+
+# Relative ridge regularization.
+MAHALANOBIS_COV_REG = 1e-3
+
+# Expert routing:
+# False = hard-select one expert
+# True  = probabilistically combine all experts
+SOFT_EXPERT_ROUTING = True
+
+ROUTER_TEMPERATURE = 1.0
 # ============================================================================
 # PHASE 4: EVALUATION
 # ============================================================================
@@ -631,6 +655,22 @@ def invert_new_to_original(
     return result
 
 
+def prepare_mahalanobis_features(
+    features: torch.Tensor,
+):
+    features = features.float()
+
+    if MAHALANOBIS_L2_NORMALIZE:
+
+        features = F.normalize(
+            features,
+            p=2,
+            dim=1,
+        )
+
+    return features
+
+
 @torch.no_grad()
 def fit_specialist_feature_distribution(
     model,
@@ -638,14 +678,10 @@ def fit_specialist_feature_distribution(
     new_to_original,
     num_subset_classes,
     device="cpu",
-    covariance_regularization=1e-3,
+    covariance_regularization=MAHALANOBIS_COV_REG,
+    covariance_mode=MAHALANOBIS_COVARIANCE_MODE,
+    shrinkage=MAHALANOBIS_SHRINKAGE,
 ):
-    """
-    Fits class means and a shared covariance matrix in
-    the specialist's penultimate feature space.
-
-    Does NOT modify model weights.
-    """
 
     device = torch.device(device)
 
@@ -664,11 +700,15 @@ def fit_specialist_feature_distribution(
         )
     }
 
-    # ==========================================
-    # Collect features
-    # ==========================================
+    # ============================================================
+    # Collect TRAIN features
+    # ============================================================
 
-    for batch_data, batch_labels, batch_task_ids in loader:
+    for (
+        batch_data,
+        batch_labels,
+        batch_task_ids,
+    ) in loader:
 
         batch_data = batch_data.to(device)
 
@@ -676,6 +716,12 @@ def fit_specialist_feature_distribution(
             model,
             batch_data,
             num_subset_classes,
+        )
+
+        # IMPORTANT:
+        # Same feature transformation used later at inference.
+        features = prepare_mahalanobis_features(
+            features
         )
 
         for feature, cifar_label in zip(
@@ -688,6 +734,7 @@ def fit_specialist_feature_distribution(
             )
 
             if cifar_class not in cifar_to_local:
+
                 raise RuntimeError(
                     f"CIFAR class {cifar_class} "
                     "does not belong to this specialist."
@@ -703,9 +750,9 @@ def fit_specialist_feature_distribution(
                 feature.cpu()
             )
 
-    # ==========================================
-    # Calculate class means
-    # ==========================================
+    # ============================================================
+    # Class prototypes
+    # ============================================================
 
     class_means = []
 
@@ -716,11 +763,15 @@ def fit_specialist_feature_distribution(
     ):
 
         class_features = torch.stack(
-            features_by_class[local_idx]
+            features_by_class[
+                local_idx
+            ]
         ).float()
 
-        class_mean = class_features.mean(
-            dim=0
+        class_mean = (
+            class_features.mean(
+                dim=0
+            )
         )
 
         class_means.append(
@@ -736,9 +787,9 @@ def fit_specialist_feature_distribution(
         class_means
     )
 
-    # ==========================================
+    # ============================================================
     # Shared within-class covariance
-    # ==========================================
+    # ============================================================
 
     centered = torch.cat(
         centered_features,
@@ -748,16 +799,77 @@ def fit_specialist_feature_distribution(
     n = centered.shape[0]
 
     covariance = (
-        centered.T @ centered
-    ) / max(n - 1, 1)
+        centered.T
+        @ centered
+    ) / max(
+        n - 1,
+        1,
+    )
 
     feature_dim = covariance.shape[0]
 
-    # Ridge regularisation is important because
-    # covariance inversion can otherwise be unstable.
-    covariance += (
+    # ============================================================
+    # Covariance estimator
+    # ============================================================
+
+    if covariance_mode == "full":
+
+        pass
+
+    elif covariance_mode == "diagonal":
+
+        covariance = torch.diag(
+            torch.diag(
+                covariance
+            )
+        )
+
+    elif covariance_mode == "shrinkage":
+
+        diagonal_covariance = torch.diag(
+            torch.diag(
+                covariance
+            )
+        )
+
+        covariance = (
+            (1.0 - shrinkage)
+            * covariance
+            +
+            shrinkage
+            * diagonal_covariance
+        )
+
+    else:
+
+        raise ValueError(
+            "covariance_mode must be "
+            "'full', 'diagonal', or 'shrinkage'"
+        )
+
+    # ============================================================
+    # Scale-aware ridge regularization
+    #
+    # Better than blindly adding absolute 1e-3 after L2
+    # normalization.
+    # ============================================================
+
+    covariance_scale = (
+        torch.diag(
+            covariance
+        )
+        .mean()
+        .clamp_min(1e-8)
+    )
+
+    covariance = (
+        covariance
+        +
         covariance_regularization
-        * torch.eye(feature_dim)
+        * covariance_scale
+        * torch.eye(
+            feature_dim
+        )
     )
 
     precision = torch.linalg.pinv(
@@ -769,11 +881,21 @@ def fit_specialist_feature_distribution(
         class_means.shape,
         "| precision:",
         precision.shape,
+        "| covariance:",
+        covariance_mode,
+        "| L2:",
+        MAHALANOBIS_L2_NORMALIZE,
     )
 
     return {
-        "class_means": class_means,
-        "precision": precision,
+        "class_means":
+            class_means,
+
+        "precision":
+            precision,
+
+        "covariance":
+            covariance,
     }
 
 @torch.no_grad()
@@ -909,12 +1031,14 @@ def fit_feature_distance_thresholds(
                 model_name
             ]
 
-            features, _ = (
-                get_features_and_logits(
-                    models[model_name],
-                    batch_data,
-                    n,
-                )
+            features, _ = get_features_and_logits(
+                models[model_name],
+                batch_data,
+                n,
+            )
+
+            features = prepare_mahalanobis_features(
+                features
             )
 
             feature_model = feature_models[
@@ -1133,14 +1257,14 @@ def analyze_mahalanobis_id_ood_separation(
             # Extract that specialist's feature representation
             # ----------------------------------------------------
 
-            features, _ = (
-                get_features_and_logits(
-                    model=models[
-                        model_name
-                    ],
-                    x=batch_data,
-                    num_classes=n,
-                )
+            features, _ = get_features_and_logits(
+                models[model_name],
+                batch_data,
+                n,
+            )
+
+            features = prepare_mahalanobis_features(
+                features
             )
 
             # ----------------------------------------------------
@@ -1441,6 +1565,25 @@ def analyze_mahalanobis_id_ood_separation(
 
     return results
 
+def gaussian_log_probability(
+    x,
+    mean,
+    std,
+):
+    """
+    Element-wise Gaussian log probability,
+    ignoring the constant -0.5*log(2*pi),
+    which cancels in the likelihood ratio.
+    """
+
+    variance = std.pow(2)
+
+    return (
+        -torch.log(std)
+        -
+        0.5
+        * ((x - mean).pow(2) / variance)
+    )
 
 @torch.no_grad()
 def select_expert_by_features(
@@ -1475,12 +1618,14 @@ def select_expert_by_features(
             model_name
         ]
 
-        features, _ = (
-            get_features_and_logits(
-                models[model_name],
-                x,
-                n,
-            )
+        features, _ = get_features_and_logits(
+            models[model_name],
+            x,
+            n,
+        )
+
+        features = prepare_mahalanobis_features(
+            features
         )
 
         feature_model = feature_models[
@@ -1548,7 +1693,212 @@ def select_expert_by_features(
             raw_distances,
     }
 
+@torch.no_grad()
+def fit_mahalanobis_id_ood_calibration(
+    models,
+    feature_models,
+    validation_loader,
+    mappings,
+    num_subset_classes,
+    device="cpu",
+    expert_names=EXPERT_NAMES,
+):
+    """
+    For each expert, fit Gaussian distributions to:
 
+        log(Mahalanobis distance | ID)
+        log(Mahalanobis distance | OOD)
+
+    Returns calibration statistics used for expert routing.
+    """
+
+    device = torch.device(device)
+
+    cifar_to_expert = (
+        build_cifar_to_expert_lookup(
+            mappings=mappings,
+            num_subset_classes=num_subset_classes,
+            expert_names=expert_names,
+        ).to(device)
+    )
+
+    id_distances = {
+        name: []
+        for name in expert_names
+    }
+
+    ood_distances = {
+        name: []
+        for name in expert_names
+    }
+
+    for model_name in expert_names:
+        models[model_name].to(device)
+        models[model_name].eval()
+
+    # ============================================================
+    # Collect ID and OOD distances
+    # ============================================================
+
+    for (
+        batch_data,
+        batch_labels,
+        batch_task_ids,
+    ) in validation_loader:
+
+        batch_data = batch_data.to(device)
+        batch_labels = batch_labels.to(device)
+
+        true_expert = cifar_to_expert[
+            batch_labels
+        ]
+
+        for expert_idx, model_name in enumerate(
+            expert_names
+        ):
+
+            n = int(
+                num_subset_classes[
+                    model_name
+                ]
+            )
+
+            features, _ = (
+                get_features_and_logits(
+                    models[model_name],
+                    batch_data,
+                    n,
+                )
+            )
+
+            # If you introduced L2 normalization:
+            features = prepare_mahalanobis_features(
+                features
+            )
+
+            class_means = (
+                feature_models[
+                    model_name
+                ]["class_means"]
+                .to(device)
+                .float()
+            )
+
+            precision = (
+                feature_models[
+                    model_name
+                ]["precision"]
+                .to(device)
+                .float()
+            )
+
+            distances, _ = (
+                specialist_mahalanobis_distance(
+                    features=features,
+                    class_means=class_means,
+                    precision=precision,
+                )
+            )
+
+            id_mask = (
+                true_expert == expert_idx
+            )
+
+            ood_mask = (
+                true_expert != expert_idx
+            )
+
+            if id_mask.any():
+
+                id_distances[
+                    model_name
+                ].append(
+                    distances[
+                        id_mask
+                    ].cpu()
+                )
+
+            if ood_mask.any():
+
+                ood_distances[
+                    model_name
+                ].append(
+                    distances[
+                        ood_mask
+                    ].cpu()
+                )
+
+    # ============================================================
+    # Fit distributions in LOG-DISTANCE space
+    # ============================================================
+
+    calibration = {}
+
+    print(
+        "\n===== MAHALANOBIS ID/OOD CALIBRATION ====="
+    )
+
+    for model_name in expert_names:
+
+        id_d = torch.cat(
+            id_distances[
+                model_name
+            ]
+        ).float()
+
+        ood_d = torch.cat(
+            ood_distances[
+                model_name
+            ]
+        ).float()
+
+        # Log transformation helps with the strongly
+        # right-skewed Mahalanobis distance distributions.
+        log_id = torch.log(
+            id_d.clamp_min(1e-8)
+        )
+
+        log_ood = torch.log(
+            ood_d.clamp_min(1e-8)
+        )
+
+        id_mean = log_id.mean()
+        id_std = log_id.std(
+            unbiased=False
+        ).clamp_min(1e-6)
+
+        ood_mean = log_ood.mean()
+        ood_std = log_ood.std(
+            unbiased=False
+        ).clamp_min(1e-6)
+
+        calibration[
+            model_name
+        ] = {
+            "id_mean":
+                id_mean,
+
+            "id_std":
+                id_std,
+
+            "ood_mean":
+                ood_mean,
+
+            "ood_std":
+                ood_std,
+        }
+
+        print(
+            f"{model_name:22s} | "
+            f"ID log-d: "
+            f"{id_mean.item():.4f} ± "
+            f"{id_std.item():.4f} | "
+            f"OOD log-d: "
+            f"{ood_mean.item():.4f} ± "
+            f"{ood_std.item():.4f}"
+        )
+
+    return calibration
 
 class GlobalSpecialistModel(nn.Module):
 
@@ -1568,6 +1918,7 @@ class GlobalSpecialistModel(nn.Module):
         objects_num_classes,
         feature_models,
         feature_thresholds,
+        mahalanobis_calibration,
         num_classes=43,
     ):
         super().__init__()
@@ -1645,6 +1996,49 @@ class GlobalSpecialistModel(nn.Module):
                     for name in EXPERT_NAMES
                 ]
             )
+        )
+
+        # ============================================================
+        # Register the calibration statistics
+        # ============================================================
+        self.register_buffer(
+            "id_log_distance_means",
+            torch.stack([
+                mahalanobis_calibration[
+                    name
+                ]["id_mean"].float()
+                for name in EXPERT_NAMES
+            ])
+        )
+
+        self.register_buffer(
+            "id_log_distance_stds",
+            torch.stack([
+                mahalanobis_calibration[
+                    name
+                ]["id_std"].float()
+                for name in EXPERT_NAMES
+            ])
+        )
+
+        self.register_buffer(
+            "ood_log_distance_means",
+            torch.stack([
+                mahalanobis_calibration[
+                    name
+                ]["ood_mean"].float()
+                for name in EXPERT_NAMES
+            ])
+        )
+
+        self.register_buffer(
+            "ood_log_distance_stds",
+            torch.stack([
+                mahalanobis_calibration[
+                    name
+                ]["ood_std"].float()
+                for name in EXPERT_NAMES
+            ])
         )
 
         global_class_owner = torch.full(
@@ -1728,9 +2122,17 @@ class GlobalSpecialistModel(nn.Module):
             objects_features,
         ]
 
-        relative_distances_list = [] # relative_distances = []
-        raw_distances_list = [] # raw_distances = []
-        nearest_classes_list = [] # nearest_classes = []
+        # ============================================================
+        # 2. Calculate Mahalanobis distances for ALL four experts
+        # ============================================================
+
+        raw_distances_list = []
+
+        # Still retained for the 95%-ID acceptance diagnostic.
+        # This is NO LONGER used to choose the expert.
+        relative_distances_list = []
+
+        nearest_classes_list = []
 
         for expert_idx, model_name in enumerate(
                 EXPERT_NAMES
@@ -1738,6 +2140,17 @@ class GlobalSpecialistModel(nn.Module):
             features = features_by_expert[
                 expert_idx
             ].float()
+
+            # --------------------------------------------------------
+            # IMPORTANT:
+            # If you fitted the Mahalanobis distributions using
+            # L2-normalized features, apply exactly the same
+            # transformation here.
+            # --------------------------------------------------------
+
+            # Uncomment/use this if you have implemented it:
+            #
+            features = prepare_mahalanobis_features(features)
 
             class_means = getattr(
                 self,
@@ -1749,6 +2162,10 @@ class GlobalSpecialistModel(nn.Module):
                 f"{model_name}_precision"
             )
 
+            # --------------------------------------------------------
+            # Distance to nearest known class belonging to this expert
+            # --------------------------------------------------------
+
             distance, nearest_class = (
                 specialist_mahalanobis_distance(
                     features=features,
@@ -1757,55 +2174,186 @@ class GlobalSpecialistModel(nn.Module):
                 )
             )
 
+            # --------------------------------------------------------
+            # Existing 95%-ID threshold.
+            #
+            # KEEP THIS ONLY AS AN ID/OOD ACCEPTANCE DIAGNOSTIC.
+            # It will NOT determine which expert wins anymore.
+            # --------------------------------------------------------
+
             threshold = self.expert_thresholds[
                 expert_idx
             ]
 
             relative_distance = (
-                    distance / threshold
+                    distance
+                    /
+                    threshold
             )
 
             raw_distances_list.append(
                 distance
-            )#raw_distances.append(distance)
+            )
 
             relative_distances_list.append(
                 relative_distance
-            ) # relative_distances.append(relative_distance)
+            )
 
             nearest_classes_list.append(
                 nearest_class
-            ) #nearest_classes_list.append(nearest_class)
-
-            raw_distances = torch.stack(
-                raw_distances_list,#raw_distances,
-                dim=1,
-            )
-
-            relative_distances = torch.stack(
-                relative_distances_list,#relative_distances,
-                dim=1,
-            )
-
-            nearest_classes = torch.stack(
-                nearest_classes_list,#nearest_classes,
-                dim=1,
             )
 
         # ============================================================
-        # 2. Rank experts by normalized Mahalanobis distance
+        # IMPORTANT:
+        # Stack AFTER all four experts have been processed.
+        #
+        # Shapes:
+        #
+        # raw_distances:
+        #     [B, 4]
+        #
+        # relative_distances:
+        #     [B, 4]
+        #
+        # nearest_classes:
+        #     [B, 4]
         # ============================================================
 
-        sorted_distances, sorted_experts = torch.sort(
-            relative_distances,
+        raw_distances = torch.stack(
+            raw_distances_list,
             dim=1,
         )
 
-        best_distance = sorted_distances[
+        relative_distances = torch.stack(
+            relative_distances_list,
+            dim=1,
+        )
+
+        nearest_classes = torch.stack(
+            nearest_classes_list,
+            dim=1,
+        )
+
+        # ============================================================
+        # 3. ID-vs-OOD CALIBRATED MAHALANOBIS ROUTING
+        #
+        # This REPLACES:
+        #
+        #     selected_expert =
+        #         relative_distances.argmin(dim=1)
+        #
+        # We no longer choose whichever expert has the smallest
+        # distance / threshold.
+        # ============================================================
+
+        # ------------------------------------------------------------
+        # Mahalanobis distances are positive and typically right-skewed.
+        #
+        # Fit/calibration was performed in log-distance space,
+        # therefore inference must use the same transformation.
+        # ------------------------------------------------------------
+
+        log_distances = torch.log(
+            raw_distances.clamp_min(
+                1e-8
+            )
+        )
+
+        # ------------------------------------------------------------
+        # Log probability of each observed distance assuming
+        # the sample IS in-distribution for that expert.
+        #
+        # Output:
+        #     [B, 4]
+        # ------------------------------------------------------------
+
+        id_log_probability = (
+            gaussian_log_probability(
+                x=log_distances,
+
+                mean=(
+                    self.id_log_distance_means
+                    .unsqueeze(0)
+                ),
+
+                std=(
+                    self.id_log_distance_stds
+                    .unsqueeze(0)
+                ),
+            )
+        )
+
+        # ------------------------------------------------------------
+        # Log probability of each observed distance assuming
+        # the sample is OOD for that expert.
+        #
+        # Output:
+        #     [B, 4]
+        # ------------------------------------------------------------
+
+        ood_log_probability = (
+            gaussian_log_probability(
+                x=log_distances,
+
+                mean=(
+                    self.ood_log_distance_means
+                    .unsqueeze(0)
+                ),
+
+                std=(
+                    self.ood_log_distance_stds
+                    .unsqueeze(0)
+                ),
+            )
+        )
+
+        # ============================================================
+        # 4. LOG-LIKELIHOOD RATIO
+        #
+        # expert_score =
+        #
+        #   log p(distance | ID)
+        #   -
+        #   log p(distance | OOD)
+        #
+        #
+        # Interpretation:
+        #
+        # LARGE POSITIVE:
+        #     strongly more ID-like than OOD-like
+        #
+        # NEAR ZERO:
+        #     ID and OOD similarly plausible
+        #
+        # LARGE NEGATIVE:
+        #     strongly OOD-like
+        #
+        # HIGHER IS BETTER.
+        # ============================================================
+
+        expert_scores = (
+                id_log_probability
+                -
+                ood_log_probability
+        )
+
+        # ============================================================
+        # 5. Select the expert using the HIGHEST calibrated score
+        # ============================================================
+
+        sorted_scores, sorted_experts = (
+            torch.sort(
+                expert_scores,
+                dim=1,
+                descending=True,
+            )
+        )
+
+        best_score = sorted_scores[
             :, 0
         ]
 
-        second_best_distance = sorted_distances[
+        second_best_score = sorted_scores[
             :, 1
         ]
 
@@ -1813,51 +2361,97 @@ class GlobalSpecialistModel(nn.Module):
             :, 0
         ]
 
-        # ------------------------------------------------------------
-        # Confidence in ROUTING decision
+        # Equivalent simpler version would be:
         #
-        # Large margin:
-        #     chosen expert is substantially better than runner-up
+        # selected_expert = expert_scores.argmax(dim=1)
+
+        # ============================================================
+        # 6. Routing confidence
         #
-        # Small margin:
-        #     ambiguous routing decision
-        # ------------------------------------------------------------
+        # This is now calculated from calibrated expert scores,
+        # NOT from distance / threshold.
+        # ============================================================
 
         routing_margin = (
-                second_best_distance
+                best_score
                 -
-                best_distance
+                second_best_score
         )
 
-        # Whether the winning expert is inside its calibrated
-        # 95%-ID Mahalanobis region.
+        # ============================================================
+        # 7. Separate 95%-ID acceptance diagnostic
+        #
+        # We need the relative Mahalanobis distance belonging to
+        # whichever expert was selected above.
+        # ============================================================
+
+        selected_relative_distance = (
+            relative_distances.gather(
+                dim=1,
+
+                index=(
+                    selected_expert
+                    .unsqueeze(1)
+                ),
+            )
+            .squeeze(1)
+        )
+
+        # ------------------------------------------------------------
+        # <= 1 means:
+        #
+        # raw Mahalanobis distance
+        # <=
+        # that expert's 95%-ID threshold
+        #
+        # IMPORTANT:
+        # This does NOT choose the expert.
+        # ------------------------------------------------------------
+
         accepted_as_id = (
-                best_distance <= 1.0
+                selected_relative_distance
+                <= 1.0
         )
 
-        global_logits = outdoors_logits.new_full(
-            (x.size(0), self.num_classes),
-            float(-1e9), #float("-inf"),
+        # ============================================================
+        # 8. Construct the global 43-class logit vector
+        # ============================================================
+
+        global_logits = (
+            outdoors_logits.new_full(
+                (
+                    x.size(0),
+                    self.num_classes,
+                ),
+                -1e9,
+            )
         )
 
         global_logits[
-            :, self.outdoors_indices
+            :,
+            self.outdoors_indices
         ] = outdoors_logits
 
         global_logits[
-            :, self.nature_indices
+            :,
+            self.nature_indices
         ] = nature_logits
 
         global_logits[
-            :, self.people_indices
+            :,
+            self.people_indices
         ] = people_logits
 
         global_logits[
-            :, self.objects_and_vehicles_indices
+            :,
+            self.objects_and_vehicles_indices
         ] = objects_logits
 
         # ============================================================
-        # 3. Allow ONLY selected specialist's classes to compete
+        # 9. HARD EXPERT ROUTING
+        #
+        # Only classes belonging to the expert selected by the
+        # ID-vs-OOD likelihood ratio may compete.
         # ============================================================
 
         class_owner = (
@@ -1872,7 +2466,8 @@ class GlobalSpecialistModel(nn.Module):
 
         wrong_expert_mask = (
                 class_owner
-                != selected_owner
+                !=
+                selected_owner
         )
 
         global_logits = (
@@ -1882,10 +2477,23 @@ class GlobalSpecialistModel(nn.Module):
             )
         )
 
+        # ============================================================
+        # 10. Return diagnostics if requested
+        # ============================================================
+
         if return_gate_info:
             gate_info = {
+
+                # --------------------------------------------
+                # Selected specialist
+                # --------------------------------------------
+
                 "selected_expert":
                     selected_expert,
+
+                # --------------------------------------------
+                # Mahalanobis distances
+                # --------------------------------------------
 
                 "raw_distances":
                     raw_distances,
@@ -1893,20 +2501,44 @@ class GlobalSpecialistModel(nn.Module):
                 "relative_distances":
                     relative_distances,
 
-                "best_distance":
-                    best_distance,
+                "nearest_classes":
+                    nearest_classes,
 
-                "second_best_distance":
-                    second_best_distance,
+                # --------------------------------------------
+                # ID/OOD calibration information
+                # --------------------------------------------
+
+                "id_log_probability":
+                    id_log_probability,
+
+                "ood_log_probability":
+                    ood_log_probability,
+
+                "expert_scores":
+                    expert_scores,
+
+                # --------------------------------------------
+                # Routing confidence
+                # --------------------------------------------
+
+                "best_score":
+                    best_score,
+
+                "second_best_score":
+                    second_best_score,
 
                 "routing_margin":
                     routing_margin,
 
+                # --------------------------------------------
+                # Separate OOD acceptance diagnostic
+                # --------------------------------------------
+
+                "selected_relative_distance":
+                    selected_relative_distance,
+
                 "accepted_as_id":
                     accepted_as_id,
-
-                "nearest_classes":
-                    nearest_classes,
             }
 
             return (
@@ -2130,6 +2762,30 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
         )
     )
 
+    # ============================================================
+    # Fit ID-vs-OOD Mahalanobis calibration
+    # ============================================================
+
+    mahalanobis_calibration = (
+        fit_mahalanobis_id_ood_calibration(
+            models=models,
+
+            feature_models=feature_models,
+
+            validation_loader=val_loader,
+
+            mappings=mappings,
+
+            num_subset_classes=(
+                num_subset_classes
+            ),
+
+            device=device,
+
+            expert_names=EXPERT_NAMES,
+        )
+    )
+
 
     global_model = GlobalSpecialistModel(
         outdoors_model=models["outdoors"],
@@ -2183,9 +2839,12 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
             feature_thresholds
         ),
         #feature_thresholds = feature_thresholds,
+        mahalanobis_calibration =mahalanobis_calibration,
 
         num_classes=43,
     )
+
+    evaluate_mahalanobis_router(global_model, test_loader, mappings, num_subset_classes)
 
     return global_model
 
@@ -2694,6 +3353,137 @@ def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module, loader: to
     accuracy = (correct / total ) if total > 0 else 0.0
     print(f"Fine-tuned model accuracy: {accuracy:.2%}")#print(f"Fine-tuned model accuracy: {accuracy:.2%}")
 
+
+@torch.no_grad()
+def evaluate_mahalanobis_router(
+    global_model,
+    loader,
+    mappings,
+    num_subset_classes,
+    device="cpu",
+):
+
+    global_model.eval()
+
+    cifar_to_expert = (
+        build_cifar_to_expert_lookup(
+            mappings,
+            num_subset_classes,
+            EXPERT_NAMES,
+        ).to(device)
+    )
+
+    confusion = torch.zeros(
+        4,
+        4,
+        dtype=torch.long,
+    )
+
+    routing_correct = 0
+    classification_correct_when_route_correct = 0
+    routed_correct_total = 0
+    total = 0
+
+    correct_route_margins = []
+    wrong_route_margins = []
+
+    for batch_data, batch_labels, _ in loader:
+
+        batch_data = batch_data.to(device)
+        batch_labels = batch_labels.to(device)
+
+        true_expert = cifar_to_expert[
+            batch_labels
+        ]
+
+        global_logits, gate_info = (
+            global_model(
+                batch_data,
+                return_gate_info=True,
+            )
+        )
+
+        selected_expert = gate_info[
+            "selected_expert"
+        ]
+
+        route_correct = (
+            selected_expert
+            == true_expert
+        )
+
+        routing_correct += (
+            route_correct.sum().item()
+        )
+
+        predictions = global_logits.argmax(
+            dim=1
+        )
+
+        global_targets = (
+            build_cifar_to_global_lookup(
+                original_to_aggregated_dict
+            )
+            .to(device)[batch_labels]
+        )
+
+        if route_correct.any():
+
+            classification_correct_when_route_correct += (
+                predictions[route_correct]
+                ==
+                global_targets[route_correct]
+            ).sum().item()
+
+            routed_correct_total += (
+                route_correct.sum().item()
+            )
+
+        margins = gate_info[
+            "routing_margin"
+        ]
+
+        correct_route_margins.append(
+            margins[
+                route_correct
+            ].cpu()
+        )
+
+        wrong_route_margins.append(
+            margins[
+                ~route_correct
+            ].cpu()
+        )
+
+        flat = (
+            true_expert * 4
+            +
+            selected_expert
+        )
+
+        confusion += torch.bincount(
+            flat,
+            minlength=16,
+        ).reshape(4, 4).cpu()
+
+        total += batch_labels.size(0)
+
+    print(
+        "Routing accuracy:",
+        100.0 * routing_correct / total
+    )
+
+    print(
+        "Classification accuracy GIVEN correct route:",
+        100.0
+        * classification_correct_when_route_correct
+        / max(routed_correct_total, 1)
+    )
+
+    print("\nRouting confusion:")
+    print(confusion)
+
+    return confusion
 # ==============================================================================
 # MAIN EXECUTION
 # ==============================================================================
