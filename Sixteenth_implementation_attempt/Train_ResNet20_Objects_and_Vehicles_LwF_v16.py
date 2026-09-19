@@ -185,6 +185,8 @@ from copy import deepcopy
 import pickle
 from avalanche.training.plugins import SupervisedPlugin
 from torch.optim.adam import Adam
+import tracemalloc
+import torch
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False  # TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
@@ -218,6 +220,7 @@ if DYNAMIC_MODELS == True:
         num_classes=0)  # No need for num_classes=5 anymore despite 5 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
     animals_specialised_model = ResNet20_DynamicModel(
         num_classes=0)  # No need for num_classes=45 anymore despite 45 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
+    # Start tracking
     objects_and_vehicles_specialised_model = ResNet20_DynamicModel(
         num_classes=0)  # No need for num_classes=25 anymore despite 25 being the number of classes in the specialised subset for this specialised model, as MaskedCrossEntropy is being used
 
@@ -2424,7 +2427,15 @@ if __name__ == "__main__":
             seen_experiences_sizes += len(experience.dataset)
             print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
             seen_experiences_val.append(objects_and_vehicles_specialised_models_val_stream_class_il[i])
+            '''# Start tracking
+            tracemalloc.start()'''
             lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [objects_and_vehicles_specialised_models_train_stream_class_il,objects_and_vehicles_specialised_models_val_stream_class_il])
+            '''# Get memory stats
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            print(f"Current memory: {current / 1e6:.1f} MB")
+            print(f"Peak memory: {peak / 1e6:.1f} MB\n")'''
+
             print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
             if EARLY_STOPPING_LOOP_5:
                 print("acc_limit:", acc_limit)
@@ -2438,3 +2449,9 @@ if __name__ == "__main__":
         print("lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0]",lwf_trainer.results[exp_name]['gradient_stats']['freeze_intensity_by_epoch'][0])'''
         # print("lwf_trainer.evaluate_all_experiences(objects_and_vehicles_specialised_models_val_stream_class_il)")
         # lwf_trainer.evaluate_all_experiences_post_training(objects_and_vehicles_specialised_models_val_stream_class_il)#(seen_experiences_val)
+
+# Get memory stats
+#current, peak = tracemalloc.get_traced_memory()
+#tracemalloc.stop()
+#print(f"Current memory: {current / 1e6:.1f} MB")
+#print(f"Peak memory: {peak / 1e6:.1f} MB\n")

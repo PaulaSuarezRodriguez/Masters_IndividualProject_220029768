@@ -113,6 +113,10 @@ from avalanche._annotations import deprecated
 from collections.abc import \
     Iterable  # OOOR like in avalanche/training/templates/base_sgd.py , from typing import Any, Callable, Generic, Iterable, Sequence, Optional, TypeVar, Union
 from avalanche.evaluation.metrics.accuracy import accuracy_metrics
+from avalanche.evaluation.metrics.cpu_usage import cpu_usage_metrics
+from avalanche.evaluation.metrics.ram_usage import ram_usage_metrics
+from avalanche.evaluation.metrics.disk_usage import disk_usage_metrics
+from avalanche.evaluation.metrics.gpu_usage import gpu_usage_metrics
 from avalanche.core import BasePlugin
 from avalanche.evaluation.metrics import loss_metrics, forgetting_metrics
 from avalanche.training.plugins.evaluation import default_loggers
@@ -191,6 +195,8 @@ from copy import deepcopy
 import pickle
 from avalanche.training.plugins import SupervisedPlugin
 from torch.optim.adam import Adam
+import tracemalloc
+import torch
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
 TRAINING_WITH_LOOP = False  # TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
@@ -2327,16 +2333,24 @@ if __name__ == "__main__":
 
         #"people": ["woman", "girl", "baby", "man", "boy"],
 
+        '''from avalanche.evaluation.metrics.cpu_usage import cpu_usage_metrics
+            from avalanche.evaluation.metrics.ram_usage import ram_usage_metrics
+            from avalanche.evaluation.metrics.disk_usage import disk_usage_metrics
+            from avalanche.evaluation.metrics.gpu_usage import gpu_usage_metrics'''
+
         lwf_trainer = LwFTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                                  temperature=2.0, alpha=1.0,
                                  train_mb_size=128, train_epochs=5, eval_mb_size=128,
                                  patience=3, ft_shared_after=10,
                                  #plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                                  evaluator=EvaluationPlugin(#accuracy_metrics(experience=True, stream=True),
-                                                            loss_metrics(experience=True, stream=True),
+                                                    #cpu_usage_metrics(experience=True,stream=True),
+                                                            #disk_usage_metrics(experience=True,stream=True),
+                                                            #ram_usage_metrics(experience=True,stream=True, every=1),
+                                                            loss_metrics(experience=True,stream=True),
                                                             #forgetting_metrics(experience=True, stream=True), bwt_metrics(experience=True, stream=True),
-                                                            loggers=InteractiveLogger(), collect_all=True),
-                                 eval_every=1,)
+                                                    loggers=InteractiveLogger(), collect_all=True),
+                                                    eval_every=1,)
 
         seen_experiences = []
         seen_experiences_val = []
@@ -2416,7 +2430,16 @@ if __name__ == "__main__":
             seen_experiences_sizes += len(experience.dataset)
             print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")
             seen_experiences_val.append(people_specialised_models_val_stream_class_il[i])
+
+            # Start tracking
+            #tracemalloc.start()
             lwf_trainer.train(experience, [seen_experiences,seen_experiences_val])  # lwf_trainer.train(experience, [people_specialised_models_train_stream_class_il,people_specialised_models_val_stream_class_il])
+            # Get memory stats
+            #current, peak = tracemalloc.get_traced_memory()
+            #tracemalloc.stop()
+            #print(f"Current memory: {current / 1e6:.1f} MB")
+            #print(f"Peak memory: {peak / 1e6:.1f} MB")
+
             print("Temperature:", lwf_trainer.temperature, "Alpha:", lwf_trainer.alpha)
             if EARLY_STOPPING_LOOP_5:
                 print("acc_limit:", acc_limit)

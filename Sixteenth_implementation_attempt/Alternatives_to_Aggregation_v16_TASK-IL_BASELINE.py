@@ -49,6 +49,8 @@ from Sixteenth_implementation_attempt.Load_cifar100_v16 import avl_test
 from torch.utils.data import ConcatDataset, DataLoader
 from torch.nn import Module, CrossEntropyLoss
 import torch.nn.functional as F
+import tracemalloc
+import torch
 ####################################################################################################################################################################################
 
 VERBOSE = False
@@ -486,6 +488,12 @@ def unpack_minibatch(mbatch):
         else:
             # Optionally handle other cases (e.g., raise an error if unsupported types are encountered)
             raise TypeError(f"Unsupported type in batch: {type(mbatch[i])}")
+
+
+
+# Start tracking
+#tracemalloc.start()
+
 
 
 def build_cifar_to_global_lookup(
@@ -1284,6 +1292,12 @@ def fine_tune_aggregated_model(
 
     model.train()
 
+    cifar_to_global = (
+        build_cifar_to_global_lookup(
+            original_to_aggregated_dict
+        )
+    )
+
     for epoch in range(fine_tune_epochs):
 
         # Reset statistics at the beginning of EACH epoch
@@ -1301,6 +1315,10 @@ def fine_tune_aggregated_model(
 
             # Forward pass
             logits = model(batch_data)
+
+            batch_labels = cifar_to_global[
+                batch_labels
+            ]
 
             # Calculate loss
             loss = F.cross_entropy(
@@ -1727,10 +1745,6 @@ def main():
         print("AGGREGATION COMPLETE!")
         print("="*80)
         print(f"\nGlobal model ready for inference:")
-        print(f"  - Feature extraction: Averaged from 4 models")
-        print(f"  - Classifier: Remapped to CIFAR-100 space")
-        print(f"  - All 43 trained classes: Ready for prediction")
-        print(f"  - 57 untrained classes: Will use averaged features")
         print(f"\nModel saved to: {OUTPUT_DIR / 'global_model_with_averaged_features.pt'}")
         print("="*80 + "\n")
 
@@ -1769,12 +1783,23 @@ if __name__ == '__main__':
     evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader, "Evaluating FINE-TUNED global model on outdoors_loader")
     evaluate_aggregated_model(fine_tuned_global_model, nature_loader, "Evaluating FINE-TUNED global model on nature_loader")
     evaluate_aggregated_model(fine_tuned_global_model, people_loader, "Evaluating FINE-TUNED global model on people_loader")
-    evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
+    evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
 
-    print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
+    # In Alternatives_to_Aggregation_v16_TASK - IL_BASELINE.py, function fine_tuned_global_model() has
+    # been modified to work with task - id baseline, and when there is no aggregation, as is the case in task-id baseline, FINE-TUNING leads to WORSE RESULTS!!!!
+    '''print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
     fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=3, lr=0.001, momentum=0.9,weight_decay=5e-4)
+    evaluate_global_specialist_model(fine_tuned_global_model, test_loader, original_to_aggregated_dict,
+                              "Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_global_specialist_model(fine_tuned_global_model, outdoors_loader, original_to_aggregated_dict,
+                              "Evaluating FINE-TUNED global model on outdoors_loader")
+    evaluate_global_specialist_model(fine_tuned_global_model, nature_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on nature_loader")
+    evaluate_global_specialist_model(fine_tuned_global_model, people_loader, original_to_aggregated_dict,
+                              "Evaluating FINE-TUNED global model on people_loader")
+    evaluate_global_specialist_model(fine_tuned_global_model, objects_and_vehicles_loader, original_to_aggregated_dict,
+                              "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
     # evaluate_aggregated_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
-    evaluate_aggregated_model(fine_tuned_global_model, test_loader,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    '''evaluate_aggregated_model(fine_tuned_global_model, test_loader,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
     evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader,"Evaluating FINE-TUNED global model on outdoors_loader")
     evaluate_aggregated_model(fine_tuned_global_model, nature_loader,"Evaluating FINE-TUNED global model on nature_loader")
     evaluate_aggregated_model(fine_tuned_global_model, people_loader,"Evaluating FINE-TUNED global model on people_loader")
@@ -1786,3 +1811,8 @@ if __name__ == '__main__':
                                      "Evaluating global model on middle_experience_test_loader")
     evaluate_global_specialist_model(global_model, last_experience_train_loader, original_to_aggregated_dict,
                                      "Evaluating global model on last_experience_train_loader")'''
+# Get memory stats
+#current, peak = tracemalloc.get_traced_memory()
+#tracemalloc.stop()
+#print(f"Current memory: {current / 1e6:.1f} MB")
+#print(f"Peak memory: {peak / 1e6:.1f} MB\n")
