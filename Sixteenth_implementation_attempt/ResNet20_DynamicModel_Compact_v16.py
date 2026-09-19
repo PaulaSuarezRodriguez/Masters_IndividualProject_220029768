@@ -276,18 +276,6 @@ class ResNet20_Compact_S(nn.Module):
         return out
 
 class ResNet20_XL(nn.Module):
-    """
-    Very compact ResNet20 for maximum regularization on tiny datasets.
-
-    Changes from original (75% reduction):
-    - Layer1: 16 → 4 channels
-    - Layer2: 32 → 8 channels
-    - Layer3: 64 → 16 channels
-    - Final features: 64 → 16
-
-    Use only if overfitting is severe.
-    """
-
     def __init__(self, num_classes: int):
         super(ResNet20_XL, self).__init__()
         self.num_classes = num_classes

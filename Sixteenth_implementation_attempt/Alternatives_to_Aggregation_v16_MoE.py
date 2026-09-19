@@ -30,6 +30,7 @@ from typing import Dict, Tuple
 from collections import OrderedDict
 from Sixteenth_implementation_attempt.ResNet20_DynamicModel_v16 import ResNet20_DynamicModel
 #from Sixteenth_implementation_attempt.ResNet20_DynamicModel_Compact_v16 import ResNet20_XL
+from Sixteenth_implementation_attempt.ResNet20_DynamicModel_Compact_v16 import ResNet20_Compact, ResNet20_Compact_XL, ResNet20_XL, ResNet20_Compact_S
 ############ Imports for Evaluating: ##############################################################################################################################################
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
@@ -212,7 +213,7 @@ combined_dataset_train = ConcatDataset([
 train_loader = DataLoader(
     combined_dataset_train,
     batch_size=32,
-    shuffle=True
+    shuffle=False#True
 )
 print("print train_loader", train_loader)
 print("print train_loader.dataset", train_loader.dataset)
@@ -255,7 +256,7 @@ combined_dataset_first_experience_test = ConcatDataset([
 first_experience_test_loader = DataLoader(
     combined_dataset_first_experience_test,
     batch_size=32,
-    shuffle=True
+    shuffle=False#True
 )
 print("print first_experience_test_loader", first_experience_test_loader)
 print("print first_experience_test_loader.dataset", first_experience_test_loader.dataset)
@@ -298,7 +299,7 @@ combined_dataset_middle_experience_test = ConcatDataset([
 middle_experience_test_loader = DataLoader(
     combined_dataset_middle_experience_test,
     batch_size=32,
-    shuffle=True
+    shuffle=False#True
 )
 print("print middle_experience_test_loader", middle_experience_test_loader)
 print("print middle_experience_test_loader.dataset", middle_experience_test_loader.dataset)
@@ -342,7 +343,7 @@ combined_dataset_last_experience_test = ConcatDataset([
 last_experience_test_loader = DataLoader(
     combined_dataset_last_experience_test,
     batch_size=32,
-    shuffle=True
+    shuffle=False#True
 )
 print("print last_experience_test_loader", last_experience_test_loader)
 print("print last_experience_test_loader.dataset", last_experience_test_loader.dataset)
@@ -432,7 +433,7 @@ combined_dataset_val = ConcatDataset([
 val_loader = DataLoader(
     combined_dataset_val,
     batch_size=32,
-    shuffle=True
+    shuffle=True #True cause it was used for calibration in whatever version added this val_loader, NOT FOR VALIDATION
 )
 print("print val_loader", val_loader)
 print("print val_loader.dataset", val_loader.dataset)
@@ -957,8 +958,11 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
 
     cifar_to_expert_lookup = build_cifar_to_expert_lookup(mappings, EXPERT_ORDER)
     gate = ResNet20_DynamicModel(num_classes=NUM_EXPERTS)
+    #gate = ResNet20_Compact_XL(num_classes=NUM_EXPERTS) #25% reduction
+    #gate = ResNet20_Compact(num_classes=NUM_EXPERTS) #50% reduction
+    #gate = ResNet20_Compact_S(num_classes=NUM_EXPERTS) #75% reduction
     gate = train_gating_network(gate,
-                                train_loader,                 # you already build this: union of all 4 train sets
+                                last_experience_train_loader,#train_loader,                 # you already build this: union of all 4 train sets
                                 cifar_to_expert_lookup,
                                 epochs=10,
                                 lr=1e-3,)
