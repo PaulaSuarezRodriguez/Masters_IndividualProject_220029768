@@ -384,7 +384,7 @@ SPECIALIST_ORDER = [
     "objects_and_vehicles",
 ]
 
-
+'''
 def build_global_logit_permutation(
     local_to_global_indices,
     specialist_order=SPECIALIST_ORDER,
@@ -890,7 +890,7 @@ def fit_specialist_logit_calibrator(
             f"bias={biases[idx].item():+.6f}"
         )
 
-    return calibrator
+    return calibrator'''
 
 class GlobalSpecialistModel(nn.Module):
 
@@ -1029,7 +1029,7 @@ class GlobalSpecialistModel(nn.Module):
 
         return global_logits
 
-class CalibratedGlobalSpecialistModel(
+'''class CalibratedGlobalSpecialistModel(
     nn.Module
 ):
 
@@ -1130,7 +1130,7 @@ class CalibratedGlobalSpecialistModel(
             self.global_to_concat,
         ]
 
-        return global_logits
+        return global_logits'''
 # ==============================================================================
 # STEP 2: Classifier Remapping (UNCHANGED)
 # ==============================================================================

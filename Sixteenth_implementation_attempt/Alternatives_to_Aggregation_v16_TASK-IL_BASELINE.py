@@ -1785,8 +1785,8 @@ if __name__ == '__main__':
     evaluate_aggregated_model(fine_tuned_global_model, people_loader, "Evaluating FINE-TUNED global model on people_loader")
     evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
 
-    # In Alternatives_to_Aggregation_v16_TASK - IL_BASELINE.py, function fine_tuned_global_model() has
-    # been modified to work with task - id baseline, and when there is no aggregation, as is the case in task-id baseline, FINE-TUNING leads to WORSE RESULTS!!!!
+    # In Alternatives_to_Aggregation_v16_TASK-IL_BASELINE.py, function fine_tuned_global_model() has
+    # been modified to work with GlobalSpecialistModel, and when there is no aggregation, as is the case in task-id baseline, FINE-TUNING leads to WORSE RESULTS!!!!
     '''print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
     fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=3, lr=0.001, momentum=0.9,weight_decay=5e-4)
     evaluate_global_specialist_model(fine_tuned_global_model, test_loader, original_to_aggregated_dict,
