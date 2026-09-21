@@ -859,13 +859,13 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_outdoors']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_Standard_Supervised_Learning_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_Standard_Supervised_Learning = 'cpu'
-    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_baseline_outdoors_BASELINE']
+    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_BASELINE_outdoors']
     standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
 
 
-    MODEL_DIR_final_specialised = f"../Sixteenth_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_specialised = ['outdoors']
     final_specialised_model, class_to_idx_new_final_specialised = main(MODEL_DIR_final_specialised,
@@ -887,12 +887,12 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_nature']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_Standard_Supervised_Learning_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELIINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_Standard_Supervised_Learning = 'cpu'
-    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_baseline_nature_BASELINE']
+    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_BASELINE_nature']
     standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
 
-    MODEL_DIR_final_specialised = f"../Sixteenth_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_specialised = ['nature']
     final_specialised_model, class_to_idx_new_final_specialised = main(MODEL_DIR_final_specialised,
@@ -914,7 +914,7 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_people']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_final_specialised = f"../Sixteenth_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_specialised = ['people']
     final_specialised_model, class_to_idx_new_final_specialised = main(MODEL_DIR_final_specialised,
@@ -936,7 +936,7 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_objects_and_vehicles']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_final_specialised = f"../Sixteenth_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_specialised = ['objects_and_vehicles']
     final_specialised_model, class_to_idx_new_final_specialised = main(MODEL_DIR_final_specialised,

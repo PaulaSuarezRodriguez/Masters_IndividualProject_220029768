@@ -1,6 +1,6 @@
 # Implementation inspired by code from https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
 from avalanche.benchmarks import CLExperience
-from Sixteenth_implementation_attempt.Config_v16 import set_seed
+from Report_implementation_attempt.Config_vReport import set_seed
 set_seed()
 import torch
 import torch.nn as nn

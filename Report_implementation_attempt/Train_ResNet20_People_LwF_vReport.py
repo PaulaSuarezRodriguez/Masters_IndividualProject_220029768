@@ -68,28 +68,28 @@ from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 from avalanche.training.templates.base import TExperienceType, _experiences_parameter_as_iterable, \
     _group_experiences_by_stream
 
-from Sixteenth_implementation_attempt.Config_v16 import set_seed
+from Report_implementation_attempt.Config_vReport import set_seed
 
 set_seed()  # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Sixteenth_implementation_attempt.Config_v16 import set_device
+from Report_implementation_attempt.Config_vReport import set_device
 
 DEVICE = set_device()
-from Sixteenth_implementation_attempt.Config_v16 import SEED
+from Report_implementation_attempt.Config_vReport import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 
 RNGManager.set_random_seeds(SEED)
-from Sixteenth_implementation_attempt.ResNet20_v16 import ResNet20
-from Sixteenth_implementation_attempt.ResNet20_DynamicModel_v16 import ResNet20_DynamicModel
-#from Sixteenth_implementation_attempt.ResNet20_DynamicModel_v16 import ResNet20_Compact_S #ResNet20_Compact
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (outdoors_specialised_models_train_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (outdoors_specialised_models_val_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (outdoors_specialised_models_test_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (nature_specialised_models_train_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (nature_specialised_models_val_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (nature_specialised_models_test_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (people_specialised_models_train_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (people_specialised_models_val_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (people_specialised_models_test_subset)
+from Report_implementation_attempt.ResNet20_vReport import ResNet20
+from Report_implementation_attempt.ResNet20_DynamicModel_vReport import ResNet20_DynamicModel
+#from Report_implementation_attempt.ResNet20_DynamicModel_vReport import ResNet20_Compact_S #ResNet20_Compact
+from Report_implementation_attempt.Load_cifar100_vReport import (outdoors_specialised_models_train_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (outdoors_specialised_models_val_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (outdoors_specialised_models_test_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (nature_specialised_models_train_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (nature_specialised_models_val_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (nature_specialised_models_test_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (people_specialised_models_train_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (people_specialised_models_val_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (people_specialised_models_test_subset)
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
@@ -205,7 +205,7 @@ TRAINING_WITHOUT_LOOP = False  # True #TODO: Remember to change TRAINING_WITHOUT
 # TRAINING_WITH_RUN_SEVERAL_EXPERIMENTS_LwF = True
 DYNAMIC_MODELS = True
 
-print("\n\n\n################################ HERE BEGINS Train_ResNet20_People_LwF_v16.py ################################ \n\n\n")
+print("\n\n\n################################ HERE BEGINS Train_ResNet20_People_LwF_vReport.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
     resnet20_global_model = ResNet20(num_classes=100)
@@ -333,7 +333,7 @@ print(
 '''people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
                                                                   class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 1, 94])'''
 
-# for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v16.py
+# for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_vReport.py
 '''people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
                                                                   class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])'''
 
@@ -1237,7 +1237,7 @@ class LwFTrainer(SupervisedTemplate):
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     checkpoint_dir = Path(
-                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Sixteenth_implementation_attempt\checkpoints")
+                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Report_implementation_attempt\checkpoints")
                     checkpoint_dir.mkdir(parents=True, exist_ok=True)
                     torch.save({
                         'epoch': _,
@@ -2115,7 +2115,7 @@ class LwFTrainer(SupervisedTemplate):
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
         #torch.save(checkpoint, path)
-        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Sixteenth_implementation_attempt\checkpoints")
+        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Report_implementation_attempt\checkpoints")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         torch.save(checkpoint, fname, pickle_module=dill)
 
@@ -2327,7 +2327,7 @@ if __name__ == "__main__":
         seen_experiences = []
         seen_experiences_val = []'''
 
-        # for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_v16.py
+        # for when "people": ["woman", "girl", "man", "baby", "boy"] in cifar100_superclasses of Load_cifar100_vReport.py
         #people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
             #class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])
 

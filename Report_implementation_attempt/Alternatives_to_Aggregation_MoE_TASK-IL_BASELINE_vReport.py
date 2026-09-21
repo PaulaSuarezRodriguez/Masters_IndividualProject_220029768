@@ -28,8 +28,8 @@ import pickle
 from pathlib import Path
 from typing import Dict, Tuple
 from collections import OrderedDict
-from Sixteenth_implementation_attempt.ResNet20_DynamicModel_v16 import ResNet20_DynamicModel
-#from Sixteenth_implementation_attempt.ResNet20_DynamicModel_Compact_v16 import ResNet20_XL
+from Report_implementation_attempt.ResNet20_DynamicModel_vReport import ResNet20_DynamicModel
+#from Report_implementation_attempt.ResNet20_DynamicModel_Compact_vReport import ResNet20_XL
 ############ Imports for Evaluating: ##############################################################################################################################################
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
@@ -40,12 +40,12 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset, _T_co
 from avalanche.benchmarks.utils import AvalancheDataset
 from avalanche.benchmarks.utils.dataset_definitions import T_co
-from Sixteenth_implementation_attempt.Train_ResNet20_Outdoors_LwF_v16 import outdoors_specialised_models_test_stream_class_il, outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il
-from Sixteenth_implementation_attempt.Train_ResNet20_Nature_LwF_v16 import nature_specialised_models_test_stream_class_il, nature_specialised_models_train_stream_class_il, nature_specialised_models_val_stream_class_il
-from Sixteenth_implementation_attempt.Train_ResNet20_People_LwF_v16 import people_specialised_models_test_stream_class_il, people_specialised_models_train_stream_class_il, people_specialised_models_val_stream_class_il
-from Sixteenth_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_v16 import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il, objects_and_vehicles_specialised_models_val_stream_class_il
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import avl_test
-#TODO: TEMPORARY!!!! Change to that of v16 once I have final Objects_and_Vehicles model!!!!!
+from Report_implementation_attempt.Train_ResNet20_Outdoors_LwF_vReport import outdoors_specialised_models_test_stream_class_il, outdoors_specialised_models_train_stream_class_il, outdoors_specialised_models_val_stream_class_il
+from Report_implementation_attempt.Train_ResNet20_Nature_LwF_vReport import nature_specialised_models_test_stream_class_il, nature_specialised_models_train_stream_class_il, nature_specialised_models_val_stream_class_il
+from Report_implementation_attempt.Train_ResNet20_People_LwF_vReport import people_specialised_models_test_stream_class_il, people_specialised_models_train_stream_class_il, people_specialised_models_val_stream_class_il
+from Report_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_vReport import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il, objects_and_vehicles_specialised_models_val_stream_class_il
+from Report_implementation_attempt.Load_cifar100_vReport import avl_test
+#TODO: TEMPORARY!!!! Change to that of vReport once I have final Objects_and_Vehicles model!!!!!
 from torch.utils.data import ConcatDataset, DataLoader
 from torch.nn import Module, CrossEntropyLoss
 import torch.nn.functional as F
@@ -848,7 +848,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
     print("COMPLETE MODEL AGGREGATION - ALL LAYERS WITH FEATURE AVERAGING")
     print("="*80 + "\n")
 
-    model_dir = f"../Sixteenth_implementation_attempt/final_specialised_models/" #model_dir = Path(model_dir)
+    model_dir = f"../Report_implementation_attempt/final_specialised_models/" #model_dir = Path(model_dir)
     models = {}
     mappings = {}
     num_subset_classes = {}
@@ -1252,8 +1252,8 @@ def main():
     Complete pipeline with feature averaging.
     """
 
-    MODEL_DIR = Path("./final_specialised_models") #MODEL_DIR = Path(f"../Sixteenth_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
-    MODEL_DIR.mkdir(parents=True, exist_ok=True) #MODEL_DIR = Path(f"../Sixteenth_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR = Path("./final_specialised_models") #MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR.mkdir(parents=True, exist_ok=True) #MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     OUTPUT_DIR = Path('./final_specialised_models')
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     DEVICE = 'cpu'#'cuda' if torch.cuda.is_available() else 'cpu'
@@ -1313,7 +1313,7 @@ if __name__ == '__main__':
     evaluate_global_specialist_model(fine_tuned_global_model, people_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on people_loader")
     evaluate_global_specialist_model(fine_tuned_global_model, objects_and_vehicles_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
 
-    # In Alternatives_to_Aggregation_v16_TASK-IL_BASELINE.py, function fine_tuned_global_model() has
+    # In Alternatives_to_Aggregation_vReport_TASK-IL_BASELINE.py, function fine_tuned_global_model() has
     # been modified to work with GlobalSpecialistModel, and for task-id baseline, FINE-TUNING leads to WORSE RESULTS!!!! I have double-checked this!!!
     global_model = main()
 

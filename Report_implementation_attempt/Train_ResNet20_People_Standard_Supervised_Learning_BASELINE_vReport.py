@@ -2019,7 +2019,7 @@ if __name__ == "__main__":
                 standard_supervised_learning_baseline_trainer.ft_shared_after=3'''
             if i == 1:
                 torch.save(standard_supervised_learning_baseline_trainer.model.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model.pt")
-                torch.save(standard_supervised_learning_baseline_trainer.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model_CLASSIFIER.pt")
+                torch.save(standard_supervised_learning_baseline_trainer.model.linear.state_dict(), f"./final_specialised_models_BASELINE/Standard_Supervised_Learning_BASELINE_people_model.pt")
                 print("standard_supervised_learning_baseline_trainer.model.linear", standard_supervised_learning_baseline_trainer.model.linear)
                 print("standard_supervised_learning_baseline_trainer.model.linear.state_dict", standard_supervised_learning_baseline_trainer.model.linear.weight.shape)
                 new_to_original = new_to_original_creation()  # Your existing function

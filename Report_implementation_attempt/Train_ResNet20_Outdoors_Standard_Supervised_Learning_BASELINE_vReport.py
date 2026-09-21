@@ -327,7 +327,7 @@ print("IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OB
 
 # one used for STANDARD_SUPERVISED_LEARNING_BASELINE_BENCHMARK
 outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[8, 69])
+                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[6, 71])
 
 
 if DEBUG:

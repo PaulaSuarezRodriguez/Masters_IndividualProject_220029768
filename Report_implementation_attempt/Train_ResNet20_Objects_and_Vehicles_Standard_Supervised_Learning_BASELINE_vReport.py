@@ -68,22 +68,22 @@ from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 from avalanche.training.templates.base import TExperienceType, _experiences_parameter_as_iterable, \
     _group_experiences_by_stream
 
-from Sixteenth_implementation_attempt.Config_v16 import set_seed
+from Report_implementation_attempt.Config_vReport import set_seed
 
 set_seed()  # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
-from Sixteenth_implementation_attempt.Config_v16 import set_device
+from Report_implementation_attempt.Config_vReport import set_device
 
 DEVICE = set_device()
-from Sixteenth_implementation_attempt.Config_v16 import SEED
+from Report_implementation_attempt.Config_vReport import SEED
 from avalanche.training.determinism.rng_manager import RNGManager
 
 RNGManager.set_random_seeds(SEED)
-from Sixteenth_implementation_attempt.ResNet20_v16 import ResNet20
-from Sixteenth_implementation_attempt.ResNet20_DynamicModel_v16 import ResNet20_DynamicModel
-#from Sixteenth_implementation_attempt.ResNet20_DynamicModel_v16 import ResNet20_Compact_S #ResNet20_Compact
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (objects_and_vehicles_specialised_models_train_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (objects_and_vehicles_specialised_models_val_subset)
-from Sixteenth_implementation_attempt.Load_cifar100_v16 import (objects_and_vehicles_specialised_models_test_subset)
+from Report_implementation_attempt.ResNet20_vReport import ResNet20
+from Report_implementation_attempt.ResNet20_DynamicModel_vReport import ResNet20_DynamicModel
+#from Report_implementation_attempt.ResNet20_DynamicModel_vReport import ResNet20_Compact_S #ResNet20_Compact
+from Report_implementation_attempt.Load_cifar100_vReport import (objects_and_vehicles_specialised_models_train_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (objects_and_vehicles_specialised_models_val_subset)
+from Report_implementation_attempt.Load_cifar100_vReport import (objects_and_vehicles_specialised_models_test_subset)
 from avalanche.benchmarks.scenarios.supervised import class_incremental_benchmark
 from avalanche.benchmarks.utils.data import make_avalanche_dataset
 from avalanche.benchmarks.utils.data_attribute import DataAttribute
@@ -948,7 +948,7 @@ class NaiveBaseline(SupervisedTemplate):
                     best_acc_so_far = epoch_acc
                     print(f"New best accuracy: {best_acc_so_far:.2f}%")
                     checkpoint_dir = Path(
-                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Sixteenth_implementation_attempt\checkpoints")
+                        "./checkpoints")  # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Report_implementation_attempt\checkpoints")
                     checkpoint_dir.mkdir(parents=True, exist_ok=True)
                     torch.save({
                         'epoch': _,
@@ -1751,7 +1751,7 @@ class NaiveBaseline(SupervisedTemplate):
         #with open(path, "wb") as f:
          #   pickle.dump(checkpoint, f)
         #torch.save(checkpoint, path)
-        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Sixteenth_implementation_attempt\checkpoints")
+        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Report_implementation_attempt\checkpoints")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         torch.save(checkpoint, fname, pickle_module=dill)
 
@@ -2009,7 +2009,7 @@ if __name__ == "__main__":
         for experience in objects_and_vehicles_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 1:
-                torch.save(standard_supervised_learning_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_objects_and_vehicles_model.pt")
+                torch.save(standard_supervised_learning_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles_model.pt")
                 #torch.save(standard_supervised_learning_baseline.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_objects_and_vehicles_model_CLASSIFIER.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
