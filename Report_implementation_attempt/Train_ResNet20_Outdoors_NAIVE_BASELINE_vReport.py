@@ -1637,7 +1637,7 @@ if __name__ == "__main__":
             i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:#4:
                 torch.save(naive_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_outdoors_model.pt")
-                torch.save(naive_baseline.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_outdoors_model_CLASSIFIER.pt")
+                #torch.save(naive_baseline.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_outdoors_model_CLASSIFIER.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training

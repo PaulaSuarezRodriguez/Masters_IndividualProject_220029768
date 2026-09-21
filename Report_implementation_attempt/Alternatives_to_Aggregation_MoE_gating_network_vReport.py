@@ -1034,7 +1034,7 @@ def save_global_model(global_model: nn.Module,
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save model weights
-    model_path = output_path / 'global_model_with_averaged_features.pt'
+    model_path = output_path / 'MoE_gating_network_global_model.pt'
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
 

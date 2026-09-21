@@ -861,7 +861,7 @@ if __name__ == '__main__':
 
     MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_Standard_Supervised_Learning = 'cpu'
-    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_BASELINE_outdoors']
+    model_names_Standard_Supervised_Learning = ['STANDARD_SUPERVISED_LEARNING_BASELINE_outdoors']
     standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
 
 
@@ -887,9 +887,9 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_nature']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELIINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_Standard_Supervised_Learning = 'cpu'
-    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_BASELINE_nature']
+    model_names_Standard_Supervised_Learning = ['STANDARD_SUPERVISED_LEARNING_BASELINE_nature']
     standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
 
     MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
@@ -914,17 +914,23 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_people']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_Standard_Supervised_Learning = 'cpu'
+    model_names_Standard_Supervised_Learning = ['STANDARD_SUPERVISED_LEARNING_BASELINE_people']
+    standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
+
     MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_specialised = ['people']
     final_specialised_model, class_to_idx_new_final_specialised = main(MODEL_DIR_final_specialised,
                                                                        DEVICE_final_specialised,
                                                                        model_names_final_specialised)
-
     print(
-        "############################# People model --- baseline (people model trained in standard supervised learning) vs final_specialised_people_model: #############################")
+        "############################# people model --- baseline (people model trained in standard supervised learning) vs final_specialised_people_model: #############################")
     evaluate_baseline_vs_specialist(baseline, people_loader, class_to_idx_new_baseline,
                                     "Evaluating BASELINE people model on people_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, people_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating standard_Supervised_Learning_BASELINE on people_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, people_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_people_model on people_loader")
     print("\n\n")
@@ -936,6 +942,11 @@ if __name__ == '__main__':
     model_names_BASELINE = ['NAIVE_BASELINE_objects_and_vehicles']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_Standard_Supervised_Learning = 'cpu'
+    model_names_Standard_Supervised_Learning = ['STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles']
+    standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
+
     MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_specialised = ['objects_and_vehicles']
@@ -946,5 +957,26 @@ if __name__ == '__main__':
         "############################# objects_and_vehicles model --- baseline (objects_and_vehicles model trained in standard supervised learning) vs final_specialised_objects_and_vehicles_model: #############################")
     evaluate_baseline_vs_specialist(baseline, objects_and_vehicles_loader, class_to_idx_new_baseline,
                                     "Evaluating BASELINE objects_and_vehicles model on objects_and_vehicles_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, objects_and_vehicles_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating standard_Supervised_Learning_BASELINE on objects_and_vehicles_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, objects_and_vehicles_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_loader")
+    print("\n\n")
+
+    ###########################################################################################################################################################################################################################################
+    MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE = 'cpu'
+    model_names_BASELINE = ['BASELINE_standard_supervised_global']
+    baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_globbal_model_moe = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_globbal_model_moe = 'cpu'
+    model_names_globbal_model_moe = ['MoE_gating_network_global_model']
+    global_model_moe, class_to_idx_new_global_model_moe = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    print(
+        "############################# BASELINE_standard_supervised_global (global model trained in standard supervised learning) vs global model produced via my proposed CL strategy: #############################")
+    evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on test_loader")
+    evaluate_baseline_vs_specialist(global_model_moe, test_loader, class_to_idx_new_global_model_moe,
+                                    "Evaluating MoE_gating_network_global_model on test_loader")

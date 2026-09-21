@@ -692,4 +692,16 @@ if __name__ == '__main__':
     )
     final_specialised_models_baseline_dir = Path("./final_specialised_models_BASELINE")
     final_specialised_models_baseline_dir.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_standard_supervised_model.pt")
+    torch.save(model.state_dict(),f"./final_specialised_models_BASELINE/BASELINE_standard_supervised_global_model.pt")
+    new_to_original = new_to_original_creation()  # Your existing function
+    class_to_idx_new = class_to_idx_new  # Your existing variable
+    # Save the mappings used in training
+    metadata = {
+        'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+        'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+        'num_subset_classes':43
+    }
+    with open('./final_specialised_models_BASELINE/BASELINE_standard_supervised_global_metadata.pkl',
+              'wb') as f:
+        pickle.dump(metadata, f)
+    print("✓ Saved metadata for BASELINE EVALUATION")

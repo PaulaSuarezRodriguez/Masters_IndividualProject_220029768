@@ -2383,7 +2383,7 @@ if __name__ == "__main__":
                 lwf_trainer.ft_shared_after=3
             if i == 3:
                 torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_people_model.pt")
-                torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_CLASSIFIER.pt")
+                #torch.save(lwf_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_CLASSIFIER.pt")
                 print("lwf_trainer.model.linear", lwf_trainer.model.linear)
                 print("lwf_trainer.model.linear.state_dict", lwf_trainer.model.linear.weight.shape)
                 new_to_original = new_to_original_creation()  # Your existing function

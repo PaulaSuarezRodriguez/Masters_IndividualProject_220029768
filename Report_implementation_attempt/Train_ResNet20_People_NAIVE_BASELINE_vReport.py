@@ -2015,7 +2015,7 @@ if __name__ == "__main__":
                 naive_baseline_trainer.ft_shared_after=3'''
             if i == 3:
                 torch.save(naive_baseline_trainer.model.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model.pt")
-                torch.save(naive_baseline_trainer.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model_CLASSIFIER.pt")
+                #torch.save(naive_baseline_trainer.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model_CLASSIFIER.pt")
                 print("naive_baseline_trainer.model.linear", naive_baseline_trainer.model.linear)
                 print("naive_baseline_trainer.model.linear.state_dict", naive_baseline_trainer.model.linear.weight.shape)
                 new_to_original = new_to_original_creation()  # Your existing function

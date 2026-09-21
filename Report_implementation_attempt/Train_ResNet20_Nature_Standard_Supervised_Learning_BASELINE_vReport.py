@@ -1956,7 +1956,7 @@ if __name__ == "__main__":
         for experience in nature_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of nature_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 1:
-                torch.save(standard_supervised_learning_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/Standard_Supervised_Learning_BASELINE_nature_model.pt")
+                torch.save(standard_supervised_learning_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/STANDARD_SUPERVISED_LEARNING_BASELINE_nature_model.pt")
                 #torch.save(standard_supervised_learning_baseline.model.linear.state_dict(), f"./final_specialised_models_BASELINE/standard_supervised_learning_baseline_nature_model_CLASSIFIER.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
