@@ -660,7 +660,7 @@ def load_baselines(
     local_to_global_indices = {}
     for model_name in model_names:
         try:
-            if "NAIVE_BASELINE" not in model_name:
+            if "BASELINE" not in model_name:
                 state_dict = torch.load(f"{model_dir}final_{model_name}_model.pt", map_location=device)
             else:
                 state_dict = torch.load(f"{model_dir}{model_name}_model.pt", map_location=device)#state_dict = torch.load(model_dir / f'final_{model_name}_model.pt',map_location=device)
@@ -821,19 +821,19 @@ def main(MODEL_DIR, DEVICE, model_names):
         raise
 
 
-if __name__ == '__main__':
 
+'''
     train_list = [33, 68, 37, 71, 12, 76, 17, 49, 23, 60, 0, 96, 70, 47, 82, 51, 52, 53, 54, 83, 56, 57, 59, 92, 62, 2,
                   35, 98, 11, 46, 1, 3, 4, 6, 7, 14, 15, 18, 19, 21, 24, 26, 27, 29, 30,
                   31, 32, 34, 36, 38, 42, 43, 44, 45, 50, 55, 63, 64, 65, 66, 67, 72, 73, 74, 75, 77, 78, 79, 80, 88,
                   91, 93, 95, 97, 99,
                   5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
 
-    '''specialised_models_indices_list=[23, 17, 71, 49, 76, 33, 68, 12, 37, 60, 0, 96, 82, 59, 70, 52, 47, 56, 51, 83, 53, 92, 62, 54, 57,
+    specialised_models_indices_list=[23, 17, 71, 49, 76, 33, 68, 12, 37, 60, 0, 96, 82, 59, 70, 52, 47, 56, 51, 83, 53, 92, 62, 54, 57,
      11, 98, 35, 46, 2, 19, 29, 1, 31, 97, 80, 74, 64, 42, 65, 21, 24, 78, 45, 73, 14, 6, 36, 55, 72, 43,
      27, 50, 15, 18, 75, 38, 66, 77, 95, 99, 93, 4, 34, 32, 88, 67, 30, 63, 26, 79, 44, 7, 91, 3, 86, 90,
      28, 39, 8, 87, 84, 22, 81, 89, 9, 20, 69, 61, 94, 40, 48, 85, 41,
-     13, 25, 10, 5, 58, 16]'''
+     13, 25, 10, 5, 58, 16]
 
     delete_list = {12: 0, 17: 1, 23: 2, 33: 3, 37: 4, 49: 5,  # OUTDOORS
                                    0: 6, 47: 7, 51: 8, 52: 9, 53: 10, 54: 11, 56: 12, 57: 13, 59: 14,  # NATURE
@@ -850,16 +850,20 @@ if __name__ == '__main__':
             second_list.append(item)
             print(item)
             print("train_list AFTER REMOVE:", train_list, "\nlen",len(train_list))
-    print("second_list:", second_list, "\nlen", len(second_list))
+    print("second_list:", second_list, "\nlen", len(second_list))'''
 
+if __name__ == '__main__':
 
-
-
-    
     MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE = 'cpu'
     model_names_BASELINE = ['NAIVE_BASELINE_outdoors']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_Standard_Supervised_Learning_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_Standard_Supervised_Learning = 'cpu'
+    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_baseline_outdoors_BASELINE']
+    standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
+
 
     MODEL_DIR_final_specialised = f"../Sixteenth_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
@@ -871,6 +875,8 @@ if __name__ == '__main__':
         "############################# outdoors model --- baseline (outdoors model trained in standard supervised learning) vs final_specialised_outdoors_model: #############################")
     evaluate_baseline_vs_specialist(baseline, outdoors_loader, class_to_idx_new_baseline,
                                     "Evaluating BASELINE outdoors model on outdoors_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, outdoors_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating standard_Supervised_Learning_BASELINE on outdoors_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, outdoors_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_outdoors_model on outdoors_loader")
 
@@ -880,6 +886,11 @@ if __name__ == '__main__':
     DEVICE_BASELINE = 'cpu'
     model_names_BASELINE = ['NAIVE_BASELINE_nature']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_Standard_Supervised_Learning = f"../Report_implementation_attempt/final_specialised_models_Standard_Supervised_Learning_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_Standard_Supervised_Learning = 'cpu'
+    model_names_Standard_Supervised_Learning = ['Standard_Supervised_Learning_baseline_nature_BASELINE']
+    standard_Supervised_Learning, class_to_idx_new_Standard_Supervised_Learning = main(MODEL_DIR_Standard_Supervised_Learning, DEVICE_Standard_Supervised_Learning, model_names_Standard_Supervised_Learning)
 
     MODEL_DIR_final_specialised = f"../Sixteenth_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
@@ -891,6 +902,8 @@ if __name__ == '__main__':
         "############################# nature model --- baseline (nature model trained in standard supervised learning) vs final_specialised_nature_model: #############################")
     evaluate_baseline_vs_specialist(baseline, nature_loader, class_to_idx_new_baseline,
                                     "Evaluating BASELINE nature model on nature_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, nature_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating standard_Supervised_Learning_BASELINE on nature_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, nature_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_nature_model on nature_loader")
 

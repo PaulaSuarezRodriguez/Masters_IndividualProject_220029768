@@ -322,13 +322,8 @@ print("Print len(avl_train.targets.uniques) to know the NUMBER OF FINE CLASSES w
 print("IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OBJECT PASSED TO class_order IN class_incremental_benchmark TO AVOID/AS A WORK-AROUND TO THE num_classes BUG IN THE LIBRARY CODE, since by provideing a class_order, 'class_order = torch.randperm(num_classes).tolist()' within 'if class_order is None:' IS AVOIDED!", sorted(avl_train.targets.uniques))# print class_order
 
 # REAL, DEFINITE one used in real outdoors model, commented-out so that baseline one can be used instead
-'''outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 2, 2, 69])''' # which is equivalent to num_experiences=5 due to the reasons explained in previous version)
-
-# one used for NAIVE_BASELINE_BENCHMARK
 outdoors_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[8, 69])
-
+                                                                    class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[2, 2, 2, 2, 69]) # which is equivalent to num_experiences=5 due to the reasons explained in previous version)
 
 if DEBUG:
     print("sorted(avl_train.targets.uniques)",sorted(avl_train.targets.uniques))
@@ -1640,7 +1635,7 @@ if __name__ == "__main__":
         #MAY BE CAUSING ISSUE, DIRECTORY ALREADY SPECIFIED ABOVE!!! checkpoint_dir_path = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Report_implementation_attempt\checkpoints")
         for experience in outdoors_specialised_models_train_stream_class_il: # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of outdoors_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-            if i == 1:#4:
+            if i == 3:#4:
                 torch.save(naive_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_outdoors_model.pt")
                 torch.save(naive_baseline.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_outdoors_model_CLASSIFIER.pt")
                 new_to_original = new_to_original_creation()  # Your existing function

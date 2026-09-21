@@ -338,12 +338,8 @@ print(
                                                                   class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 2, 2, 94])'''
 
 # REAL, DEFINITE one used in real people model, commented-out so that baseline one can be used instead
-'''people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 1, 1, 96])'''
-# one used for NAIVE_BASELINE_BENCHMARK
 people_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[3, 96])
-
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[1, 1, 1, 96])
 if DEBUG:
     print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
     for i, exp in enumerate(people_specialised_models_benchmark.train_stream):
@@ -2017,7 +2013,7 @@ if __name__ == "__main__":
                 naive_baseline_trainer.train_mb_size=128
                 naive_baseline_trainer.eval_mb_size =128
                 naive_baseline_trainer.ft_shared_after=3'''
-            if i == 1:
+            if i == 3:
                 torch.save(naive_baseline_trainer.model.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model.pt")
                 torch.save(naive_baseline_trainer.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model_CLASSIFIER.pt")
                 print("naive_baseline_trainer.model.linear", naive_baseline_trainer.model.linear)

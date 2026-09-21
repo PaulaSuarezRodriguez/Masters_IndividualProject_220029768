@@ -195,7 +195,7 @@ TRAINING_WITHOUT_LOOP = False  # True #TODO: Remember to change TRAINING_WITHOUT
 # TRAINING_WITH_RUN_SEVERAL_EXPERIMENTS_LwF = True
 DYNAMIC_MODELS = True
 print(
-    "\n\n\n################################ HERE BEGINS Train_ResNet20_Objects_and_Vehicles_v16.py ################################ \n\n\n")
+    "\n\n\n################################ HERE BEGINS Train_ResNet20_Objects_and_Vehicles_vReport.py ################################ \n\n\n")
 
 if DYNAMIC_MODELS == False:
     resnet20_global_model = ResNet20(num_classes=100)
@@ -321,12 +321,8 @@ print(
 # ALL CLASSES of specialised model subset included across the three experiences. THIS WAS THE BENCHMARK WITH WHICH
 # "GitHub commit: Train_ResNet20_Objects_and_Vehicles_LwF_v12.py as is, is the new best performing Object_and_vehicles_model" saved below as a comment WAS PRODUCED !!!!!!!!!!!!!!!!!!!!!!!
 # Go back to this objects_and_vehicles_specialised_models_benchmark if ever trying to reproduce those results !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-'''objects_and_vehicles_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[6, 9, 10, 70])'''# REAL, DEFINITE one used in real objects_and_vehicles model, commented-out so that baseline one can be used instead
-
-# one used for NAIVE_BASELINE_BENCHMARK
 objects_and_vehicles_specialised_models_benchmark = class_incremental_benchmark({"train": avl_train, "test": avl_test, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[25, 70])
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[6, 9, 10, 70]) # REAL, DEFINITE one used in real objects_and_vehicles model, commented-out so that baseline one can be used instead
 
 
 if DEBUG:
@@ -2008,7 +2004,7 @@ if __name__ == "__main__":
 
         for experience in objects_and_vehicles_specialised_models_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of objects_and_vehicles_specialised_models_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
-            if i == 1:
+            if i == 3:
                 torch.save(naive_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_objects_and_vehicles_model.pt")
                 #torch.save(naive_baseline.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_objects_and_vehicles_model_CLASSIFIER.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
