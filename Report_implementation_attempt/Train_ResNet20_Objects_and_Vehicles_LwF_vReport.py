@@ -2382,7 +2382,7 @@ if __name__ == "__main__":
             if i == 3:
                 VERBOSE = False
                 torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_objects_and_vehicles_model.pt")
-                torch.save(lwf_trainer.model.linear.state_dict(),f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
+                #torch.save(lwf_trainer.model.linear.state_dict(),f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER.pt")
                 #torch.save(lwf_trainer.model.linear.weight,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_WEIGHTS.pt")
                 #torch.save(lwf_trainer.model.linear.bias,f"./final_specialised_models/final_objects_and_vehicles_model_CLASSIFIER_BIAS.pt")
                 new_to_original = new_to_original_creation()  # Your existing function

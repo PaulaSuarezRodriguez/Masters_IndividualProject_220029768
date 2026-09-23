@@ -966,13 +966,33 @@ if __name__ == '__main__':
     ###########################################################################################################################################################################################################################################
     MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE = 'cpu'
+    model_names_BASELINE = ['MoE_TASK-IL_BASELINE']
+    baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_global_model_moe = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_global_model_moe = 'cpu'
+    model_names_global_model_moe = ['MoE_gating_network_global_model']
+    global_model_moe, class_to_idx_new_global_model_moe = main(MODEL_DIR_global_model_moe, DEVICE_global_model_moe, model_names_global_model_moe)
+
+    print(
+        "############################# MoE_TASK-IL_BASELINE vs global model produced via my proposed CL strategy: #############################\n"
+        "###### How close did the part of my strategy for combining the specialised models into the final global model get to being as good as it possibly could \n"
+        "(i.e. how close is it to giving the same results as MoE_TASK-IL_BASELINE?): ######")
+    evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
+                                    "Evaluating MoE_TASK-IL_BASELINE on test_loader")
+    evaluate_baseline_vs_specialist(global_model_moe, test_loader, class_to_idx_new_global_model_moe,
+                                    "Evaluating MoE_gating_network_global_model on test_loader")
+
+    ###########################################################################################################################################################################################################################################
+    MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE = 'cpu'
     model_names_BASELINE = ['BASELINE_standard_supervised_global']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_globbal_model_moe = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
-    DEVICE_globbal_model_moe = 'cpu'
-    model_names_globbal_model_moe = ['MoE_gating_network_global_model']
-    global_model_moe, class_to_idx_new_global_model_moe = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+    MODEL_DIR_global_model_moe = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_global_model_moe = 'cpu'
+    model_names_global_model_moe = ['MoE_gating_network_global_model']
+    global_model_moe, class_to_idx_new_global_model_moe = main(MODEL_DIR_global_model_moe, DEVICE_global_model_moe, model_names_global_model_moe)
 
     print(
         "############################# BASELINE_standard_supervised_global (global model trained in standard supervised learning) vs global model produced via my proposed CL strategy: #############################")
@@ -980,3 +1000,37 @@ if __name__ == '__main__':
                                     "Evaluating BASELINE_standard_supervised_global on test_loader")
     evaluate_baseline_vs_specialist(global_model_moe, test_loader, class_to_idx_new_global_model_moe,
                                     "Evaluating MoE_gating_network_global_model on test_loader")
+
+    ###########################################################################################################################################################################################################################################
+    MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE = 'cpu'
+    model_names_BASELINE = ['NAIVE_BASELINE_global']
+    baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_global_model_moe = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_global_model_moe = 'cpu'
+    model_names_global_model_moe = ['MoE_gating_network_global_model']
+    global_model_moe, class_to_idx_new_global_model_moe = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_BASELINE_MoE_TASK_IL = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE_MoE_TASK_IL = 'cpu'
+    model_names_BASELINE_MoE_TASK_IL = ['MoE_TASK-IL_BASELINE']
+    baseline_MoE_TASK_IL, class_to_idx_new_baseline_MoE_TASK_IL = main(MODEL_DIR_BASELINE_MoE_TASK_IL, DEVICE_BASELINE_MoE_TASK_IL, model_names_BASELINE_MoE_TASK_IL)
+
+    print(
+        "############################# NAIVE_BASELINE_global_model (global model trained in Naive CL) vs global model produced via my proposed CL strategy: #############################\n"
+        "ANSWERS THE KEY QUESTION OF MY RESEARCH PROJECT: Does my proposed CL strategy mitigate CF further than when no specialised models are used?")
+    evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_global_model on test_loader")
+    evaluate_baseline_vs_specialist(global_model_moe, test_loader, class_to_idx_new_global_model_moe,
+                                    "Evaluating MoE_gating_network_global_model on test_loader")
+
+    print(
+        "############################# NAIVE_BASELINE_global_model (global model trained in Naive CL) vs MoE_TASK-IL_BASELINE: #############################\n"
+        "Does my proposed CL strategy mitigate CF further than when no specialised models are used? IF NOT, would it had if I had managed to perfection the global model aggregation stage"
+        " of my strategy to the extent necessary for it to give the best results possible (i.e. the results MoE_TASK-IL_BASELINE gives)? Let us determine this by comparing "
+        "NAIVE_BASELINE_global_model to MoE_TASK-IL_BASELINE")
+    evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_global_model on test_loader")
+    evaluate_baseline_vs_specialist(baseline_MoE_TASK_IL, test_loader, class_to_idx_new_baseline_MoE_TASK_IL,
+                                    "Evaluating MoE_TASK-IL_BASELINE on test_loader")

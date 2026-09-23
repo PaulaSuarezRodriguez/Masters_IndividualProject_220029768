@@ -949,7 +949,7 @@ def save_global_model(global_model: nn.Module,
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save model weights
-    model_path = output_path / 'global_model_with_averaged_features.pt'
+    model_path = output_path / 'summed_features_global_model.pt'
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
 
@@ -1379,7 +1379,7 @@ def main():
         print(f"  - Classifier: Remapped to CIFAR-100 space")
         print(f"  - All 43 trained classes: Ready for prediction")
         print(f"  - 57 untrained classes: Will use averaged features")
-        print(f"\nModel saved to: {OUTPUT_DIR / 'global_model_with_averaged_features.pt'}")
+        print(f"\nModel saved to: {OUTPUT_DIR / 'summed_features_global_model.pt'}")
         print("="*80 + "\n")
 
         return global_model
@@ -1398,7 +1398,7 @@ if __name__ == '__main__':
     evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
     evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
     evaluate_aggregated_model(global_model, objects_and_vehicles_loader, "Evaluating global model on objects_and_vehicles_loader")
-    ####global_model_reload = torch.load("../Report_implementation_attempt/final_specialised_models/global_model_with_averaged_features.pt")
+    ####global_model_reload = torch.load("../Report_implementation_attempt/final_specialised_models/summed_features_global_model.pt")
     ####global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)#global_model_reload_architecture = ResNet20_DynamicModel(num_classes=100)
     ####global_model_reload_architecture.load_state_dict(global_model_reload)
     ####evaluate_aggregated_model_FedAvg_code_v3(global_model_reload_architecture, test_loader)

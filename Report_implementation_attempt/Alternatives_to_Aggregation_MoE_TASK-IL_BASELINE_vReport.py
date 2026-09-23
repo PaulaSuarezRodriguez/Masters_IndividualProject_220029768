@@ -972,39 +972,9 @@ def save_global_model(global_model: nn.Module,
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save model weights
-    model_path = output_path / 'global_model_with_averaged_features.pt'
+    model_path = output_path / 'MoE_TASK-IL_BASELINE.pt'
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
-
-
-
-def test_global_model(global_model: nn.Module, device: str = 'cpu'):
-    """
-    Test the global model on a dummy batch.
-    """
-
-    print("\nStep 8: Testing global model...")
-
-    global_model.eval()
-
-    # Create dummy input (batch of 4 images)
-    dummy_input = torch.randn(4, 3, 32, 32, device=device)
-
-    with torch.no_grad():
-        output = global_model(dummy_input)
-
-    print(f"  Input shape: {dummy_input.shape}")
-    print(f"  Output shape: {output.shape}")
-    print(f"  Expected shape: [4, 100]")
-
-    if output.shape == torch.Size([4, 100]):
-        print(f"  ✓ Output shape is correct!")
-    else:
-        print(f"  ✗ Output shape mismatch!")
-
-    print(f"\n✓ Global model test passed!\n")
-
-    return output
 
 
 def fine_tune_aggregated_model(
@@ -1252,9 +1222,9 @@ def main():
     Complete pipeline with feature averaging.
     """
 
-    MODEL_DIR = Path("./final_specialised_models") #MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR = Path("./final_specialised_models_BASELINE") #MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     MODEL_DIR.mkdir(parents=True, exist_ok=True) #MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
-    OUTPUT_DIR = Path('./final_specialised_models')
+    OUTPUT_DIR = Path('./final_specialised_models_BASELINE')
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     DEVICE = 'cpu'#'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -1275,16 +1245,9 @@ def main():
         # ============================================================
         save_global_model(global_model, OUTPUT_DIR)
 
-        # ============================================================
-        # Test
-        # ============================================================
-        #output = test_global_model(global_model, device=DEVICE)
-
-        print("="*80)
-        print("AGGREGATION COMPLETE!")
         print("="*80)
         print(f"\nGlobal model ready for inference:")
-        print(f"\nModel saved to: {OUTPUT_DIR / 'global_model_with_averaged_features.pt'}")
+        print(f"\nModel saved to: {OUTPUT_DIR / 'MoE_TASK-IL_BASELINE.pt'}")
         print("="*80 + "\n")
 
         return global_model
