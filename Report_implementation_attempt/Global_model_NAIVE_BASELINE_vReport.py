@@ -1912,9 +1912,8 @@ if __name__ == "__main__":
         # naive_baseline from best objects_and_vehicles_model recorded !!!! Shown in comments above
         naive_baseline = NaiveBaseline(model=resnet20_global_model, device="cpu", lr=0.001, momentum=0.9,
                              weight_decay=5e-4, lr_decay_factor=0.1,
-                             # lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=0.5,
-                             train_mb_size=64, train_epochs=30, eval_mb_size=64,
+                             train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
                              patience=3, ft_shared_after=10,
                              # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(

@@ -972,7 +972,7 @@ def save_global_model(global_model: nn.Module,
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save model weights
-    model_path = output_path / 'MoE_TASK-IL_BASELINE.pt'
+    model_path = output_path / 'MoE_TASK-IL_BASELINE_model.pt'
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
 
@@ -1247,7 +1247,7 @@ def main():
 
         print("="*80)
         print(f"\nGlobal model ready for inference:")
-        print(f"\nModel saved to: {OUTPUT_DIR / 'MoE_TASK-IL_BASELINE.pt'}")
+        print(f"\nModel saved to: {OUTPUT_DIR / 'MoE_TASK-IL_BASELINE_model.pt'}")
         print("="*80 + "\n")
 
         return global_model
@@ -1256,7 +1256,7 @@ def main():
         print(f"\n✗ Aggregation failed: {e}")
         raise
 
-
+FINE_TUNE = False
 if __name__ == '__main__':
     global_model = main()
 
@@ -1267,42 +1267,42 @@ if __name__ == '__main__':
     evaluate_global_specialist_model(global_model, people_loader, original_to_aggregated_dict,"Evaluating global model on people_loader")
     evaluate_global_specialist_model(global_model, objects_and_vehicles_loader, original_to_aggregated_dict,"Evaluating global model on objects_and_vehicles_loader")
 
-    print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
-    fine_tuned_global_model = fine_tune_aggregated_model(global_model, train_loader, lr=0.001, momentum=0.9, weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #evaluate_global_specialist_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
-    evaluate_global_specialist_model(fine_tuned_global_model, test_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_global_specialist_model(fine_tuned_global_model, outdoors_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on outdoors_loader")
-    evaluate_global_specialist_model(fine_tuned_global_model, nature_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on nature_loader")
-    evaluate_global_specialist_model(fine_tuned_global_model, people_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on people_loader")
-    evaluate_global_specialist_model(fine_tuned_global_model, objects_and_vehicles_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
+    if FINE_TUNE:
+        print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
+        fine_tuned_global_model = fine_tune_aggregated_model(global_model, train_loader, lr=0.001, momentum=0.9, weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        #evaluate_global_specialist_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
+        evaluate_global_specialist_model(fine_tuned_global_model, test_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
+        evaluate_global_specialist_model(fine_tuned_global_model, outdoors_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on outdoors_loader")
+        evaluate_global_specialist_model(fine_tuned_global_model, nature_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on nature_loader")
+        evaluate_global_specialist_model(fine_tuned_global_model, people_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on people_loader")
+        evaluate_global_specialist_model(fine_tuned_global_model, objects_and_vehicles_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
 
-    # In Alternatives_to_Aggregation_vReport_TASK-IL_BASELINE.py, function fine_tuned_global_model() has
-    # been modified to work with GlobalSpecialistModel, and for task-id baseline, FINE-TUNING leads to WORSE RESULTS!!!! I have double-checked this!!!
-    global_model = main()
+        # In Alternatives_to_Aggregation_vReport_TASK-IL_BASELINE.py, function fine_tuned_global_model() has
+        # been modified to work with GlobalSpecialistModel, and for task-id baseline, FINE-TUNING leads to WORSE RESULTS!!!! I have double-checked this!!!
+        global_model = main()
 
-    # evaluate_global_specialist_model(global_model, test_loader_without_objects_and_vehicles, "Evaluating global model on test_loader_without_objects_and_vehicles")
-    evaluate_global_specialist_model(global_model, test_loader, original_to_aggregated_dict,
-                                     "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_global_specialist_model(global_model, outdoors_loader, original_to_aggregated_dict,
-                                     "Evaluating global model on outdoors_loader")
-    evaluate_global_specialist_model(global_model, nature_loader, original_to_aggregated_dict,
-                                     "Evaluating global model on nature_loader")
-    evaluate_global_specialist_model(global_model, people_loader, original_to_aggregated_dict,
-                                     "Evaluating global model on people_loader")
-    evaluate_global_specialist_model(global_model, objects_and_vehicles_loader, original_to_aggregated_dict,
-                                     "Evaluating global model on objects_and_vehicles_loader")
-
-    print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
-    fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=3, lr=0.001, momentum=0.9,weight_decay=5e-4)
-    evaluate_global_specialist_model(fine_tuned_global_model, test_loader, original_to_aggregated_dict,
-                              "Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_global_specialist_model(fine_tuned_global_model, outdoors_loader, original_to_aggregated_dict,
-                              "Evaluating FINE-TUNED global model on outdoors_loader")
-    evaluate_global_specialist_model(fine_tuned_global_model, nature_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on nature_loader")
-    evaluate_global_specialist_model(fine_tuned_global_model, people_loader, original_to_aggregated_dict,
-                              "Evaluating FINE-TUNED global model on people_loader")
-    evaluate_global_specialist_model(fine_tuned_global_model, objects_and_vehicles_loader, original_to_aggregated_dict,
-                              "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
+        # evaluate_global_specialist_model(global_model, test_loader_without_objects_and_vehicles, "Evaluating global model on test_loader_without_objects_and_vehicles")
+        evaluate_global_specialist_model(global_model, test_loader, original_to_aggregated_dict,
+                                         "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
+        evaluate_global_specialist_model(global_model, outdoors_loader, original_to_aggregated_dict,
+                                         "Evaluating global model on outdoors_loader")
+        evaluate_global_specialist_model(global_model, nature_loader, original_to_aggregated_dict,
+                                         "Evaluating global model on nature_loader")
+        evaluate_global_specialist_model(global_model, people_loader, original_to_aggregated_dict,
+                                         "Evaluating global model on people_loader")
+        evaluate_global_specialist_model(global_model, objects_and_vehicles_loader, original_to_aggregated_dict,
+                                         "Evaluating global model on objects_and_vehicles_loader")
+        print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
+        fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=3, lr=0.001, momentum=0.9,weight_decay=5e-4)
+        evaluate_global_specialist_model(fine_tuned_global_model, test_loader, original_to_aggregated_dict,
+                                  "Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
+        evaluate_global_specialist_model(fine_tuned_global_model, outdoors_loader, original_to_aggregated_dict,
+                                  "Evaluating FINE-TUNED global model on outdoors_loader")
+        evaluate_global_specialist_model(fine_tuned_global_model, nature_loader, original_to_aggregated_dict,"Evaluating FINE-TUNED global model on nature_loader")
+        evaluate_global_specialist_model(fine_tuned_global_model, people_loader, original_to_aggregated_dict,
+                                  "Evaluating FINE-TUNED global model on people_loader")
+        evaluate_global_specialist_model(fine_tuned_global_model, objects_and_vehicles_loader, original_to_aggregated_dict,
+                                  "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
 
     '''print("\n\n")
     evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,

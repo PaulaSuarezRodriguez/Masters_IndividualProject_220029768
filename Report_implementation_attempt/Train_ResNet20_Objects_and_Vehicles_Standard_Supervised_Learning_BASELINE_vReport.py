@@ -2022,7 +2022,7 @@ if __name__ == "__main__":
                     'feature_dim': standard_supervised_learning_baseline.model.linear.weight.shape[1],
                     'subset_name': 'objects_and_vehicles_specialised_models_train_subset'  # Change this for different subsets
                 }
-                with open('./final_specialised_models_BASELINE/NAIVE_BASELINE_objects_and_vehicles_metadata.pkl', 'wb') as f:
+                with open('./final_specialised_models_BASELINE/STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles_metadata.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
                 print("✓ Saved metadata for BASELINE EVALUATION")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")

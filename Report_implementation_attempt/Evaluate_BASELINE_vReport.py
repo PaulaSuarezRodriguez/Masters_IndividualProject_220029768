@@ -937,7 +937,7 @@ if __name__ == '__main__':
 
     ###########################################################################################################################################################################################################################################
 
-    MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    '''MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE = 'cpu'
     model_names_BASELINE = ['NAIVE_BASELINE_objects_and_vehicles']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
@@ -961,17 +961,36 @@ if __name__ == '__main__':
                                     "Evaluating standard_Supervised_Learning_BASELINE on objects_and_vehicles_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, objects_and_vehicles_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_loader")
-    print("\n\n")
+    print("\n\n")'''
 
     ###########################################################################################################################################################################################################################################
     MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE = 'cpu'
+    model_names_BASELINE = ['BASELINE_standard_supervised_global']
+    baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
+
+    MODEL_DIR_BASELINE_naive = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE_naive = 'cpu'
+    model_names_BASELINE_naive = ['NAIVE_BASELINE_global']
+    baseline_naive, class_to_idx_new_baseline_naive = main(MODEL_DIR_BASELINE_naive, DEVICE_BASELINE_naive, model_names_BASELINE_naive)
+
+    print(
+        "############################# BASELINE_standard_supervised_global (global model trained in standard supervised learning) vs NAIVE_BASELINE_global: #############################")
+    evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, test_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on test_loader")
+
+    # COMPARISONS THAT CANNOT BE MADE IN THIS FILE DUE TO THE STRUCTURE OF MoE models (whether baselines or final MoE models). Peform this same comparisons by running evaluating the
+    # MoE models in their own files and comparing with the results in this file !!!!!!!!!!!!!!!!
+    '''MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE = 'cpu'
     model_names_BASELINE = ['MoE_TASK-IL_BASELINE']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
     MODEL_DIR_global_model_moe = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_global_model_moe = 'cpu'
-    model_names_global_model_moe = ['MoE_gating_network_global_model']
+    model_names_global_model_moe = ['MoE_gating_network_global']
     global_model_moe, class_to_idx_new_global_model_moe = main(MODEL_DIR_global_model_moe, DEVICE_global_model_moe, model_names_global_model_moe)
 
     print(
@@ -1033,4 +1052,4 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
                                     "Evaluating NAIVE_BASELINE_global_model on test_loader")
     evaluate_baseline_vs_specialist(baseline_MoE_TASK_IL, test_loader, class_to_idx_new_baseline_MoE_TASK_IL,
-                                    "Evaluating MoE_TASK-IL_BASELINE on test_loader")
+                                    "Evaluating MoE_TASK-IL_BASELINE on test_loader")'''
