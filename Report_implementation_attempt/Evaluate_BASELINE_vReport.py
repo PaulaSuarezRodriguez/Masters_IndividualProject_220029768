@@ -662,8 +662,6 @@ def load_baselines(
         try:
             if "BASELINE" not in model_name:
                 state_dict = torch.load(f"{model_dir}final_{model_name}_model.pt", map_location=device)
-            elif "TEST" in model_name:
-                state_dict = torch.load(f"{model_dir}{model_name}.pt", map_location=device)
             else:
                 state_dict = torch.load(f"{model_dir}{model_name}_model.pt", map_location=device)#state_dict = torch.load(model_dir / f'final_{model_name}_model.pt',map_location=device)
 
@@ -983,8 +981,14 @@ if __name__ == '__main__':
 
     MODEL_DIR_BASELINE_lwf_CORRECTED = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_lwf_CORRECTED = 'cpu'
-    model_names_BASELINE_lwf_CORRECTED = ['lwf_BASELINE_global_model_TEST']
+    model_names_BASELINE_lwf_CORRECTED = ['TEST_lwf_BASELINE_global']
     baseline_lwf_CORRECTED, class_to_idx_new_baseline_lwf_CORRECTED = main(MODEL_DIR_BASELINE_lwf_CORRECTED, DEVICE_BASELINE_lwf_CORRECTED, model_names_BASELINE_lwf_CORRECTED)
+
+    MODEL_DIR_BASELINE_lwf_CORRECTED_2 = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE_lwf_CORRECTED_2 = 'cpu'
+    model_names_BASELINE_lwf_CORRECTED_2 = ['TEST2_lwf_BASELINE_global']
+    baseline_lwf_CORRECTED_2, class_to_idx_new_baseline_lwf_CORRECTED_2 = main(MODEL_DIR_BASELINE_lwf_CORRECTED_2, DEVICE_BASELINE_lwf_CORRECTED_2, model_names_BASELINE_lwf_CORRECTED_2)
+
 
     print(
         "############################# BASELINE_standard_supervised_global (global model trained in standard supervised learning) vs NAIVE_BASELINE_global vs lwf_baseline_global: #############################")
@@ -1031,6 +1035,17 @@ if __name__ == '__main__':
                                     "Evaluating lwf_baseline_global_CORRECTED on people_loader")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf_CORRECTED,
                                     "Evaluating lwf_baseline_global_CORRECTED on objects_and_vehicles_loader")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, test_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, outdoors_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on outdoors_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, nature_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on nature_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, people_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on people_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on objects_and_vehicles_loader")
 
     # COMPARISONS THAT CANNOT BE MADE IN THIS FILE DUE TO THE STRUCTURE OF MoE models (whether baselines or final MoE models). Peform this same comparisons by running evaluating the
     # MoE models in their own files and comparing with the results in this file !!!!!!!!!!!!!!!!

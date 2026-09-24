@@ -472,7 +472,7 @@ print(
     sorted(avl_train.targets.uniques))  # print class_order
 
 #class_order = [12, 17, 0, 2, 11, 5, 8, 23, 33, 0, 47, 35, 9, 10, 37, 49, 51, 52, 13, 16,53, 54,20, 22, 56, 57, 25, 28, 59, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
-#class_order = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+class_order = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
 #from typing import Sequence
 
 #class_order: Sequence[int] = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23,33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61,37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
@@ -482,7 +482,7 @@ print(
 #2, 11, 35
 #5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
 
-import random
+'''import random
 
 def randomized_class_order(targets, seed=42):
     class_order = list(targets.uniques)
@@ -493,7 +493,7 @@ def randomized_class_order(targets, seed=42):
     return class_order
 
 class_order = randomized_class_order(avl_train.targets, seed=42)
-print("print(class_order)",class_order)
+print("print(class_order)",class_order)'''
 
 
 # one used for lwf_baseline_BENCHMARK
@@ -2329,7 +2329,7 @@ if __name__ == "__main__":
         for experience in global_model_lwf_baseline_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of global_model_lwf_baseline_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:
-                torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/lwf_baseline_global_model_TEST.pt")
+                torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/TEST2_lwf_baseline_global_model.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
@@ -2341,7 +2341,7 @@ if __name__ == "__main__":
                     'feature_dim': lwf_baseline.model.linear.weight.shape[1],
                     'subset_name': 'global_model_lwf_baseline_train_subset'  # Change this for different subsets
                 }
-                with open('./final_specialised_models_BASELINE/lwf_baseline_global_metadata_TEST.pkl', 'wb') as f:
+                with open('./final_specialised_models_BASELINE/TEST2_lwf_baseline_global_metadata.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
                 print("✓ Saved metadata for BASELINE EVALUATION")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
