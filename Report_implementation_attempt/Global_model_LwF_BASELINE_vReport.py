@@ -190,6 +190,7 @@ import tracemalloc
 import torch
 
 DEBUG = False #TODO: Remember to change DEBUG to False if running experiments.
+DEBUG_2 = False
 TRAINING_WITH_LOOP = False  # TODO: Remember to change TRAINING_WITH_LOOP to True if 'Training WITH LOOP VERSION 2'.
 TRAINING_WITHOUT_LOOP = False  # True #TODO: Remember to change TRAINING_WITHOUT_LOOP to True if 'Training WITHOUT LOOP'.
 # TRAINING_WITH_LOOP_LwF = False#True
@@ -238,7 +239,7 @@ avl_train_objects_and_vehicles = avl_train
 
 print("len(avl_train_outdoors)",len(avl_train_outdoors))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_train_outdoors.targets:
         #print("for i in avl_train_outdoors.targets: print(avl_train_outdoors.targets[i])", avl_train_outdoors.targets[i])
         print("Index:",count_el, "|| for i in avl_train_outdoors.targets:",i)
@@ -246,62 +247,62 @@ if DEBUG:
 
 count_el = 0
 outdoors_avalanche_dataset_train = AvalancheDataset([avl_train_outdoors],indices=[i for i in range(2400)])
-if DEBUG:
+if DEBUG_2:
     for i in outdoors_avalanche_dataset_train.targets:
         print("Index:",count_el, "|| for i in outdoors_avalanche_dataset_train.targets:",i)
         count_el += 1
 
 print("len(avl_train_nature)",len(avl_train_nature))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_train_nature.targets:
         print("Index:",count_el, "|| for i in avl_train_nature.targets:",i)
         count_el += 1
 
 count_el = 0
 nature_avalanche_dataset_train = AvalancheDataset([avl_train_nature],indices=[i for i in range(3600)])
-if DEBUG:
+if DEBUG_2:
     for i in nature_avalanche_dataset_train.targets:
         print("Index:",count_el, "|| for i in nature_avalanche_dataset_train.targets:",i)
         count_el += 1
 
 print("len(avl_train_people)",len(avl_train_people))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_train_people.targets:
         print("Index:",count_el, "|| for i in avl_train_people.targets:",i)
         count_el += 1
 
 count_el = 0
 people_avalanche_dataset_train = AvalancheDataset([avl_train_people],indices=[i for i in range(1200)])
-if DEBUG:
+if DEBUG_2:
     for i in people_avalanche_dataset_train.targets:
         print("Index:",count_el, "|| for i in people_avalanche_dataset_train.targets:",i)
         count_el += 1
 
 print("len(avl_train_objects_and_vehicles)",len(avl_train_objects_and_vehicles))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_train_objects_and_vehicles.targets:
         print("Index:",count_el, "|| for i in avl_train_objects_and_vehicles.targets:",i)
         count_el += 1
 
 count_el = 0
 objects_and_vehicles_avalanche_dataset_train = AvalancheDataset([avl_train_objects_and_vehicles])#,indices=[i for i in range(10000)]) # indices NOT needed cause all elements of objects_and_vehicles_train_subset were used in the training of objects_and_vehicles_specialised_model
-if DEBUG:
+if DEBUG_2:
     for i in objects_and_vehicles_avalanche_dataset_train.targets:
         print("Index:",count_el, "|| for i in objects_and_vehicles_avalanche_dataset_train.targets:",i)
         count_el += 1
 
 count_el = 0
 global_model_lwf_baseline_avalanche_dataset_train = AvalancheDataset([outdoors_avalanche_dataset_train ,nature_avalanche_dataset_train, people_avalanche_dataset_train ,objects_and_vehicles_avalanche_dataset_train])
-if DEBUG:
+if DEBUG_2:
     for i in global_model_lwf_baseline_avalanche_dataset_train.targets:
         print("Index:",count_el, "|| for i in global_model_lwf_baseline_avalanche_dataset_train.targets:",i)
         count_el += 1
 
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in global_model_lwf_baseline_avalanche_dataset_train.coarse_label:
         print("Index:",count_el, "|| for i in global_model_lwf_baseline_avalanche_dataset_train.coarse_label:",i)
         count_el += 1
@@ -320,7 +321,7 @@ avl_val_objects_and_vehicles = avl_val
 
 print("len(avl_val_outdoors)",len(avl_val_outdoors))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_val_outdoors.targets:
         #print("for i in avl_val_outdoors.targets: print(avl_val_outdoors.targets[i])", avl_val_outdoors.targets[i])
         print("Index:",count_el, "|| for i in avl_val_outdoors.targets:",i)
@@ -328,62 +329,62 @@ if DEBUG:
 
 count_el = 0
 outdoors_avalanche_dataset_val = AvalancheDataset([avl_val_outdoors],indices=[i for i in range(600)])
-if DEBUG:
+if DEBUG_2:
     for i in outdoors_avalanche_dataset_val.targets:
         print("Index:",count_el, "|| for i in outdoors_avalanche_dataset_val.targets:",i)
         count_el += 1
 
 print("len(avl_val_nature)",len(avl_val_nature))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_val_nature.targets:
         print("Index:",count_el, "|| for i in avl_val_nature.targets:",i)
         count_el += 1
 
 count_el = 0
 nature_avalanche_dataset_val = AvalancheDataset([avl_val_nature],indices=[i for i in range(900)])
-if DEBUG:
+if DEBUG_2:
     for i in nature_avalanche_dataset_val.targets:
         print("Index:",count_el, "|| for i in nature_avalanche_dataset_val.targets:",i)
         count_el += 1
 
 print("len(avl_val_people)",len(avl_val_people))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_val_people.targets:
         print("Index:",count_el, "|| for i in avl_val_people.targets:",i)
         count_el += 1
 
 count_el = 0
 people_avalanche_dataset_val = AvalancheDataset([avl_val_people],indices=[i for i in range(300)])
-if DEBUG:
+if DEBUG_2:
     for i in people_avalanche_dataset_val.targets:
         print("Index:",count_el, "|| for i in people_avalanche_dataset_val.targets:",i)
         count_el += 1
 
 print("len(avl_val_objects_and_vehicles)",len(avl_val_objects_and_vehicles))
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in avl_val_objects_and_vehicles.targets:
         print("Index:",count_el, "|| for i in avl_val_objects_and_vehicles.targets:",i)
         count_el += 1
 
 count_el = 0
 objects_and_vehicles_avalanche_dataset_val = AvalancheDataset([avl_val_objects_and_vehicles])#,indices=[i for i in range(10000)]) # indices NOT needed cause all elements of objects_and_vehicles_val_subset were used in the valing of objects_and_vehicles_specialised_model
-if DEBUG:
+if DEBUG_2:
     for i in objects_and_vehicles_avalanche_dataset_val.targets:
         print("Index:",count_el, "|| for i in objects_and_vehicles_avalanche_dataset_val.targets:",i)
         count_el += 1
 
 count_el = 0
 global_model_lwf_baseline_avalanche_dataset_val = AvalancheDataset([outdoors_avalanche_dataset_val ,nature_avalanche_dataset_val, people_avalanche_dataset_val ,objects_and_vehicles_avalanche_dataset_val])
-if DEBUG:
+if DEBUG_2:
     for i in global_model_lwf_baseline_avalanche_dataset_val.targets:
         print("Index:",count_el, "|| for i in global_model_lwf_baseline_avalanche_dataset_val.targets:",i)
         count_el += 1
 
 count_el = 0
-if DEBUG:
+if DEBUG_2:
     for i in global_model_lwf_baseline_avalanche_dataset_val.coarse_label:
         print("Index:",count_el, "|| for i in global_model_lwf_baseline_avalanche_dataset_val.coarse_label:",i)
         count_el += 1
@@ -471,20 +472,41 @@ print(
 
 
 # one used for lwf_baseline_BENCHMARK
+#class_order = [12, 17, 0, 96,2, 11, 5, 8, 23, 33, 0, 47, 35, 9, 10, 37, 49, 51, 52, 13, 16,53, 54,20, 22, 56, 57, 25, 28, 59, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+class_order = 12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94
+print("len(class_order)",len(class_order))
+#12, 17, 23, 33, 37, 49
+#0, 47, 51, 52, 53, 54, 56, 57, 59
+#2, 11, 35
+#5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
 global_model_lwf_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
+                                                                  class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])#class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
 
-if DEBUG:
-    print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
-    for i, exp in enumerate(global_model_lwf_baseline_benchmark.train_stream):
-        print("print(i, exp.classes_in_this_experience -- global_model_lwf_baseline_benchmark)", i, exp.classes_in_this_experience)
+#if DEBUG:
+print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
+for i, exp in enumerate(global_model_lwf_baseline_benchmark.train_stream):
+    print("print(i, exp.classes_in_this_experience -- global_model_lwf_baseline_benchmark)", i,
+          exp.classes_in_this_experience)
 
-    print("Print global_model_lwf_baseline_benchmark:", global_model_lwf_baseline_benchmark)
-    # print("Print global_model_lwf_baseline_benchmark.train_stream:", global_model_lwf_baseline_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(global_model_lwf_baseline_benchmark.train_stream) and print(global_model_lwf_baseline_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
-    print('Print global_model_lwf_baseline_benchmark.streams["train"]',
-          global_model_lwf_baseline_benchmark.streams["train"])
-    print('Print global_model_lwf_baseline_benchmark.streams["valid"]',
-          global_model_lwf_baseline_benchmark.streams["valid"])
+
+# split classes by experience
+classes_exp_assignment = []
+num_classes_per_exp=[14, 14, 15, 52]
+if num_classes_per_exp is not None:
+    num_curr = 0
+    for eid, num_classes in enumerate(num_classes_per_exp):
+        curr_classes = class_order[num_curr: num_curr + num_classes]
+        classes_exp_assignment.append(curr_classes)
+        num_curr += num_classes
+    print("classes_exp_assignment.append(curr_classes)", classes_exp_assignment)
+print("classes_exp_assignment.append(curr_classes)", classes_exp_assignment)
+
+print("Print global_model_lwf_baseline_benchmark:", global_model_lwf_baseline_benchmark)
+# print("Print global_model_lwf_baseline_benchmark.train_stream:", global_model_lwf_baseline_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(global_model_lwf_baseline_benchmark.train_stream) and print(global_model_lwf_baseline_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
+print('Print global_model_lwf_baseline_benchmark.streams["train"]',
+      global_model_lwf_baseline_benchmark.streams["train"])
+print('Print global_model_lwf_baseline_benchmark.streams["valid"]',
+      global_model_lwf_baseline_benchmark.streams["valid"])
 
 # IMPORTANT!!!!! This time, we do want to keep these as streams and NOT to further divide each stream into its composing experiences. This time,
 # since class_incremental_benchmark is actually being used to create a CLScenario for use in training in a class-IL manner, and NOT as functionality
@@ -2226,7 +2248,7 @@ if __name__ == "__main__":
                     # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
                     # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-    VERBOSE = False#True
+    VERBOSE = True#False#True
     # DYNAMIC_MODELS = True
 
     #DIFFERENCE_CE_DIST = True
@@ -2253,8 +2275,8 @@ if __name__ == "__main__":
         # lwf_baseline from best objects_and_vehicles_model recorded !!!! Shown in comments above
         lwf_baseline = LwFBaseline(model=resnet20_global_model, device="cpu", lr=0.001, momentum=0.9,
                              weight_decay=5e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=0.5,
-                             train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
+                             temperature=2.0, alpha=1.0,
+                             train_mb_size=128, train_epochs=5, eval_mb_size=128,#train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
                              patience=3, ft_shared_after=10,
                              # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(

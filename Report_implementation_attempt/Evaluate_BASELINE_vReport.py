@@ -974,12 +974,33 @@ if __name__ == '__main__':
     model_names_BASELINE_naive = ['NAIVE_BASELINE_global']
     baseline_naive, class_to_idx_new_baseline_naive = main(MODEL_DIR_BASELINE_naive, DEVICE_BASELINE_naive, model_names_BASELINE_naive)
 
+    MODEL_DIR_BASELINE_lwf = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE_lwf = 'cpu'
+    model_names_BASELINE_lwf = ['lwf_BASELINE_global']
+    baseline_lwf, class_to_idx_new_baseline_lwf = main(MODEL_DIR_BASELINE_lwf, DEVICE_BASELINE_lwf, model_names_BASELINE_lwf)
+
     print(
-        "############################# BASELINE_standard_supervised_global (global model trained in standard supervised learning) vs NAIVE_BASELINE_global: #############################")
+        "############################# BASELINE_standard_supervised_global (global model trained in standard supervised learning) vs NAIVE_BASELINE_global vs lwf_baseline_global: #############################")
     evaluate_baseline_vs_specialist(baseline, test_loader, class_to_idx_new_baseline,
                                     "Evaluating BASELINE_standard_supervised_global on test_loader")
+    evaluate_baseline_vs_specialist(baseline, outdoors_loader, class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on outdoors_loader")
+    evaluate_baseline_vs_specialist(baseline, nature_loader, class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on nature_loader")
+    evaluate_baseline_vs_specialist(baseline, people_loader, class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on people_loader")
+    evaluate_baseline_vs_specialist(baseline, objects_and_vehicles_loader, class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on objects_and_vehicles_loader")
+    print("\n")
     evaluate_baseline_vs_specialist(baseline_naive, test_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, outdoors_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on outdoors_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, test_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on nature_loader")
+
+    evaluate_baseline_vs_specialist(baseline_lwf, test_loader, class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on test_loader")
 
     # COMPARISONS THAT CANNOT BE MADE IN THIS FILE DUE TO THE STRUCTURE OF MoE models (whether baselines or final MoE models). Peform this same comparisons by running evaluating the
     # MoE models in their own files and comparing with the results in this file !!!!!!!!!!!!!!!!
