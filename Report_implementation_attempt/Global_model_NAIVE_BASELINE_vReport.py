@@ -391,7 +391,7 @@ if DEBUG:
 avl_val = make_avalanche_dataset(global_model_naive_baseline_avalanche_dataset_val)
 
 
-# class_to_index={}
+'''# class_to_index={}
 def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
     """
     Map labels using provided mapping, or build a new one.
@@ -420,7 +420,7 @@ def new_to_original_creation(new_to_original=None):
     return new_to_original
 
 new_to_original = new_to_original_creation()
-print("new_to_original:", new_to_original)
+print("new_to_original:", new_to_original)'''
 
 
 if DEBUG:
@@ -469,22 +469,78 @@ print(
     "IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OBJECT PASSED TO class_order IN class_incremental_benchmark TO AVOID/AS A WORK-AROUND TO THE num_classes BUG IN THE LIBRARY CODE, since by provideing a class_order, 'class_order = torch.randperm(num_classes).tolist()' within 'if class_order is None:' IS AVOIDED!",
     sorted(avl_train.targets.uniques))  # print class_order
 
+#class_order = [12, 17, 0, 2, 11, 5, 8, 23, 33, 0, 47, 35, 9, 10, 37, 49, 51, 52, 13, 16,53, 54,20, 22, 56, 57, 25, 28, 59, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+#class_order = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+#from typing import Sequence
+
+#class_order: Sequence[int] = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23,33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61,37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+#print("len(class_order)",len(class_order))
+#12, 17, 23, 33, 37, 49
+#0, 47, 51, 52, 53, 54, 56, 57, 59
+#2, 11, 35
+#5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
+
+import random
+
+def randomized_class_order(targets, seed=42):
+    class_order = list(targets.uniques)
+
+    rng = random.Random(seed)
+    rng.shuffle(class_order)
+
+    return class_order
+
+class_order = randomized_class_order(avl_train.targets, seed=42)
+print("print(class_order)",class_order)
+
 
 # one used for NAIVE_BASELINE_BENCHMARK
 global_model_naive_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
+                                                                  class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])#class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
 
-if DEBUG:
-    print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
-    for i, exp in enumerate(global_model_naive_baseline_benchmark.train_stream):
-        print("print(i, exp.classes_in_this_experience -- global_model_naive_baseline_benchmark)", i, exp.classes_in_this_experience)
 
-    print("Print global_model_naive_baseline_benchmark:", global_model_naive_baseline_benchmark)
-    # print("Print global_model_naive_baseline_benchmark.train_stream:", global_model_naive_baseline_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(global_model_naive_baseline_benchmark.train_stream) and print(global_model_naive_baseline_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
-    print('Print global_model_naive_baseline_benchmark.streams["train"]',
-          global_model_naive_baseline_benchmark.streams["train"])
-    print('Print global_model_naive_baseline_benchmark.streams["valid"]',
-          global_model_naive_baseline_benchmark.streams["valid"])
+# class_to_index={}
+def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
+    """
+    Map labels using provided mapping, or build a new one.
+    Allows caller to control state management.
+    """
+    if class_to_idx_new is None:
+        class_to_idx_new = {}
+
+    for fine_label in ds:#for fine_label in sorted(ds.targets):
+        fine_label_item = fine_label
+        if fine_label_item not in class_to_idx_new.keys():
+            class_to_idx_new[fine_label_item] = len(class_to_idx_new)
+
+    return class_to_idx_new
+
+
+class_to_idx_new = map_labels_expanding_classifier_benchmark(class_order)
+print("class_to_idx_new:", class_to_idx_new)
+
+def new_to_original_creation(new_to_original=None):
+    if new_to_original is None:
+        new_to_original = {}
+
+    for original_label, new_idx in class_to_idx_new.items():
+        new_to_original[new_idx] = original_label #new_to_original[original_label] = new_idx #TEST LATER: new_to_original[new_idx] = original_label #
+    return new_to_original
+
+new_to_original = new_to_original_creation()
+print("new_to_original:", new_to_original)
+
+#if DEBUG:
+print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
+for i, exp in enumerate(global_model_naive_baseline_benchmark.train_stream):
+    print("print(i, exp.classes_in_this_experience -- global_model_naive_baseline_benchmark)", i, exp.classes_in_this_experience)
+
+print("Print global_model_naive_baseline_benchmark:", global_model_naive_baseline_benchmark)
+# print("Print global_model_naive_baseline_benchmark.train_stream:", global_model_naive_baseline_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(global_model_naive_baseline_benchmark.train_stream) and print(global_model_naive_baseline_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
+print('Print global_model_naive_baseline_benchmark.streams["train"]',
+      global_model_naive_baseline_benchmark.streams["train"])
+print('Print global_model_naive_baseline_benchmark.streams["valid"]',
+      global_model_naive_baseline_benchmark.streams["valid"])
 
 # IMPORTANT!!!!! This time, we do want to keep these as streams and NOT to further divide each stream into its composing experiences. This time,
 # since class_incremental_benchmark is actually being used to create a CLScenario for use in training in a class-IL manner, and NOT as functionality
@@ -1279,7 +1335,7 @@ class NaiveBaseline(SupervisedTemplate):
         self.old_classes.update(experience_classes)
 
         print(
-            f"Old classes = {sorted(self.old_classes)}"
+            f"Old classes = {self.old_classes}"#f"Old classes = {sorted(self.old_classes)}"
         )
         # self.alpha += 0.05
         # print(f"Alpha has been increased by 0.05. It is now {self.alpha}")
@@ -1893,9 +1949,9 @@ if __name__ == "__main__":
 
     TRAINING_WITH_LOOP_LwF =True# False
     # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-    FREEZING_ORIGINAL=False#True #False
+    FREEZING_ORIGINAL=True #False
     # TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! True in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #TRUE in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!
+    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #TRUE in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!
     # TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! True in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
     FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
@@ -1912,9 +1968,9 @@ if __name__ == "__main__":
         # naive_baseline from best objects_and_vehicles_model recorded !!!! Shown in comments above
         naive_baseline = NaiveBaseline(model=resnet20_global_model, device="cpu", lr=0.001, momentum=0.9,
                              weight_decay=5e-4, lr_decay_factor=0.1,
-                             temperature=2.0, alpha=0.5,
+                             temperature=2.0, alpha=1.0,
                              train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
-                             patience=3, ft_shared_after=10,
+                             patience=3, ft_shared_after=65,
                              # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(
                                  # accuracy_metrics(experience=True, stream=True),
@@ -1929,7 +1985,7 @@ if __name__ == "__main__":
         for experience in global_model_naive_baseline_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of global_model_naive_baseline_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:
-                torch.save(naive_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_global_model.pt")
+                torch.save(naive_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/NAIVE_BASELINE_global_model_TEST.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
@@ -1941,7 +1997,7 @@ if __name__ == "__main__":
                     'feature_dim': naive_baseline.model.linear.weight.shape[1],
                     'subset_name': 'global_model_naive_baseline_train_subset'  # Change this for different subsets
                 }
-                with open('./final_specialised_models_BASELINE/NAIVE_BASELINE_global_metadata.pkl', 'wb') as f:
+                with open('./final_specialised_models_BASELINE/NAIVE_BASELINE_global_metadata_TEST.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
                 print("✓ Saved metadata for BASELINE EVALUATION")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")

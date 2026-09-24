@@ -393,7 +393,7 @@ if DEBUG_2:
 avl_val = make_avalanche_dataset(global_model_lwf_baseline_avalanche_dataset_val)
 
 
-# class_to_index={}
+'''# class_to_index={}
 def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
     """
     Map labels using provided mapping, or build a new one.
@@ -422,7 +422,7 @@ def new_to_original_creation(new_to_original=None):
     return new_to_original
 
 new_to_original = new_to_original_creation()
-print("new_to_original:", new_to_original)
+print("new_to_original:", new_to_original)'''
 
 
 if DEBUG:
@@ -471,8 +471,8 @@ print(
     "IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OBJECT PASSED TO class_order IN class_incremental_benchmark TO AVOID/AS A WORK-AROUND TO THE num_classes BUG IN THE LIBRARY CODE, since by provideing a class_order, 'class_order = torch.randperm(num_classes).tolist()' within 'if class_order is None:' IS AVOIDED!",
     sorted(avl_train.targets.uniques))  # print class_order
 
-#class_order = [12, 17, 0, 96,2, 11, 5, 8, 23, 33, 0, 47, 35, 9, 10, 37, 49, 51, 52, 13, 16,53, 54,20, 22, 56, 57, 25, 28, 59, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
-#class_order = 12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94
+#class_order = [12, 17, 0, 2, 11, 5, 8, 23, 33, 0, 47, 35, 9, 10, 37, 49, 51, 52, 13, 16,53, 54,20, 22, 56, 57, 25, 28, 59, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+#class_order = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
 #from typing import Sequence
 
 #class_order: Sequence[int] = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23,33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61,37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
@@ -481,12 +481,58 @@ print(
 #0, 47, 51, 52, 53, 54, 56, 57, 59
 #2, 11, 35
 #5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
+
+import random
+
+def randomized_class_order(targets, seed=42):
+    class_order = list(targets.uniques)
+
+    rng = random.Random(seed)
+    rng.shuffle(class_order)
+
+    return class_order
+
+class_order = randomized_class_order(avl_train.targets, seed=42)
+print("print(class_order)",class_order)
+
+
 # one used for lwf_baseline_BENCHMARK
 global_model_lwf_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
-                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
+                                                                  class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])#class_order=class_order, num_experiences=4)#class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
+
+# class_to_index={}
+def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):
+    """
+    Map labels using provided mapping, or build a new one.
+    Allows caller to control state management.
+    """
+    if class_to_idx_new is None:
+        class_to_idx_new = {}
+
+    for fine_label in ds:#for fine_label in sorted(ds.targets):
+        fine_label_item = fine_label
+        if fine_label_item not in class_to_idx_new.keys():
+            class_to_idx_new[fine_label_item] = len(class_to_idx_new)
+
+    return class_to_idx_new
+
+
+class_to_idx_new = map_labels_expanding_classifier_benchmark(class_order)
+print("class_to_idx_new:", class_to_idx_new)
+
+def new_to_original_creation(new_to_original=None):
+    if new_to_original is None:
+        new_to_original = {}
+
+    for original_label, new_idx in class_to_idx_new.items():
+        new_to_original[new_idx] = original_label #new_to_original[original_label] = new_idx #TEST LATER: new_to_original[new_idx] = original_label #
+    return new_to_original
+
+new_to_original = new_to_original_creation()
+print("new_to_original:", new_to_original)
 
 #if DEBUG:
-print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
+####print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
 for i, exp in enumerate(global_model_lwf_baseline_benchmark.train_stream):
     print("print(i, exp.classes_in_this_experience -- global_model_lwf_baseline_benchmark)", i,
           exp.classes_in_this_experience)
@@ -1596,7 +1642,7 @@ class LwFBaseline(SupervisedTemplate):
 
         print(
             f"Teacher updated. "
-            f"Old classes = {sorted(self.old_classes)}"
+            f"Old classes = {self.old_classes}"#f"Old classes = {sorted(self.old_classes)}"
         )
         # self.alpha += 0.05
         # print(f"Alpha has been increased by 0.05. It is now {self.alpha}")
@@ -2268,7 +2314,7 @@ if __name__ == "__main__":
                              weight_decay=5e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0,
                              train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
-                             patience=3, ft_shared_after=10,
+                             patience=3, ft_shared_after=65,
                              # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(
                                  # accuracy_metrics(experience=True, stream=True),
@@ -2283,7 +2329,7 @@ if __name__ == "__main__":
         for experience in global_model_lwf_baseline_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of global_model_lwf_baseline_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
             if i == 3:
-                torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/lwf_baseline_global_model.pt")
+                torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/lwf_baseline_global_model_TEST.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
                 class_to_idx_new = class_to_idx_new  # Your existing variable
                 # Save the mappings used in training
@@ -2295,7 +2341,7 @@ if __name__ == "__main__":
                     'feature_dim': lwf_baseline.model.linear.weight.shape[1],
                     'subset_name': 'global_model_lwf_baseline_train_subset'  # Change this for different subsets
                 }
-                with open('./final_specialised_models_BASELINE/lwf_baseline_global_metadata.pkl', 'wb') as f:
+                with open('./final_specialised_models_BASELINE/lwf_baseline_global_metadata_TEST.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
                 print("✓ Saved metadata for BASELINE EVALUATION")
                 print(f"Final value of seen_experiences_sizes = {seen_experiences_sizes}. This is the total number of samples in the training set for this model (that is, across all experiences).")
