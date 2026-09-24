@@ -974,6 +974,11 @@ if __name__ == '__main__':
     model_names_BASELINE_naive = ['NAIVE_BASELINE_global']
     baseline_naive, class_to_idx_new_baseline_naive = main(MODEL_DIR_BASELINE_naive, DEVICE_BASELINE_naive, model_names_BASELINE_naive)
 
+    MODEL_DIR_BASELINE_naive_2 = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_BASELINE_naive_2 = 'cpu'
+    model_names_BASELINE_naive_2 = ['TEST2_NAIVE_BASELINE_global']
+    baseline_naive_2, class_to_idx_new_baseline_naive_2 = main(MODEL_DIR_BASELINE_naive_2, DEVICE_BASELINE_naive_2, model_names_BASELINE_naive_2)
+
     MODEL_DIR_BASELINE_lwf = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_lwf = 'cpu'
     model_names_BASELINE_lwf = ['lwf_BASELINE_global']
@@ -1013,6 +1018,17 @@ if __name__ == '__main__':
                                     "Evaluating NAIVE_BASELINE_global on people_loader")
     evaluate_baseline_vs_specialist(baseline_naive, objects_and_vehicles_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on objects_and_vehicles_loader")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive_2, test_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, outdoors_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on outdoors_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, nature_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on nature_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, people_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on people_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, objects_and_vehicles_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on objects_and_vehicles_loader")
     print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf, test_loader, class_to_idx_new_baseline_lwf,
                                     "Evaluating lwf_baseline_global on test_loader")

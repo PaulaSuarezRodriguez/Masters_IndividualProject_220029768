@@ -213,10 +213,16 @@ combined_dataset_train = ConcatDataset([
 train_loader = DataLoader(
     combined_dataset_train,
     batch_size=32,
-    shuffle=False#True
+    shuffle=True#False#True
 )
 print("print train_loader", train_loader)
 print("print train_loader.dataset", train_loader.dataset)
+
+for inputs, targets, task_ids in train_loader:
+    #print("inputs shape:", inputs.shape)
+    print("targets:", targets)
+    #print("targets shape:", targets.shape)
+
 
 combined_dataset_outdoors_first_experience_test = ConcatDataset([
     outdoors_specialised_models_test_stream_class_il[0].dataset,
