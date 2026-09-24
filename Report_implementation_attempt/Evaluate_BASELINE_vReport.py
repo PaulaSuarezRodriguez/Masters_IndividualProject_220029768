@@ -996,11 +996,23 @@ if __name__ == '__main__':
                                     "Evaluating NAIVE_BASELINE_global on test_loader")
     evaluate_baseline_vs_specialist(baseline_naive, outdoors_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on outdoors_loader")
-    evaluate_baseline_vs_specialist(baseline_naive, test_loader, class_to_idx_new_baseline_naive,
+    evaluate_baseline_vs_specialist(baseline_naive, nature_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on nature_loader")
-
+    evaluate_baseline_vs_specialist(baseline_naive, people_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on people_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, objects_and_vehicles_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on objects_and_vehicles_loader")
+    print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf, test_loader, class_to_idx_new_baseline_lwf,
                                     "Evaluating lwf_baseline_global on test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, outdoors_loader, class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on outdoors_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, nature_loader, class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on nature_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, people_loader, class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on people_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on objects_and_vehicles_loader")
 
     # COMPARISONS THAT CANNOT BE MADE IN THIS FILE DUE TO THE STRUCTURE OF MoE models (whether baselines or final MoE models). Peform this same comparisons by running evaluating the
     # MoE models in their own files and comparing with the results in this file !!!!!!!!!!!!!!!!

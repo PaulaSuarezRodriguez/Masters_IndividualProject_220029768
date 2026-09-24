@@ -67,6 +67,7 @@ from avalanche.training.plugins.checkpoint import CheckpointPlugin
 from avalanche.training.templates import SupervisedTemplate, BaseSGDTemplate
 from avalanche.training.templates.base import TExperienceType, _experiences_parameter_as_iterable, \
     _group_experiences_by_stream
+from sympy import sequence
 
 from Report_implementation_attempt.Config_vReport import set_seed
 
@@ -470,17 +471,19 @@ print(
     "IMPORTANT! Print sorted(avl_train.targets.uniques) AS THIS WILL BE THE OBJECT PASSED TO class_order IN class_incremental_benchmark TO AVOID/AS A WORK-AROUND TO THE num_classes BUG IN THE LIBRARY CODE, since by provideing a class_order, 'class_order = torch.randperm(num_classes).tolist()' within 'if class_order is None:' IS AVOIDED!",
     sorted(avl_train.targets.uniques))  # print class_order
 
-
-# one used for lwf_baseline_BENCHMARK
 #class_order = [12, 17, 0, 96,2, 11, 5, 8, 23, 33, 0, 47, 35, 9, 10, 37, 49, 51, 52, 13, 16,53, 54,20, 22, 56, 57, 25, 28, 59, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94]
-class_order = 12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94
-print("len(class_order)",len(class_order))
+#class_order = 12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94
+#from typing import Sequence
+
+#class_order: Sequence[int] = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23,33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61,37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
+#print("len(class_order)",len(class_order))
 #12, 17, 23, 33, 37, 49
 #0, 47, 51, 52, 53, 54, 56, 57, 59
 #2, 11, 35
 #5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
+# one used for lwf_baseline_BENCHMARK
 global_model_lwf_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
-                                                                  class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])#class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
+                                                                  class_order=sorted(avl_train.targets.uniques), num_classes_per_exp=[14, 14, 15, 52])
 
 #if DEBUG:
 print("sorted(avl_train.targets.uniques)", sorted(avl_train.targets.uniques))
@@ -488,18 +491,6 @@ for i, exp in enumerate(global_model_lwf_baseline_benchmark.train_stream):
     print("print(i, exp.classes_in_this_experience -- global_model_lwf_baseline_benchmark)", i,
           exp.classes_in_this_experience)
 
-
-# split classes by experience
-classes_exp_assignment = []
-num_classes_per_exp=[14, 14, 15, 52]
-if num_classes_per_exp is not None:
-    num_curr = 0
-    for eid, num_classes in enumerate(num_classes_per_exp):
-        curr_classes = class_order[num_curr: num_curr + num_classes]
-        classes_exp_assignment.append(curr_classes)
-        num_curr += num_classes
-    print("classes_exp_assignment.append(curr_classes)", classes_exp_assignment)
-print("classes_exp_assignment.append(curr_classes)", classes_exp_assignment)
 
 print("Print global_model_lwf_baseline_benchmark:", global_model_lwf_baseline_benchmark)
 # print("Print global_model_lwf_baseline_benchmark.train_stream:", global_model_lwf_baseline_benchmark.train_stream) # it works, but I am not sure that it is not deprecated. I think the current or at least most frequently used way of retrieving a stream is .streams["train"], specially if there is a .streams["valid"] since attribute .val_stream does NOT exist. print(global_model_lwf_baseline_benchmark.train_stream) and print(global_model_lwf_baseline_benchmark.streams["train"]) both return <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000002242B559510>, meaning they return the exact same object so, there is no risk involved in having chosen to use .streams["train"] over .train_stream
@@ -2248,7 +2239,7 @@ if __name__ == "__main__":
                     # {'freeze_start_experience': 2} includes freezing of the old classifier rows in the condition controlled by self.fet_shared_after or not. I named the variable freeze_onwrds
                     # to avoid confusion with 'freeze_start_experience' in experiments where GradientFreezeScheduler is used.
 
-    VERBOSE = True#False#True
+    VERBOSE = False#True
     # DYNAMIC_MODELS = True
 
     #DIFFERENCE_CE_DIST = True
@@ -2256,9 +2247,9 @@ if __name__ == "__main__":
 
     TRAINING_WITH_LOOP_LwF =True# False
     # TODO: Set all of the below to false for # NO FREEZING AT ALL -- as if all freezing code commented out. BASELINE for freezing strategies!!!
-    FREEZING_ORIGINAL=False#True #False
+    FREEZING_ORIGINAL=True #False
     # TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! True in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=True #TRUE in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!
+    FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #TRUE in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!
     # TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! True in best performing Object_and_vehicles_model !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS=False #True
     FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS=False #True
@@ -2276,7 +2267,7 @@ if __name__ == "__main__":
         lwf_baseline = LwFBaseline(model=resnet20_global_model, device="cpu", lr=0.001, momentum=0.9,
                              weight_decay=5e-4, lr_decay_factor=0.1,
                              temperature=2.0, alpha=1.0,
-                             train_mb_size=128, train_epochs=5, eval_mb_size=128,#train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
+                             train_mb_size=128, train_epochs=66, eval_mb_size=128, #train_mb_size=64, train_epochs=30, eval_mb_size=64,
                              patience=3, ft_shared_after=10,
                              # plugins=[EarlyStoppingPlugin_mine(patience=3, val_stream_name="valid_stream",metric_name="Loss_Exp", mode="min", peval_mode="epoch",margin=0.3, verbose=True)],
                              evaluator=EvaluationPlugin(
