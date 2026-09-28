@@ -1771,9 +1771,18 @@ class LwFTrainer(SupervisedTemplate):
         print("Accuracy Results:")
         for trained_exp_id in exp_ids:
             print(f"\nAfter training Experience {trained_exp_id}:")
+            average_accuracy_list = []
+            accuracy_for_average = 0
             for test_exp_id in sorted(self.experience_accuracies[trained_exp_id].keys()):
                 acc = self.experience_accuracies[trained_exp_id][test_exp_id]
                 print(f"  - Tested on Experience {test_exp_id}: {acc:.2f}%")
+                average_accuracy_list.append(acc)
+                accuracy_for_average += acc#average_accuracy_list[test_exp_id]
+                average_accuracy_list_len = len(average_accuracy_list)
+            average_accuracy = (accuracy_for_average / average_accuracy_list_len)
+            print("   print(average_accuracy_list)", average_accuracy_list, "print(accuracy_for_average)",
+                  accuracy_for_average, "print(average_accuracy)", average_accuracy)
+            print(f"   Average Accuracy (ACC) after training Experience {trained_exp_id}: {average_accuracy:.4f}%")
 
         print("\n" + "-" * 80 + "\n")
 
