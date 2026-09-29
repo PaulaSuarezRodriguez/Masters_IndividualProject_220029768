@@ -213,15 +213,16 @@ combined_dataset_train = ConcatDataset([
 train_loader = DataLoader(
     combined_dataset_train,
     batch_size=32,
-    shuffle=True#False#True
+    shuffle=False#True
 )
 print("print train_loader", train_loader)
 print("print train_loader.dataset", train_loader.dataset)
 
-for inputs, targets, task_ids in train_loader:
+#Comment-out to achieve exact same results as Alternatives_to_Aggregation_v16_MoE
+'''for inputs, targets, task_ids in train_loader:
     #print("inputs shape:", inputs.shape)
     print("targets:", targets)
-    #print("targets shape:", targets.shape)
+    #print("targets shape:", targets.shape)'''
 
 
 combined_dataset_outdoors_first_experience_test = ConcatDataset([
@@ -920,6 +921,7 @@ def FORMERLY_aggregate_models_all_layers_with_feature_averaging(
     for model_name in model_names:
         try:
             state_dict = torch.load(f"{model_dir}final_{model_name}_model.pt", map_location=device)#state_dict = torch.load(model_dir / f'final_{model_name}_model.pt',map_location=device)
+            print("Model:", f"{model_dir}final_{model_name}_model.pt")
 
             # Determine number of classes from classifier weight shape
             classifier_size = state_dict['linear.weight'].shape[0]
