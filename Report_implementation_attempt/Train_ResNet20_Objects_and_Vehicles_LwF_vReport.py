@@ -2402,6 +2402,38 @@ if __name__ == "__main__":
                 lwf_trainer.lr = 0.1 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
                 lwf_trainer.patience=15 #TODO: from before changing benchmark, BUT STILL IN USE AFTER CHANGING BENCHMARK
                 VERBOSE=True'''
+            if i == 1:
+                torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/Experience_0_final_objects_and_vehicles_model.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(lwf_trainer.old_classes),
+                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'subset_name': 'objects_and_vehicles_specialised_models_train_subset'    # Change this for different subsets
+                }
+                with open('./final_specialised_models/Experience_0_objects_and_vehicles_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for aggregation")
+            if i == 2:
+                torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/Experience_1_final_objects_and_vehicles_model.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(lwf_trainer.old_classes),
+                    'feature_dim': lwf_trainer.model.linear.weight.shape[1],
+                    'subset_name': 'objects_and_vehicles_specialised_models_train_subset'    # Change this for different subsets
+                }
+                with open('./final_specialised_models/Experience_1_objects_and_vehicles_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for aggregation")
             if i == 3:
                 VERBOSE = False
                 torch.save(lwf_trainer.model.state_dict(), f"./final_specialised_models/final_objects_and_vehicles_model.pt")

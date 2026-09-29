@@ -399,129 +399,6 @@ if DEBUG:
           type(people_specialised_models_train_stream_class_il.exps_iter[0]))
 
 
-#####################################################################################################################################################################################################################
-
-class EarlyStoppingPlugin_mine(SupervisedPlugin):
-    def __init__(
-            self,
-            patience: int,
-            val_stream_name: str,
-            metric_name: str = "Top1_Acc_Stream",
-            mode: str = "max",
-            peval_mode: str = "epoch",
-            margin: float = 0.0,
-            verbose=False,
-    ):
-        """Init.
-
-        :param patience: Number of epochs to wait before stopping the training.
-        :param val_stream_name: Name of the validation stream to search in the
-            metrics. The corresponding stream will be used to keep track of the
-            evolution of the performance of a model.
-        :param metric_name: The name of the metric to watch as it will be
-            reported in the evaluator.
-        :param mode: Must be "max" or "min". max (resp. min) means that the
-            given metric should me maximized (resp. minimized).
-        :param peval_mode: one of {'epoch', 'iteration'}. Decides whether the
-            early stopping should happen after `patience`
-            epochs or iterations (Default='epoch').
-        :param margin: a minimal margin of improvements required to be
-            considered best than a previous one. It should be an float, the
-            default value is 0. That means that any improvement is considered
-            better.
-        :param verbose: If True, prints a message for each update
-            (default: False).
-        """
-        super().__init__()
-        self.val_stream_name = val_stream_name
-        self.patience = patience
-        self.verbose = verbose
-
-        assert peval_mode in {"epoch", "iteration"}
-        self.peval_mode = peval_mode
-
-        assert type(margin) == float
-        self.margin = margin
-
-        self.metric_name = metric_name
-        self.metric_key = f"{self.metric_name}/eval_phase/" f"{self.val_stream_name}"
-
-        if mode not in ("max", "min"):
-            raise ValueError(f'Mode must be "max" or "min", got {mode}.')
-        self.operator = operator.gt if mode == "max" else operator.lt
-
-        self.best_state = None  # Contains the best parameters
-        self.best_val = None
-        self.best_step: Optional[int] = None
-
-    def before_training_exp(self, strategy, **kwargs):
-        self.best_state = None
-        self.best_val = None
-        self.best_step = None
-
-    def before_training_iteration(self, strategy, **kwargs):
-        if self.peval_mode == "iteration":
-            ub = self._update_best(strategy)
-            if ub is None or self.best_step is None:
-                return
-            curr_step = self._get_strategy_counter(strategy)
-            if curr_step - self.best_step >= self.patience:
-                strategy.model.load_state_dict(self.best_state)
-                strategy.stop_training()
-
-    def before_training_epoch(self, strategy, **kwargs):
-        if self.peval_mode == "epoch":
-            ub = self._update_best(strategy)
-            if ub is None or self.best_step is None:
-                return
-            curr_step = self._get_strategy_counter(strategy)
-            if curr_step - self.best_step >= self.patience:
-                strategy.model.load_state_dict(self.best_state)
-                strategy.stop_training()
-
-    def _update_best(self, strategy):
-        res = strategy.evaluator.get_last_metrics()
-        if self.metric_name == "Top1_Acc_Exp" or self.metric_name == "Loss_Exp" or "ExperienceBWT" or "ExperienceForgetting":
-            self.metric_key = f"{self.metric_name}/eval_phase/" f"{self.val_stream_name}/Exp00{strategy.experience.current_experience}"
-        names = [k for k in res.keys() if k.startswith(self.metric_key)]
-        if len(names) == 0:
-            return None
-
-        full_name = names[-1]
-        val_acc = res.get(full_name)
-        if self.best_val is None:
-            warnings.warn(
-                f"Metric {self.metric_name} used by the EarlyStopping plugin "
-                f"is not computed yet. EarlyStopping will not be triggered."
-            )
-
-        if self.best_val is None:
-            self.best_state = deepcopy(strategy.model.state_dict())
-            self.best_val = val_acc
-            self.best_step = self._get_strategy_counter(strategy)
-            return None
-
-        delta_val = float(val_acc - self.best_val)
-        if self.operator(delta_val, 0) and abs(delta_val) >= self.margin:
-            self.best_state = deepcopy(strategy.model.state_dict())
-            self.best_val = val_acc
-            self.best_step = self._get_strategy_counter(strategy)
-            if self.verbose:
-                print("EarlyStopping: new best value:", val_acc)
-            # TODO: in testing, REMEMBER TO REMOVE IF IT DOES NOT WORK
-            if strategy.clock.train_exp_epochs > 10:
-                self.margin += 0.2
-                print("self.margin increased to: ", self.margin)
-        return self.best_val
-
-    def _get_strategy_counter(self, strategy):
-        if self.peval_mode == "epoch":
-            return strategy.clock.train_exp_epochs
-        elif self.peval_mode == "iteration":
-            return strategy.clock.train_exp_iterations
-        else:
-            raise ValueError("Invalid `peval_mode`:", self.peval_mode)
-
 
 ###################################################################################################################################################################################
 # from avalanche.evaluation.metric_definitions import GenericPluginMetric
@@ -561,15 +438,13 @@ class LwFTrainer(SupervisedTemplate):
                 EvaluationPlugin, Callable[[], EvaluationPlugin]
             ] = default_evaluator,
             eval_every=-1,
-            peval_mode="epoch",
-            enable_lwf: bool = True
+            peval_mode="epoch"
     ):
         self.results = {}
         self.num_new_classes = 0
         self.patience = patience
         self.original_alpha = alpha
         self.original_lr = lr
-        self.enable_lwf = enable_lwf
 
         self.plugins: List[BasePlugin] = [] if plugins is None else list(plugins)
         """ List of `SupervisedPlugin`s. """
@@ -674,7 +549,7 @@ class LwFTrainer(SupervisedTemplate):
         ###################################################################
         self._eval_streams: Optional[List[List[CLExperience]]] = None
 
-    def distillation_loss(self, student_logits, teacher_logits, scale):
+    '''def distillation_loss(self, student_logits, teacher_logits, scale):
 
         T = self.temperature
 
@@ -697,7 +572,7 @@ class LwFTrainer(SupervisedTemplate):
         if MATCH_AUTHOR_DISTILL == False:
             kl_divergence = F.kl_div(student_log_probs, teacher_probs, reduction="batchmean") * (T ** 2)
 
-        return kl_divergence
+        return kl_divergence'''
 
     def train(
             self,
@@ -811,10 +686,10 @@ class LwFTrainer(SupervisedTemplate):
                     targets,
                 )
 
-                # ------------------------------------------------
+                '''# ------------------------------------------------
                 # LwF -- single teacher
                 # ------------------------------------------------
-                if self.enable_lwf and self.teacher is not None:
+                if self.teacher is not None:
                     # for classes in self.teacher_classes:
                     with torch.no_grad():
                         # print("print(self.teacher.training) -- before teacher_logits = self.teacher(self.mb_x)", self.teacher.training)
@@ -880,8 +755,9 @@ class LwFTrainer(SupervisedTemplate):
                     dist_loss = torch.tensor(
                         0.0,
                         device=self.device,
-                    )
+                    )'''
 
+                loss = ce_loss
                 # ------------------------------------------------
                 # Backpropagation
                 # ------------------------------------------------
@@ -890,7 +766,7 @@ class LwFTrainer(SupervisedTemplate):
                 if VERBOSE:
                     print(f"  Backpropagated loss: {loss.item():.6f}\n Backpropagation is occurring!")
 
-                if self.enable_lwf and FREEZING_ORIGINAL:
+                '''if FREEZING_ORIGINAL:
                     if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                         # Freeze shared layers
@@ -922,7 +798,7 @@ class LwFTrainer(SupervisedTemplate):
                                     :old_num_classes
                                 ].zero_()
 
-                if self.enable_lwf and FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS:
+                if FREEZING_ORIGINAL_BUT_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS:
                     if (self.teacher is not None) and (_ <= self.ft_shared_after):# and (experience.current_experience>=2):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                         # Freeze shared layers
@@ -954,7 +830,7 @@ class LwFTrainer(SupervisedTemplate):
                                 :old_num_classes
                             ].zero_()
 
-                '''if (self.teacher is not None) and len(self.old_classes) > 0 and (_ <= self.ft_shared_after-2):
+                ''''''if (self.teacher is not None) and len(self.old_classes) > 0 and (_ <= self.ft_shared_after-2):
                     # Freeze old classifier rows
                     old_num_classes = len(self.old_classes)
 
@@ -966,9 +842,9 @@ class LwFTrainer(SupervisedTemplate):
                     if self.model.linear.bias.grad is not None:
                         self.model.linear.bias.grad[
                             :old_num_classes
-                        ].zero_()'''
+                        ].zero_()''''''
 
-                if self.enable_lwf and FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS:
+                if FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS:
                     if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=freeze_onwards):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                         # Freeze shared layers
@@ -1000,7 +876,7 @@ class LwFTrainer(SupervisedTemplate):
                                     :old_num_classes
                                 ].zero_()
 
-                if self.enable_lwf and FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS:
+                if FREEZING_ORIGINAL_BUT_FROM_EXPERIENCE_2_ONWARDS_AND_INDEPENDENT_CONDITION_FOR_SHARED_LAYERS_AND_OLD_ROWS:
                     if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=freeze_onwards):#if (self.teacher is not None) and (_ <= self.ft_shared_after) and (experience.current_experience>=2): #if (self.teacher is not None) and (_ <= self.ft_shared_after):#if ((len(self.teachers)>0) and (_ <= self.ft_shared_after)):
 
                         # Freeze shared layers
@@ -1032,7 +908,7 @@ class LwFTrainer(SupervisedTemplate):
                                 :old_num_classes
                             ].zero_()
 
-                if self.enable_lwf and FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS:
+                if FREEZING_SHARED_LAYERS_AFTER_EPOCH_SURPASSES_ft_shared_after_AND_INDEPENDENT_OLD_ROWS:
                     if (self.teacher is not None) and (_ >= self.ft_shared_after):
                         # Freeze shared layers
                         for module in self.model.modules():
@@ -1063,7 +939,7 @@ class LwFTrainer(SupervisedTemplate):
                                 :old_num_classes
                             ].zero_()
 
-                if self.enable_lwf and FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after:
+                if FREEZING_SHARED_LAYERS_AND_OLD_ROWS_AFTER_EPOCH_SURPASSES_ft_shared_after:
                     if (self.teacher is not None) and (_ >= self.ft_shared_after):
                         # Freeze shared layers
                         for module in self.model.modules():
@@ -1092,7 +968,7 @@ class LwFTrainer(SupervisedTemplate):
                             if self.model.linear.bias.grad is not None:
                                 self.model.linear.bias.grad[
                                     :old_num_classes
-                                ].zero_()
+                                ].zero_()'''
 
                 self.optimizer.step()
 
@@ -1101,7 +977,7 @@ class LwFTrainer(SupervisedTemplate):
                 # ------------------------------------------------
 
                 total_ce += ce_loss.item()
-                total_dist += dist_loss.item()
+                #total_dist += dist_loss.item()
                 total_loss += loss.item()
 
                 n += 1  # n = len(self.dataloader)
@@ -1437,45 +1313,36 @@ class LwFTrainer(SupervisedTemplate):
         '''print("self.evaluate_single_experience(current_experience_val) AFTER TRAINING FOR EXPERIENCE CONCLUDES, before teacher is saved:")
         self.evaluate_single_experience(experience, eval_streams)'''
 
-        if self.enable_lwf:
-            self.teacher = copy.deepcopy(self.model)
-            print("print(self.teacher.training) -- before self.teacher.eval()", self.teacher.training)
-            self.teacher.eval()
-            print("print(self.teacher.training) -- after self.teacher.eval()", self.teacher.training)
+        '''self.teacher = copy.deepcopy(self.model)
+        print("print(self.teacher.training) -- before self.teacher.eval()", self.teacher.training)
+        self.teacher.eval()
+        print("print(self.teacher.training) -- after self.teacher.eval()", self.teacher.training)
 
-            for parameter in self.teacher.parameters():
-                parameter.requires_grad = False
-        else:
-            # Simple replay baseline: no teacher model and therefore no
-            # distillation-model memory overhead.
-            self.teacher = None
+        for parameter in self.teacher.parameters():
+            parameter.requires_grad = False
 
         if EARLY_STOPPING_LOOP_4:  # if EARLY_STOPPING_LOOP_3:
             self.model = saved_model
             print(
-                f"Loaded saved_model to continue training the next Experience on it --- from inside train_experience()")
+                f"Loaded saved_model to continue training the next Experience on it --- from inside train_experience()")'''
 
-        # Add classes from this experience. This is required both by LwF and
-        # by the dynamic classifier used by the replay baseline.
+        # Add classes from this experience
         experience_classes = set(
             experience.dataset.targets.uniques
         )
 
         self.old_classes.update(experience_classes)
 
-        if self.enable_lwf:
-            self.teacher_classes.append(
-                sorted(experience.dataset.targets.uniques)
-            )
-            print(
-                f"Teacher updated. "
-                f"Old classes = {sorted(self.old_classes)}"
-            )
-        else:
-            print(
-                f"Simple replay mode: no teacher created. "
-                f"Old classes = {sorted(self.old_classes)}"
-            )
+        # self.teachers.append(teacher)
+
+        '''self.teacher_classes.append(
+            sorted(experience.dataset.targets.uniques)
+        )'''
+
+        print(
+            #f"Teacher updated. "
+            f"Old classes = {sorted(self.old_classes)}"
+        )
         # self.alpha += 0.05
         # print(f"Alpha has been increased by 0.05. It is now {self.alpha}")
         print(f"lr at Experience {experience.current_experience}: {self.lr}")
@@ -1799,11 +1666,34 @@ class LwFTrainer(SupervisedTemplate):
 
         # Print accuracy results
         print("Accuracy Results:")
+        average_accuracy_history = []  # Stores AA after each training experience SUCH THAT IT CAN BE USED TO COMPUTE AIA
         for trained_exp_id in exp_ids:
             print(f"\nAfter training Experience {trained_exp_id}:")
+            average_accuracy_list = []
+            accuracy_for_average = 0
             for test_exp_id in sorted(self.experience_accuracies[trained_exp_id].keys()):
                 acc = self.experience_accuracies[trained_exp_id][test_exp_id]
                 print(f"  - Tested on Experience {test_exp_id}: {acc:.2f}%")
+                # Average Accuracy (AA)
+                average_accuracy_list.append(acc)
+                accuracy_for_average += acc  # average_accuracy_list[test_exp_id]
+                average_accuracy_list_len = len(average_accuracy_list)
+            average_accuracy = (accuracy_for_average / average_accuracy_list_len)
+            # print("   print(average_accuracy_list)", average_accuracy_list, "print(accuracy_for_average)", accuracy_for_average, "print(average_accuracy)", average_accuracy)
+            print(f"   Average Accuracy (ACC) after training Experience {trained_exp_id}: {average_accuracy:.4f}%")
+            # Store this AA for calculating AIA
+            average_accuracy_history.append(average_accuracy)
+
+            # Average Incremental Accuracy (AIA)
+            average_incremental_accuracy = (sum(average_accuracy_history) / len(average_accuracy_history))
+            print("   print(average_accuracy_history)", average_accuracy_history,
+                  "print(sum(average_accuracy_history))", sum(average_accuracy_history),
+                  "print(average_incremental_accuracy)", average_incremental_accuracy)
+            print(
+                f"   Average Incremental Accuracy (AIA) after training "
+                f"Experience {trained_exp_id}: "
+                f"{average_incremental_accuracy:.4f}%"
+            )
 
         print("\n" + "-" * 80 + "\n")
 
@@ -2052,124 +1942,7 @@ class LwFTrainer(SupervisedTemplate):
 
         return original_targets_tensor
 
-    def evaluate_all_experiences_post_training(self, eval_streams: Optional[
-        Sequence[Union[TExperienceType, Iterable[TExperienceType]]]] = None):
-        """Evaluate on all experiences seen so far."""
-        print(f"\n{'=' * 60}")
-        print(f"EVALUATING ALL EXPERIENCES")
-        print(f"{'=' * 60}\n")
-
-        self.is_training = False
-        self.model.eval()
-        print("print(self.model.training) -- evaluate_all_experiences_post_training after self.model.eval()",
-              self.model.training)
-
-        for stream_idx, eval_stream in enumerate(eval_streams):
-            if not isinstance(eval_stream, Iterable):
-                eval_stream = [eval_stream]
-
-            for exp in eval_stream:
-                exp_id_all_experiences_post_training = exp.current_experience
-
-                # Prepare eval data
-                eval_adapted_dataset = exp.dataset.eval()
-                eval_dataloader = self.make_eval_dataloader_for_evaluate_all_experiences_and_bwt(eval_adapted_dataset,
-                                                                                                 self.eval_mb_size)
-
-                total_loss_all_experiences_post_training = 0.0
-                total_correct_all_experiences_post_training = 0
-                total_samples_all_experiences_post_training = 0
-
-                with torch.no_grad():
-                    for self.mbatch in eval_dataloader:
-                        self.unpack_minibatch()
-                        targets_all_experiences_post_training = self.map_targets()  # targets = self.map_labels_expanding_classifier() # targets = self.mb_y
-
-                        student_logits_all_experiences_post_training = self.model(self.mb_x)
-                        loss_all_experiences_post_training = self.criterion(
-                            student_logits_all_experiences_post_training, targets_all_experiences_post_training)
-
-                        total_loss_all_experiences_post_training += loss_all_experiences_post_training.item() * targets_all_experiences_post_training.size(
-                            0)
-                        predictions_all_experiences = torch.argmax(student_logits_all_experiences_post_training, dim=1)
-                        total_correct_all_experiences_post_training += (
-                                    predictions_all_experiences == targets_all_experiences_post_training).sum().item()
-                        total_samples_all_experiences_post_training += targets_all_experiences_post_training.size(0)
-
-                avg_loss_all_experiences_post_training = total_loss_all_experiences_post_training / total_samples_all_experiences_post_training if total_samples_all_experiences_post_training > 0 else 0.0
-                accuracy_all_experiences_post_training = (
-                            total_correct_all_experiences_post_training / total_samples_all_experiences_post_training * 100) if total_samples_all_experiences_post_training > 0 else 0.0
-
-                print(
-                    f"Performance on Exp {exp_id_all_experiences_post_training}: Loss = {avg_loss_all_experiences_post_training:.6f} | Accuracy = {accuracy_all_experiences_post_training:.2f}%"
-                )
-
-    '''
-    def save_entire_checkpoint(self, fname: FILE_LIKE, exclude: Optional[Collection[str]] = None): # FORMERLY #def save_entire_checkpoint(self, path, exclude: Optional[Collection[str]] = None):
-        if exclude is None:
-            exclude = []
-        ended_experience_counter = self.clock.train_exp_counter
-
-        strategy = copy.deepcopy(self) #strategy = copy(self)
-        for attr in exclude:
-            delattr(strategy, attr)
-
-        checkpoint = {
-            "strategy": strategy,
-            "rng_manager_state": RNGManager.__getstate__(),#"rng_manager": RNGManager, #.set_random_seeds(SEED),
-            #"exp_counter": ended_experience_counter,
-            "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            #"loss": self.loss,
-            #"ce_loss" : self.ce_loss,
-            #"_criterion" : self._criterion,
-            #"clock_train_exp_counter": self.clock.train_exp_counter,
-            #"clock_train_epoch_counter": self.clock.train_exp_epochs,
-            "teacher_state_dict": (
-                self.teacher.state_dict()
-                if self.teacher is not None
-                else None
-            ),
-        }
-        #with open(path, "wb") as f:
-         #   pickle.dump(checkpoint, f)
-        #torch.save(checkpoint, path)
-        checkpoint_dir = Path("./checkpoints") # checkpoint_dir = Path("C:\\Users\lamus\PycharmProjects\Masters_IndividualProject_220029768\\Report_implementation_attempt\checkpoints")
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        torch.save(checkpoint, fname, pickle_module=dill)
-
-    def load_entire_checkpoint_inside_class(self, fname: FILE_LIKE, map_location=None, unique_objects: Any = None):  # , device):
-        checkpoint = torch.load(fname, pickle_module=dill, map_location=map_location)
-        saved_strategy = checkpoint["strategy"] # NOT self, that would be wrong. Not used within function, but kept in case saved_strategy needs to be retrieved at some point, perhaps
-                                                # even through an external call on an instance / object of class EWCStrategy
-
-        #self.model.load_state_dict(checkpoint["model_state_dict"])
-        # strategy.model.to(device)
-        #self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        #self.ce_loss = checkpoint["ce_loss"]
-        #self.loss = checkpoint["loss"]
-        #self._criterion = checkpoint["_criterion"]
-        #self.clock = checkpoint["strategy"].clock
-        #self.clock.train_exp_counter = checkpoint["clock_train_exp_counter"]
-        #self.clock.train_exp_epochs = checkpoint["clock_train_epoch_counter"]
-        #self.train_mb_size = checkpoint["strategy"].train_mb_size
-        #self.train_epochs = checkpoint["strategy"].train_epochs
-        #self.eval_mb_size = checkpoint["strategy"].eval_mb_size
-        #self.device = checkpoint["strategy"].device
-        #self.plugins = checkpoint["strategy"].plugins
-        #self.evaluator = checkpoint["strategy"].evaluator
-        #self.eval_every = checkpoint["strategy"].eval_every
-        #self.dataloader = checkpoint["strategy"].dataloader
-        #self.experience = checkpoint["strategy"].experience
-        #self.teacher=checkpoint["strategy"].teacher
-        #(self.teacher.load_state_dict(checkpoint["teacher_state_dict"])
-         #if self.teacher is not None
-          #  else None),
-        #self.old_classes = checkpoint["strategy"].old_classes
-        #RNGManager.__setstate__(checkpoint["rng_manager_state"])
-        #RNGManager.__setstate__(checkpoint["rng_manager"])
-        print(f"Executing load_entire_checkpoint_inside_class from call made from within _train_exp()")
-        return checkpoint#return self'''
+#####################################################################################################################################################################################################################
 
 
 '''
@@ -2590,16 +2363,115 @@ class SimpleReplayTrainer(LwFTrainer):
       * validation and all-seen-experiences evaluation/BWT code
     """
 
-    def __init__(
+    '''def __init__(
             self,
             *args,
+            model: nn.Module,
+            lr=0.001,
+            momentum=0.9,
+            weight_decay=5e-4,
+            lr_decay_factor: float = 0.1,
+            train_mb_size: int = 1,
             replay_memory_size: int = 200,
             replay_batch_size: Optional[int] = None,
             replay_seed: int = SEED,
+            patience: int = 0,
             **kwargs,
     ):
-        kwargs["enable_lwf"] = False
-        super().__init__(*args, **kwargs)
+        #kwargs["enable_lwf"] = False
+        #super().__init__(*args, **kwargs)
+
+        self.train_mb_size = train_mb_size
+
+        if replay_batch_size is None:
+            replay_batch_size = max(1, self.train_mb_size // 2)
+        if replay_batch_size >= self.train_mb_size:
+            raise ValueError(
+                "For this baseline replay_batch_size must be smaller than train_mb_size."
+            )
+
+        self.model = model
+
+        self.replay_memory_size = int(replay_memory_size)
+        self.replay_batch_size = int(replay_batch_size)
+        self.replay_seed = int(replay_seed)
+        self.replay_buffer = SimpleClassBalancedReplayBuffer(
+            max_size=self.replay_memory_size,
+            seed=self.replay_seed,
+        )
+
+        self.momentum = momentum
+        self.weight_decay = weight_decay
+        self.lr = lr
+        self.lr_decay_factor = lr_decay_factor
+        self.patience = patience
+
+        self.optimizer = torch.optim.SGD(
+            self.model.parameters(),
+            lr=self.lr,
+            momentum=self.momentum,
+            weight_decay=self.weight_decay,
+        )'''
+
+    def __init__(
+            self,
+            model: nn.Module,
+            lr=0.001,
+            momentum=0.9,
+            weight_decay=5e-4,
+            lr_decay_factor: float = 0.1,
+            lr_decay_every: float = 1.0,
+            temperature=2.0,
+            alpha=1.0,
+            train_mb_size: int = 1,
+            train_epochs: int = 1,
+            replay_memory_size: int = 200,
+            replay_batch_size: Optional[int] = None,
+            replay_seed: int = SEED,
+            eval_mb_size: Optional[int] = None,
+            device: Union[str, torch.device] = "cpu",
+            patience: int = 0,
+            ft_shared_after: int = 5,
+            plugins: Optional[List[SupervisedPlugin]] = None,
+            evaluator: Union[
+                EvaluationPlugin, Callable[[], EvaluationPlugin]
+            ] = default_evaluator,
+            eval_every=-1,
+            peval_mode="epoch"
+    ):
+        self.results = {}
+        self.num_new_classes = 0
+        self.patience = patience
+        self.original_alpha = alpha
+        self.original_lr = lr
+
+        self.plugins: List[BasePlugin] = [] if plugins is None else list(plugins)
+        """ List of `SupervisedPlugin`s. """
+        self.adapted_dataset = None
+        self.optimized_param_id = None
+        self.model = model  # .to(device) # TODO: may be the problem
+        self.device = torch.device(device)
+        self.lr = lr
+        self.momentum = momentum
+        self.weight_decay = weight_decay
+        self.lr_decay_factor = lr_decay_factor  # 0.1  # 'Multiply lr by this much every step of decay'
+        self.lr_decay_every = lr_decay_every  # 1 # 'Step decay every this many epochs'
+
+        self.temperature = temperature
+        self.alpha = alpha
+        self.ft_shared_after = ft_shared_after
+
+        self.optimizer = torch.optim.SGD(
+            self.model.parameters(),
+            lr=self.lr,  # lr,
+            momentum=self.momentum,  # momentum,
+            weight_decay=self.weight_decay,  # weight_decay,
+        )
+
+        #kwargs["enable_lwf"] = False
+        #super().__init__(*args, **kwargs)
+
+        self.train_mb_size = train_mb_size
 
         if replay_batch_size is None:
             replay_batch_size = max(1, self.train_mb_size // 2)
@@ -2615,6 +2487,87 @@ class SimpleReplayTrainer(LwFTrainer):
             max_size=self.replay_memory_size,
             seed=self.replay_seed,
         )
+
+        self.criterion = nn.CrossEntropyLoss()
+        self.dataloader: Iterable[Any] = []
+        """ Dataloader. """
+
+        self.mbatch: Optional[TMBInput] = None
+        """ Current mini-batch. """
+
+        self.mb_output: Optional[TMBOutput] = None
+        """ Model's output computed on the current mini-batch. """
+
+        self.train_epochs: int = train_epochs
+        """ Number of training epochs. """
+
+        self.train_mb_size: int = train_mb_size
+        """ Training mini-batch size. """
+
+        self.eval_mb_size: int = train_mb_size if eval_mb_size is None else eval_mb_size
+        """ Eval mini-batch size. """
+
+        self.retain_graph: bool = False
+        """ Retain graph when calling loss.backward(). """
+
+        if evaluator is None:
+            evaluator = EvaluationPlugin()
+        elif callable(evaluator):
+            evaluator = evaluator()
+
+        self.plugins.append(evaluator)  # type: ignore
+        self.evaluator: EvaluationPlugin = evaluator
+        """ EvaluationPlugin used for logging and metric computations. """
+
+        # Configure periodic evaluation.
+        assert peval_mode in {"experience", "epoch", "iteration"}
+        self.eval_every = eval_every
+        peval = PeriodicEval(eval_every, peval_mode)
+        self.plugins.append(peval)
+
+        self.clock: Clock = Clock()
+        """ Incremental counters for strategy events. """
+        # WARNING: Clock needs to be the last plugin, otherwise
+        # counters will be wrong for plugins called after it.
+        self.plugins.append(self.clock)
+
+        # Teacher from previous experience
+        self.teacher = None  # self.teachers = []
+        self.teacher_classes = []
+
+        # Classes learned before current experience
+        self.old_classes = set()
+
+        # Track accuracy after training each experience
+        self.experience_accuracies = {}  # {exp_id: {exp_id: accuracy}}
+        self.experience_losses = {}  # {exp_id: {exp_id: loss}}
+
+        # check plugin compatibility
+        self._check_plugin_compatibility()
+
+        ###################################################################
+        # State variables. These are updated during the train/eval loops. #
+        ###################################################################
+        self.experience: Optional[TExperienceType] = None
+        """ Current experience. """
+
+        self.is_training: bool = False
+        """ True if the strategy is in training mode. """
+
+        self.current_eval_stream: Iterable[TExperienceType] = []
+        """ Current evaluation stream. """
+
+        self._distributed_check: bool = False
+        """
+        Internal flag used to verify the support for distributed
+        training only once.
+        """
+
+        ###################################################################
+        # Other variables #
+        ###################################################################
+        self._eval_streams: Optional[List[List[CLExperience]]] = None
+
 
     def expand_classifier(self, model: nn.Module, experience: CLExperience):
         """Expand only the student classifier, then ALWAYS rebuild SGD.
@@ -2708,7 +2661,7 @@ class SimpleReplayTrainer(LwFTrainer):
         print("=" * 80 + "\n")
 
         # Reuse the existing CE training loop, early stopping and evaluation.
-        super().train_experience(experience, eval_streams, **kwargs)
+        super().train_experience(experience, eval_streams, **kwargs)#super().train_experience(experience, eval_streams, **kwargs)
 
         # Crucially, add current examples only AFTER training the experience, so
         # replay at experience t contains only examples from experiences < t.
@@ -2757,7 +2710,8 @@ if __name__ == "__main__":
     # Fixed TOTAL number of stored exemplars across all classes.
     # Sweep this value (for example 50/100/200/500) when plotting the
     # accuracy-vs-memory trade-off.
-    REPLAY_MEMORY_SIZE = 200
+    #REPLAY_MEMORY_SIZE = 200
+    REPLAY_MEMORY_SIZE = 500
 
     # Total train_mb_size below remains 128. Once memory is non-empty, each
     # update uses 64 current + 64 replay examples rather than 128 + 64.
@@ -2773,7 +2727,7 @@ if __name__ == "__main__":
 
     print(f"MATCH_AUTHOR_DISTILL = {MATCH_AUTHOR_DISTILL}, MATCH_AUTHOR_LOSS = {MATCH_AUTHOR_LOSS}, VERBOSE = {VERBOSE}")
 
-    final_specialised_models_dir = Path("./final_specialised_models")
+    final_specialised_models_dir = Path("./final_specialised_models_BASELINE")
     final_specialised_models_dir.mkdir(parents=True, exist_ok=True)
 
     if TRAINING_WITH_LOOP_REPLAY:
@@ -2804,10 +2758,9 @@ if __name__ == "__main__":
             from avalanche.evaluation.metrics.disk_usage import disk_usage_metrics
             from avalanche.evaluation.metrics.gpu_usage import gpu_usage_metrics'''
 
-        replay_trainer = SimpleReplayTrainer(model=people_specialised_model, device="cpu",lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
-                                 temperature=2.0, alpha=1.0,
+        replay_trainer = SimpleReplayTrainer(model=people_specialised_model,lr=0.01,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,#lr=0.05,momentum=0.9,weight_decay=1e-4, lr_decay_factor=0.1,
                                  train_mb_size=128, train_epochs=5, eval_mb_size=128,
-                                 patience=3, ft_shared_after=10,
+                                 patience=3,
                                  replay_memory_size=REPLAY_MEMORY_SIZE,
                                  replay_batch_size=REPLAY_BATCH_SIZE,
                                  replay_seed=SEED,
@@ -2838,7 +2791,9 @@ if __name__ == "__main__":
                 replay_trainer.train_epochs = 1
                 replay_trainer.train_mb_size=128
                 replay_trainer.eval_mb_size =128'''
-            if i == 1:
+
+            #TODO: Commented=out the below hyperparameter tuning as this corresponds to PeopleLwF, not to the replay baseline:
+            '''if i == 1:
                 replay_trainer.lr = 0.00001
                 replay_trainer.train_epochs = 5
                 replay_trainer.train_mb_size=128
@@ -2849,10 +2804,10 @@ if __name__ == "__main__":
                 replay_trainer.train_epochs = 10
                 replay_trainer.train_mb_size=128
                 replay_trainer.eval_mb_size =128
-                replay_trainer.ft_shared_after=3
+                replay_trainer.ft_shared_after=3'''
             if i == 3:
-                torch.save(replay_trainer.model.state_dict(), f"./final_specialised_models/final_people_model_SIMPLE_REPLAY.pt")
-                torch.save(replay_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_SIMPLE_REPLAY_CLASSIFIER.pt")
+                torch.save(replay_trainer.model.state_dict(), f"./final_specialised_models/SIMPLE_REPLAY_BASELINE_final_people_model.pt")
+                #torch.save(replay_trainer.model.linear.state_dict(), f"./final_specialised_models/final_people_model_SIMPLE_REPLAY_CLASSIFIER.pt")
                 print("replay_trainer.model.linear", replay_trainer.model.linear)
                 print("replay_trainer.model.linear.state_dict", replay_trainer.model.linear.weight.shape)
                 new_to_original = new_to_original_creation()  # Your existing function
@@ -2866,7 +2821,7 @@ if __name__ == "__main__":
                     'feature_dim': replay_trainer.model.linear.weight.shape[1],
                     'subset_name': 'people_specialised_models_train_subset'  # Change this for different subsets
                 }
-                with open('./final_specialised_models/people_metadata_SIMPLE_REPLAY.pkl', 'wb') as f:
+                with open('./final_specialised_models/SIMPLE_REPLAY_BASELINE_people_metadata.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
                 print("✓ Saved metadata for aggregation")
                 #torch.save(replay_trainer.model.linear.weight.state_dict(),f"./final_specialised_models/final_people_model_CLASSIFIER_WEIGHTS.pt")
@@ -2894,7 +2849,7 @@ if __name__ == "__main__":
             # print("print(criterion_masked.old_classes) BEFORE CALL TO cl_strategy.train", criterion_masked.old_classes)
             # criterion_masked.pre_adapt(cl_strategy, experience) #### .pre_adapt LIBRARY FUNCTION HARD-CODED --> DeprecationWarning: Call to deprecated function before_training_exp (removal in version 0.7: Please switch to the `pre_adapt` method.)getattr(p, event)(strategy, **kwargs)
             # print("print(criterion_masked.current_classes) AFTER CALL TO .pre_adapt BUT BEFORE CALL TO cl_strategy.train", criterion_masked.current_classes)
-            print("print(replay_trainer.plugins) BEFORE call to .train()", replay_trainer.plugins)
+            #print("print(replay_trainer.plugins) BEFORE call to .train()", replay_trainer.plugins)
             seen_experiences.append(experience)
             seen_experiences_sizes += len(experience.dataset)
             print(f"len(experience.dataset) of current TRAIN experience {i} : {len(experience.dataset)}\nAfter experience {i}, seen_experiences_sizes = {seen_experiences_sizes}")

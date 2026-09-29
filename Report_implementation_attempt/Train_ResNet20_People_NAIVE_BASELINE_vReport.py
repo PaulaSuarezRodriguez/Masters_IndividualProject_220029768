@@ -2036,6 +2036,38 @@ if __name__ == "__main__":
                 naive_baseline_trainer.train_mb_size=128
                 naive_baseline_trainer.eval_mb_size =128
                 naive_baseline_trainer.ft_shared_after=3'''
+            if i == 1:
+                torch.save(naive_baseline_trainer.model.state_dict(),f"./final_specialised_models_BASELINE/Experience_0_NAIVE_BASELINE_people_model.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(naive_baseline_trainer.old_classes),
+                    'feature_dim': naive_baseline_trainer.model.linear.weight.shape[1],
+                    'subset_name': 'people_specialised_models_train_subset'  # Change this for different subsets
+                }
+                with open('./final_specialised_models_BASELINE/Experience_0_NAIVE_BASELINE_people_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for BASELINE EVALUATION")
+            if i == 2:
+                torch.save(naive_baseline_trainer.model.state_dict(),f"./final_specialised_models_BASELINE/Experience_1_NAIVE_BASELINE_people_model.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(naive_baseline_trainer.old_classes),
+                    'feature_dim': naive_baseline_trainer.model.linear.weight.shape[1],
+                    'subset_name': 'people_specialised_models_train_subset'  # Change this for different subsets
+                }
+                with open('./final_specialised_models_BASELINE/Experience_1_NAIVE_BASELINE_people_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for BASELINE EVALUATION")
             if i == 3:
                 torch.save(naive_baseline_trainer.model.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model.pt")
                 #torch.save(naive_baseline_trainer.model.linear.state_dict(), f"./final_specialised_models_BASELINE/NAIVE_BASELINE_people_model_CLASSIFIER.pt")

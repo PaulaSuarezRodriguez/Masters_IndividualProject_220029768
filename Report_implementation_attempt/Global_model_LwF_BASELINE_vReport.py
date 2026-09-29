@@ -2351,6 +2351,38 @@ if __name__ == "__main__":
 
         for experience in global_model_lwf_baseline_train_stream_class_il:  # only acceptable correct loop (iterating through experiences of train subset ONLY) -- iterating through experiences of train and val subsets results in undesired outcomes, and for the reasons explained above one should never provide .train with the entire CLStream or EagerCLStream.
             i = experience.current_experience  # to be used in .exps_iter[i] for the validation stream to iterate through the DataExperiences. Equivalent of global_model_lwf_baseline_val_stream_class_il.exps_iter[experience] if it were possible to iterate using the DataExperience object as an index to itself
+            if i == 1:
+                torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/Experience_0_TEST2_lwf_baseline_global_model.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(lwf_baseline.old_classes),
+                    'feature_dim': lwf_baseline.model.linear.weight.shape[1],
+                    'subset_name': 'global_model_lwf_baseline_train_subset'  # Change this for different subsets
+                }
+                with open('./final_specialised_models_BASELINE/Experience_0_TEST2_lwf_baseline_global_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for BASELINE EVALUATION")
+            if i == 2:
+                torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/Experience_1_TEST2_lwf_baseline_global_model.pt")
+                new_to_original = new_to_original_creation()  # Your existing function
+                class_to_idx_new = class_to_idx_new  # Your existing variable
+                # Save the mappings used in training
+                metadata = {
+                    'class_to_idx_new': class_to_idx_new,  # YOUR EXISTING VARIABLE
+                    'new_to_original': new_to_original,  # YOUR EXISTING VARIABLE
+                    #'num_subset_classes': len(class_to_idx_new),
+                    'num_subset_classes': len(lwf_baseline.old_classes),
+                    'feature_dim': lwf_baseline.model.linear.weight.shape[1],
+                    'subset_name': 'global_model_lwf_baseline_train_subset'  # Change this for different subsets
+                }
+                with open('./final_specialised_models_BASELINE/Experience_1_TEST2_lwf_baseline_global_metadata.pkl', 'wb') as f:
+                    pickle.dump(metadata, f)
+                print("✓ Saved metadata for BASELINE EVALUATION")
             if i == 3:
                 torch.save(lwf_baseline.model.state_dict(),f"./final_specialised_models_BASELINE/TEST2_lwf_baseline_global_model.pt")
                 new_to_original = new_to_original_creation()  # Your existing function
