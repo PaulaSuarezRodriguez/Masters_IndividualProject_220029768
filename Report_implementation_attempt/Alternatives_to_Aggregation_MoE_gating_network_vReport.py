@@ -265,6 +265,26 @@ first_experience_test_loader = DataLoader(
     batch_size=32,
     shuffle=False#True
 )
+first_experience_test_outdoors = DataLoader(
+    combined_dataset_outdoors_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+first_experience_test_nature = DataLoader(
+    combined_dataset_nature_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+first_experience_test_people = DataLoader(
+    combined_dataset_people_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+first_experience_test_objects_and_vehicles = DataLoader(
+    combined_dataset_objects_and_vehicles_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
 print("print first_experience_test_loader", first_experience_test_loader)
 print("print first_experience_test_loader.dataset", first_experience_test_loader.dataset)
 
@@ -307,6 +327,26 @@ middle_experience_test_loader = DataLoader(
     combined_dataset_middle_experience_test,
     batch_size=32,
     shuffle=False#True
+)
+middle_experience_test_outdoors = DataLoader(
+    combined_dataset_outdoors_middle_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+middle_experience_test_nature = DataLoader(
+    combined_dataset_nature_middle_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+middle_experience_test_people = DataLoader(
+    combined_dataset_people_middle_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+middle_experience_test_objects_and_vehicles = DataLoader(
+    combined_dataset_objects_and_vehicles_middle_experience_test,
+    batch_size=32,
+    shuffle=False
 )
 print("print middle_experience_test_loader", middle_experience_test_loader)
 print("print middle_experience_test_loader.dataset", middle_experience_test_loader.dataset)
@@ -351,6 +391,26 @@ last_experience_test_loader = DataLoader(
     combined_dataset_last_experience_test,
     batch_size=32,
     shuffle=False#True
+)
+last_experience_test_outdoors = DataLoader(
+    combined_dataset_outdoors_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+last_experience_test_nature = DataLoader(
+    combined_dataset_nature_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+last_experience_test_people = DataLoader(
+    combined_dataset_people_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+last_experience_test_objects_and_vehicles = DataLoader(
+    combined_dataset_objects_and_vehicles_last_experience_test,
+    batch_size=32,
+    shuffle=False
 )
 print("print last_experience_test_loader", last_experience_test_loader)
 print("print last_experience_test_loader.dataset", last_experience_test_loader.dataset)
@@ -1421,7 +1481,7 @@ def evaluate_global_specialist_model(
     avg_loss = total_loss / total
 
     print(
-        f"{output_message} --> Loss = {avg_loss:.6f} | Accuracy = {accuracy * 100:.2f}%"
+        f"{output_message} --> Loss = {avg_loss:.6f} | Accuracy = {accuracy * 100:.2f}% [correct:{correct}, total:{total}. {correct} of {total} are correct]"
     )
 
     #return accuracy
@@ -1556,6 +1616,47 @@ if __name__ == '__main__':
     evaluate_global_specialist_model(global_model, nature_loader, original_to_aggregated_dict,"Evaluating global model on nature_loader")
     evaluate_global_specialist_model(global_model, people_loader, original_to_aggregated_dict,"Evaluating global model on people_loader")
     evaluate_global_specialist_model(global_model, objects_and_vehicles_loader, original_to_aggregated_dict,"Evaluating global model on objects_and_vehicles_loader")
+
+    # ORIGINALLY print read: print("\n\n############# Evaluating global model on last_experiences -- is it the same as Evaluating global model on last_experience_test_loader? If so, then Spatial-CF may be fixed by my strategy, BUT CLEARLY, TEMPORAL-CF IS NOT!!! #############")
+    print(
+        "\n\n############# Evaluating global model on last_experiences -- is it the same as Evaluating global model on test_loader? If so, then Spatial-CF may be fixed by my strategy #############")
+    evaluate_global_specialist_model(global_model, last_experience_test_loader, original_to_aggregated_dict,
+                              "Evaluating global model on last_experience_test_loader")
+    evaluate_global_specialist_model(global_model, last_experience_test_outdoors, original_to_aggregated_dict,
+                              "Evaluating global model on  last_experience_test_outdoors")
+    evaluate_global_specialist_model(global_model, last_experience_test_nature, original_to_aggregated_dict,
+                              "Evaluating global model on last_experience_test_nature")
+    evaluate_global_specialist_model(global_model, last_experience_test_people, original_to_aggregated_dict,
+                              "Evaluating global model on last_experience_test_people")
+    evaluate_global_specialist_model(global_model, last_experience_test_objects_and_vehicles, original_to_aggregated_dict,
+                              "Evaluating global model on last_experience_test_objects_and_vehicles")
+
+    print(
+        "\n\n############# Evaluating global model on middle_experiences -- is it the same as Evaluating global model on test_loader? If so, then Temporal-CF may be fixed by my strategy too!!! #############")
+    evaluate_global_specialist_model(global_model, middle_experience_test_loader, original_to_aggregated_dict,
+                              "Evaluating global model on middle_experience_test_loader")
+    evaluate_global_specialist_model(global_model, middle_experience_test_outdoors,
+                              original_to_aggregated_dict,"Evaluating global model on  middle_experience_test_outdoors")
+    evaluate_global_specialist_model(global_model, middle_experience_test_nature,
+                              original_to_aggregated_dict,"Evaluating global model on middle_experience_test_nature")
+    evaluate_global_specialist_model(global_model, middle_experience_test_people,
+                              original_to_aggregated_dict,"Evaluating global model on middle_experience_test_people")
+    evaluate_global_specialist_model(global_model, middle_experience_test_objects_and_vehicles,
+                              original_to_aggregated_dict,"Evaluating global model on middle_experience_test_objects_and_vehicles")
+
+    print(
+        "\n\n############# Evaluating FINE-TUNED global model on first_experiences -- is it the same as Evaluating FINE-TUNED global model on test_loader? If so, then Temporal-CF may be fixed by my strategy too!!! #############")
+    evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,
+                              "Evaluating global model on first_experience_test_loader")
+    evaluate_global_specialist_model(global_model, first_experience_test_outdoors,
+                              original_to_aggregated_dict,"Evaluating global model on  first_experience_test_outdoors")
+    evaluate_global_specialist_model(global_model, first_experience_test_nature,
+                              original_to_aggregated_dict,"Evaluating global model on first_experience_test_nature")
+    evaluate_global_specialist_model(global_model, first_experience_test_people,
+                              original_to_aggregated_dict,"Evaluating global model on first_experience_test_people")
+    evaluate_global_specialist_model(global_model, first_experience_test_objects_and_vehicles,
+                              original_to_aggregated_dict,"Evaluating global model on first_experience_test_objects_and_vehicles")
+
     '''print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
     fine_tuned_global_model = fine_tune_aggregated_model(global_model, train_loader, lr=0.001, momentum=0.9, weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:

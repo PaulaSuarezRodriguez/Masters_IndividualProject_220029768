@@ -342,11 +342,21 @@ def extract_feature_layers(model: nn.Module) -> Dict[str, torch.Tensor]:
         if key.startswith('layer'):  # layer1, layer2, layer3
             feature_layers[key] = state_dict[key].clone()'''
 
-    # Copy all residual block layers (layer1, layer2, layer3)
-    for key in state_dict.keys():
-        if "linear" not in key and not key.endswith("running_mean") and not key.endswith("running_var") and not key.endswith("num_batches_tracked"):#if "linear" not in key and "bn" not in key and not key.endswith("running_mean") and not key.endswith("running_var") and not key.endswith("num_batches_tracked"): #if key.startswith('layer') or key.endswith("wight") or key.endswith("bias") and "linear" not in key:  # layer1, layer2, layer3
-            feature_layers[key] = state_dict[key].clone()
-    print("feature_layers.keys()",feature_layers.keys())
+    EXCLUDE_STATISTICS = True
+
+    if EXCLUDE_STATISTICS == True:
+        # Copy all residual block layers (layer1, layer2, layer3)
+        for key in state_dict.keys():
+            if "linear" not in key and not key.endswith("running_mean") and not key.endswith("running_var") and not key.endswith("num_batches_tracked"):#if "linear" not in key and "bn" not in key and not key.endswith("running_mean") and not key.endswith("running_var") and not key.endswith("num_batches_tracked"): #if key.startswith('layer') or key.endswith("wight") or key.endswith("bias") and "linear" not in key:  # layer1, layer2, layer3
+                feature_layers[key] = state_dict[key].clone()
+        print("feature_layers.keys()",feature_layers.keys())
+
+    if EXCLUDE_STATISTICS == False:
+        # Copy all residual block layers (layer1, layer2, layer3)
+        for key in state_dict.keys():
+            if "linear" not in key:#if "linear" not in key and "bn" not in key and not key.endswith("running_mean") and not key.endswith("running_var") and not key.endswith("num_batches_tracked"): #if key.startswith('layer') or key.endswith("wight") or key.endswith("bias") and "linear" not in key:  # layer1, layer2, layer3
+                feature_layers[key] = state_dict[key].clone()
+        print("feature_layers.keys()",feature_layers.keys())
 
     return feature_layers
 
@@ -368,25 +378,91 @@ def average_feature_layers(features_list: list) -> Dict[str, torch.Tensor]:
     Returns:
         Averaged feature layers
     """
-    if not features_list:
-        raise ValueError("No feature layers to average")
+    DATA_DRIVEN = True
+    if DATA_DRIVEN == True:
+        if not features_list:
+            raise ValueError("No feature layers to average")
 
-    num_models = len(features_list)
-    averaged_features = OrderedDict()
+        num_models = len(features_list)
 
-    # Average each layer across all models
-    for key in features_list[0].keys():
-        # Stack all models' values for this layer
-        stacked = torch.stack([features[key].float() for features in features_list]) #stacked = torch.stack([features[key].float() for features in features_list]).sum(dim=0)#stacked = torch.stack([features_list[0][key].float(), features_list[1][key].float()])#stacked = torch.stack([features[key].float() for features in features_list])
-        print("print(stacked.shape)",stacked.shape)
-        print("stacked.dim()",stacked.dim())
+        training_samples_per_model = [2400, 3600, 1200, 10000]
 
-        # Take mean across models (dim=0)
-        averaged = torch.mean(stacked, dim=0)
-        #averaged = torch.true_divide(stacked, num_models) # goes with #stacked = torch.stack([features[key].float() for features in features_list]).sum(dim=0)
+        if len(training_samples_per_model) != num_models:
+            raise ValueError(
+                f"Number of training-sample counts "
+                f"({len(training_samples_per_model)}) does not match "
+                f"number of models ({num_models})"
+            )
 
-        # Preserve original dtype
-        averaged_features[key] = averaged.to(features_list[0][key].dtype)
+        averaged_features = OrderedDict()
+
+        # Average each layer across all models
+        for key in features_list[0].keys():
+            # Stack all models' values for this layer.
+            # Dimension 0 is now the MODEL dimension.
+            stacked = torch.stack(
+                [features[key].float() for features in features_list],
+                dim=0
+            )
+
+            print("key:", key)
+            print("stacked.shape:", stacked.shape)
+            print("stacked.dim():", stacked.dim())
+
+            # Create sample-count weights on same device/dtype as parameters
+            weights = torch.tensor(
+                training_samples_per_model,
+                dtype=stacked.dtype,
+                device=stacked.device
+            )
+
+            # Normalize according to training-set size
+            weights = weights / weights.sum()
+
+            print("weights:", weights)
+
+            # Reshape weights so that they apply ONLY across dim=0
+            #
+            # Examples:
+            # stacked [4, 64]          -> weights [4, 1]
+            # stacked [4, 64, 64]     -> weights [4, 1, 1]
+            # stacked [4, 64, 3, 3]   -> weights [4, 1, 1, 1]
+            # stacked [4]              -> weights [4]
+            weight_shape = [num_models] + [1] * (stacked.dim() - 1)
+
+            weights = weights.view(*weight_shape)
+
+            # Weighted average across MODEL dimension (dim=0)
+            averaged = torch.sum(
+                stacked * weights,
+                dim=0
+            )
+
+            # Preserve original dtype
+            averaged_features[key] = averaged.to(
+                features_list[0][key].dtype
+            )
+
+    if DATA_DRIVEN == False:
+        if not features_list:
+            raise ValueError("No feature layers to average")
+
+        num_models = len(features_list)
+        averaged_features = OrderedDict()
+
+        # Average each layer across all models
+        for key in features_list[0].keys():
+            # Stack all models' values for this layer
+            stacked = torch.stack([features[key].float() for features in features_list]) #stacked = torch.stack([features[key].float() for features in features_list]).sum(dim=0)#stacked = torch.stack([features_list[0][key].float(), features_list[1][key].float()])#stacked = torch.stack([features[key].float() for features in features_list])
+            print("print(stacked.shape)",stacked.shape)
+            print("stacked.dim()",stacked.dim())
+
+            # Take mean across models (dim=0)
+            averaged = torch.mean(stacked, dim=0)
+            #averaged = torch.true_divide(stacked, num_models) # goes with #stacked = torch.stack([features[key].float() for features in features_list]).sum(dim=0)
+
+            # Preserve original dtype
+            averaged_features[key] = averaged.to(features_list[0][key].dtype)
 
     return averaged_features
 
@@ -730,7 +806,7 @@ def aggregate_models_all_layers_with_feature_averaging(
 
     print("Step 4: Creating global model with averaged features...")
 
-    global_model = ResNet20_DynamicModel(num_classes=100)#ResNet20_DynamicModel(num_classes=100)
+    global_model = ResNet20_DynamicModel(num_classes=43)#ResNet20_DynamicModel(num_classes=100)
     global_model = global_model#.to(device)
 
     # Load averaged feature extraction layers

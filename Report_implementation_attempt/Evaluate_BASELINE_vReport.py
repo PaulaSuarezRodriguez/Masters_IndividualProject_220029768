@@ -46,6 +46,8 @@ from Report_implementation_attempt.Train_ResNet20_People_LwF_vReport import peop
 from Report_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_vReport import objects_and_vehicles_specialised_models_test_stream_class_il, objects_and_vehicles_specialised_models_train_stream_class_il, objects_and_vehicles_specialised_models_val_stream_class_il
 from Report_implementation_attempt.Load_cifar100_vReport import avl_test
 #TODO: TEMPORARY!!!! Change to that of vReport once I have final Objects_and_Vehicles model!!!!!
+from Report_implementation_attempt.Global_model_LwF_BASELINE_vReport import global_model_lwf_baseline_val_stream_class_il
+from Report_implementation_attempt.Global_model_NAIVE_BASELINE_vReport import global_model_naive_baseline_val_stream_class_il
 from torch.utils.data import ConcatDataset, DataLoader
 from torch.nn import Module, CrossEntropyLoss
 import torch.nn.functional as F
@@ -253,6 +255,26 @@ first_experience_test_loader = DataLoader(
     batch_size=32,
     shuffle=False#True
 )
+first_experience_test_outdoors = DataLoader(
+    combined_dataset_outdoors_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+first_experience_test_nature = DataLoader(
+    combined_dataset_nature_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+first_experience_test_people = DataLoader(
+    combined_dataset_people_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+first_experience_test_objects_and_vehicles = DataLoader(
+    combined_dataset_objects_and_vehicles_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
 print("print first_experience_test_loader", first_experience_test_loader)
 print("print first_experience_test_loader.dataset", first_experience_test_loader.dataset)
 
@@ -295,6 +317,26 @@ middle_experience_test_loader = DataLoader(
     combined_dataset_middle_experience_test,
     batch_size=32,
     shuffle=False#True
+)
+middle_experience_test_outdoors = DataLoader(
+    combined_dataset_outdoors_middle_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+middle_experience_test_nature = DataLoader(
+    combined_dataset_nature_middle_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+middle_experience_test_people = DataLoader(
+    combined_dataset_people_middle_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+middle_experience_test_objects_and_vehicles = DataLoader(
+    combined_dataset_objects_and_vehicles_middle_experience_test,
+    batch_size=32,
+    shuffle=False
 )
 print("print middle_experience_test_loader", middle_experience_test_loader)
 print("print middle_experience_test_loader.dataset", middle_experience_test_loader.dataset)
@@ -383,6 +425,26 @@ last_experience_train_loader = DataLoader(
     combined_dataset_last_experience_train,
     batch_size=32,
     shuffle=True
+)
+last_experience_test_outdoors = DataLoader(
+    combined_dataset_outdoors_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+last_experience_test_nature = DataLoader(
+    combined_dataset_nature_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+last_experience_test_people = DataLoader(
+    combined_dataset_people_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+last_experience_test_objects_and_vehicles = DataLoader(
+    combined_dataset_objects_and_vehicles_last_experience_test,
+    batch_size=32,
+    shuffle=False
 )
 print("print last_experience_train_loader", last_experience_train_loader)
 print("print last_experience_train_loader.dataset", last_experience_train_loader.dataset)
@@ -1007,6 +1069,59 @@ if __name__ == '__main__':
                                     "Evaluating BASELINE_standard_supervised_global on people_loader")
     evaluate_baseline_vs_specialist(baseline, objects_and_vehicles_loader, class_to_idx_new_baseline,
                                     "Evaluating BASELINE_standard_supervised_global on objects_and_vehicles_loader")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_loader,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on last_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_outdoors,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on last_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_nature,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on last_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_people,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on last_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_objects_and_vehicles,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on last_experience_test_objects_and_vehicles")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_loader,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on middle_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_outdoors,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_nature,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_people,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_objects_and_vehicles,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on middle_experience_test_objects_and_vehicles")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_loader,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on first_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_outdoors,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_nature,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_people,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on first_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_objects_and_vehicles,
+                                    class_to_idx_new_baseline,
+                                    "Evaluating BASELINE_standard_supervised_global on first_experience_test_objects_and_vehicles")
+
+
     print("\n")
     evaluate_baseline_vs_specialist(baseline_naive, test_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on test_loader")
@@ -1019,6 +1134,40 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline_naive, objects_and_vehicles_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on objects_and_vehicles_loader")
     print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive, last_experience_test_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on last_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, last_experience_test_outdoors, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on last_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_naive, last_experience_test_nature, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on last_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_naive, last_experience_test_people, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on last_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_naive, last_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on last_experience_test_objects_and_vehicles")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive, middle_experience_test_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on middle_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, middle_experience_test_outdoors, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_naive, middle_experience_test_nature, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_naive, middle_experience_test_people, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_naive, middle_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on middle_experience_test_objects_and_vehicles")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_loader, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_outdoors, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_nature, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_people, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive,
+                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_objects_and_vehicles")
+
+    print("\n")
     evaluate_baseline_vs_specialist(baseline_naive_2, test_loader, class_to_idx_new_baseline_naive_2,
                                     "Evaluating NAIVE_BASELINE_global_2 on test_loader")
     evaluate_baseline_vs_specialist(baseline_naive_2, outdoors_loader, class_to_idx_new_baseline_naive_2,
@@ -1029,6 +1178,54 @@ if __name__ == '__main__':
                                     "Evaluating NAIVE_BASELINE_global_2 on people_loader")
     evaluate_baseline_vs_specialist(baseline_naive_2, objects_and_vehicles_loader, class_to_idx_new_baseline_naive_2,
                                     "Evaluating NAIVE_BASELINE_global_2 on objects_and_vehicles_loader")
+
+    print("\n") #global_model_lwf_baseline_val_stream_class_il
+    global_model_naive_baseline_val_stream_last_experience = DataLoader(global_model_naive_baseline_val_stream_class_il[2].dataset, batch_size=32, shuffle=False)
+    global_model_naive_baseline_val_stream_middle_experience = DataLoader(global_model_naive_baseline_val_stream_class_il[1].dataset,batch_size=32, shuffle=False)
+    global_model_naive_baseline_val_stream_first_experience = DataLoader(global_model_naive_baseline_val_stream_class_il[0].dataset,batch_size=32, shuffle=False)
+
+    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_last_experience, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience (global_model_naive_baseline_val_stream_class_il[2])")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_middle_experience, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience (global_model_naive_baseline_val_stream_class_il[2])")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_first_experience, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience (global_model_naive_baseline_val_stream_class_il[0])")
+    
+    '''print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive_2, last_experience_test_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, last_experience_test_outdoors, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_naive_2, last_experience_test_nature, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_naive_2, last_experience_test_people, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_naive_2, last_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience_test_objects_and_vehicles")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive_2, middle_experience_test_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, middle_experience_test_outdoors, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_naive_2, middle_experience_test_nature, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_naive_2, middle_experience_test_people, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_naive_2, middle_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience_test_objects_and_vehicles")
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_naive_2, first_experience_test_loader, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_naive_2, first_experience_test_outdoors, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_naive_2, first_experience_test_nature, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_naive_2, first_experience_test_people, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_naive_2, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_objects_and_vehicles")'''
     print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf, test_loader, class_to_idx_new_baseline_lwf,
                                     "Evaluating lwf_baseline_global on test_loader")
@@ -1040,6 +1237,58 @@ if __name__ == '__main__':
                                     "Evaluating lwf_baseline_global on people_loader")
     evaluate_baseline_vs_specialist(baseline_lwf, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf,
                                     "Evaluating lwf_baseline_global on objects_and_vehicles_loader")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf, last_experience_test_loader,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on last_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, last_experience_test_outdoors,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on last_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_lwf, last_experience_test_nature,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on last_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_lwf, last_experience_test_people,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on last_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_lwf, last_experience_test_objects_and_vehicles,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on last_experience_test_objects_and_vehicles")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf, middle_experience_test_loader,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on middle_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, middle_experience_test_outdoors,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_lwf, middle_experience_test_nature,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_lwf, middle_experience_test_people,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_lwf, middle_experience_test_objects_and_vehicles,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on middle_experience_test_objects_and_vehicles")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf, first_experience_test_loader,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on first_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf, first_experience_test_outdoors,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_lwf, first_experience_test_nature,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_lwf, first_experience_test_people,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on first_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_lwf, first_experience_test_objects_and_vehicles,
+                                    class_to_idx_new_baseline_lwf,
+                                    "Evaluating lwf_baseline_global on first_experience_test_objects_and_vehicles")
+    '''
     print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED, test_loader, class_to_idx_new_baseline_lwf_CORRECTED,
                                     "Evaluating lwf_baseline_global_CORRECTED on test_loader")
@@ -1050,7 +1299,8 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED, people_loader, class_to_idx_new_baseline_lwf_CORRECTED,
                                     "Evaluating lwf_baseline_global_CORRECTED on people_loader")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf_CORRECTED,
-                                    "Evaluating lwf_baseline_global_CORRECTED on objects_and_vehicles_loader")
+                                    "Evaluating lwf_baseline_global_CORRECTED on objects_and_vehicles_loader")'''
+
     print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, test_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on test_loader")
@@ -1062,7 +1312,62 @@ if __name__ == '__main__':
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on people_loader")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on objects_and_vehicles_loader")
+    
+    print("\n") #global_model_lwf_baseline_val_stream_class_il
+    global_model_lwf_baseline_val_stream_last_experience = DataLoader(global_model_lwf_baseline_val_stream_class_il[2].dataset, batch_size=32, shuffle=False)
+    global_model_lwf_baseline_val_stream_middle_experience = DataLoader(global_model_lwf_baseline_val_stream_class_il[1].dataset,batch_size=32, shuffle=False)
+    global_model_lwf_baseline_val_stream_first_experience = DataLoader(global_model_lwf_baseline_val_stream_class_il[0].dataset,batch_size=32, shuffle=False)
 
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_val_stream_last_experience,
+                                    class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience (global_model_lwf_baseline_val_stream_class_il[2])")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_val_stream_middle_experience,
+                                    class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience (global_model_lwf_baseline_val_stream_class_il[1])")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_val_stream_first_experience,
+                                    class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience (global_model_lwf_baseline_val_stream_class_il[0],)")
+    '''
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, last_experience_test_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, last_experience_test_outdoors, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, last_experience_test_nature, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, last_experience_test_people, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, last_experience_test_objects_and_vehicles, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience_test_objects_and_vehicles")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, middle_experience_test_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, middle_experience_test_outdoors, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, middle_experience_test_nature, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, middle_experience_test_people, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, middle_experience_test_objects_and_vehicles, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience_test_objects_and_vehicles")
+    
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_loader")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_outdoors, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_nature, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_people, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_objects_and_vehicles")'''
+    
+    
     # COMPARISONS THAT CANNOT BE MADE IN THIS FILE DUE TO THE STRUCTURE OF MoE models (whether baselines or final MoE models). Peform this same comparisons by running evaluating the
     # MoE models in their own files and comparing with the results in this file !!!!!!!!!!!!!!!!
     '''MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
