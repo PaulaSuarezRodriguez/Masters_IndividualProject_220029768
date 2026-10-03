@@ -502,29 +502,12 @@ def unpack_minibatch(mbatch):
 
 def extract_feature_layers(model: nn.Module) -> Dict[str, torch.Tensor]:
     """
-    Extract all feature extraction layers (everything except classifier).
+    Extract all feature extraction layers (everything except classifier) and add it to  feature_layers dict.
 
-    Returns a dictionary of state dict entries for:
-    - conv1, bn1 (input layer)
-    - layer1, layer2, layer3 (residual blocks)
-    - Does NOT include: linear (classifier)
     """
     state_dict = model.state_dict()
 
     feature_layers = OrderedDict()
-
-    '''# Copy input layers
-    feature_layers['conv1.weight'] = state_dict['conv1.weight'].clone()
-    feature_layers['bn1.weight'] = state_dict['bn1.weight'].clone()
-    feature_layers['bn1.bias'] = state_dict['bn1.bias'].clone()
-    feature_layers['bn1.running_mean'] = state_dict['bn1.running_mean'].clone()
-    feature_layers['bn1.running_var'] = state_dict['bn1.running_var'].clone()
-    feature_layers['bn1.num_batches_tracked'] = state_dict['bn1.num_batches_tracked'].clone()
-
-    # Copy all residual block layers (layer1, layer2, layer3)
-    for key in state_dict.keys():
-        if key.startswith('layer'):  # layer1, layer2, layer3
-            feature_layers[key] = state_dict[key].clone()'''
 
     EXCLUDE_STATISTICS = True
 
@@ -547,20 +530,9 @@ def extract_feature_layers(model: nn.Module) -> Dict[str, torch.Tensor]:
 
 def average_feature_layers(features_list: list) -> Dict[str, torch.Tensor]:
     """
-    Average feature extraction layers across all models.
+    Average feature extraction layers across all models by averaging corresponding parameters (element-wise) of corresponding layers.
+    It takes as input the feature_layers dictionary produced by extract_feature_layers() and returns dict containing aggregated layers for feature extractor.
 
-    Each model's feature extractor was trained on different CIFAR subset.
-    By averaging, we get a balanced feature detector that:
-    - Has seen more diverse training examples (43 classes vs subset)
-    - Isn't biased toward any single subset
-    - Learns from all models' optimization
-    - More generalizable to untrained classes
-
-    Args:
-        features_list: List of feature dictionaries from each model
-
-    Returns:
-        Averaged feature layers
     """
     DATA_DRIVEN = True
     if DATA_DRIVEN == True:
@@ -605,13 +577,8 @@ def average_feature_layers(features_list: list) -> Dict[str, torch.Tensor]:
 
             print("weights:", weights)
 
-            # Reshape weights so that they apply ONLY across dim=0
-            #
-            # Examples:
-            # stacked [4, 64]          -> weights [4, 1]
-            # stacked [4, 64, 64]     -> weights [4, 1, 1]
-            # stacked [4, 64, 3, 3]   -> weights [4, 1, 1, 1]
-            # stacked [4]              -> weights [4]
+            # Reshape weights so that they apply ONLY across dim=0, which is where the aggregated feature extractor is,
+            # given dim=0 in torch.stack
             weight_shape = [num_models] + [1] * (stacked.dim() - 1)
 
             weights = weights.view(*weight_shape)
@@ -631,19 +598,18 @@ def average_feature_layers(features_list: list) -> Dict[str, torch.Tensor]:
         if not features_list:
             raise ValueError("No feature layers to average")
 
-        num_models = len(features_list)
+        #num_models = len(features_list)
         averaged_features = OrderedDict()
 
         # Average each layer across all models
         for key in features_list[0].keys():
             # Stack all models' values for this layer
-            stacked = torch.stack([features[key].float() for features in features_list]) #stacked = torch.stack([features[key].float() for features in features_list]).sum(dim=0)#stacked = torch.stack([features_list[0][key].float(), features_list[1][key].float()])#stacked = torch.stack([features[key].float() for features in features_list])
+            stacked = torch.stack([features[key].float() for features in features_list])
             print("print(stacked.shape)",stacked.shape)
             print("stacked.dim()",stacked.dim())
 
             # Take mean across models (dim=0)
             averaged = torch.mean(stacked, dim=0)
-            #averaged = torch.true_divide(stacked, num_models) # goes with #stacked = torch.stack([features[key].float() for features in features_list]).sum(dim=0)
 
             # Preserve original dtype
             averaged_features[key] = averaged.to(features_list[0][key].dtype)
@@ -654,11 +620,7 @@ def average_feature_layers(features_list: list) -> Dict[str, torch.Tensor]:
 def load_averaged_feature_layers(global_model: nn.Module,
                                  averaged_features: Dict[str, torch.Tensor]):
     """
-    Load averaged feature extraction layers into the global model.
-
-    Args:
-        global_model: Target ResNet20_DynamicModel
-        averaged_features: Dictionary of averaged feature layer weights
+    Load dict containing aggregated layers for feature extractor into the ResNet20_Dynamic architecture.
     """
     global_state_dict = global_model.state_dict()
 
@@ -672,16 +634,13 @@ def load_averaged_feature_layers(global_model: nn.Module,
     return global_model #TODO: IMPORTANT CHANGE. I added this
 
 
-# ==============================================================================
-# STEP 2: Classifier Remapping (UNCHANGED)
-# ==============================================================================
+# Classifier Remapping
 
 original_to_aggregated_dict = {17: 0, 12: 1, 33: 2, 23: 3, 49: 4, 37: 5, #OUTDOORS
                                51: 6, 47: 7, 0: 8, 54: 9, 53: 10, 52: 11, 59: 12, 57: 13, 56: 14, #NATURE
                                2: 15, 11: 16, 35: 17, #PEOPLE
                                16: 18, 13: 19, 10: 20, 9: 21, 8: 22, 5: 23, 58: 24, 48: 25, 41: 26, 40: 27, 39: 28, 28: 29, 25: 30, 22: 31, 20: 32, 94: 33, #OBJECTS_AND_VEHICLES
                                90: 34, 89: 35, 87: 36, 86: 37, 85: 38, 84: 39, 81: 40, 69: 41, 61: 42} #OBJECTS_AND_VEHICLES'''
-
 
 def map_original_to_aggregated(targets_tensor, original_to_aggregated=original_to_aggregated_dict):
     ###print("print(targets_tensor)",targets_tensor)
@@ -754,40 +713,58 @@ def remap_classifier_to_cifar100(
         print("remapped_weights", remapped_weights)
         print("remapped_bias", remapped_bias)
 
-    return remapped_weights, remapped_bias
+    remapped_weights_aggregated = torch.zeros(
+        43,#num_subset_classes,
+        feature_dim,
+        device=device,
+        dtype=model.linear.weight.dtype #dtype=classifier.weight.dtype
+    )
+
+    remapped_bias_aggregated = torch.zeros(
+        43, #num_subset_classes,
+        device=device,
+        dtype=model.linear.bias.dtype  #dtype=classifier.bias.dtype
+    )
+
+    #local_idx_count = 0
+    # Place each trained class at its CIFAR-100 position
+    for cifar_class, aggregated in original_to_aggregated_dict.items():
+        print("original_to_aggregated_dict", original_to_aggregated_dict)
+        print("print(cifar_class, aggregated)", cifar_class, aggregated)
+        #local_idx_count += 1
+        #print("print(local_idx_count)", local_idx_count)
+        #print("print(num_subset_classes)", num_subset_classes)
+        #if local_idx_count > num_subset_classes:
+        #    print("print(num_subset_classes) THAT CAUSED BREAK", num_subset_classes)
+        #    break
+        # cifar_class: 12, 17, 23, ... (actual CIFAR class)
+        # aggregated: 0-5 for outdoors (position in AGGREGATED classifier)
+        print(f"print(aggregated = original_to_aggregated_dict[cifar_class]) --> {aggregated} (for CIFAR-100 class {cifar_class})")
+        print(f"print(remapped_weights[cifar_class] for {model_name})", remapped_weights[cifar_class])
+        remapped_weights_aggregated[aggregated] = remapped_weights[cifar_class].to(device)
+        remapped_bias_aggregated[aggregated] = remapped_bias[cifar_class].to(device)
+
+        print("print(remapped_weights_aggregated.shape, len(remapped_weights_aggregated))",remapped_weights_aggregated.shape, len(remapped_weights_aggregated))
+
+    return remapped_weights_aggregated, remapped_bias_aggregated, #ORIGINAL remapped_weights, remapped_bias
 
 
-# ==============================================================================
-# STEP 3: Main Aggregation Pipeline (CORRECTED)
-# ==============================================================================
+# Main process -- calls functions to aggregate feature extractor layers, load all models, extract feature layers from each model, aggregate feature extractor layers, load averaged
+# features into global model, remap and combine classifiers into global classifier for global model
 
 def aggregate_models_all_layers_with_feature_averaging(
     model_names: list,
     model_dir: Path,
     device: str = 'cpu'
-) -> Tuple[nn.Module, Dict]:
+) -> nn.Module:
     """
-    Complete aggregation pipeline with FEATURE AVERAGING.
-
-    Process:
-    1. Load all models
-    2. Extract feature layers from EACH model
-    3. Average the feature layers (not copy from one)
-    4. Load averaged features into global model
-    5. Remap and combine classifiers
-    6. Create and return global model
-
-    Args:
-        model_names: List of model names
-        model_dir: Path where models and metadata are saved
-        device: Device for computation
-
-    Returns:
-        Tuple of (global_model, aggregation_report)
+    Main process -- calls functions to aggregate feature extractor layers, load all models, extract feature layers from each model, aggregate feature extractor layers, load averaged
+    features into global model, remap and combine classifiers into global classifier for global model
     """
 
     print("\n" + "="*80)
-    print("COMPLETE MODEL AGGREGATION - ALL LAYERS WITH FEATURE AVERAGING")
+    print("MAIN PROCESS -- aggregate feature extractor layers, load all models, extract feature layers from each model, aggregate feature extractor layers, load averaged features into"
+          " global model, remap and combine classifiers into global classifier for global model")
     print("="*80 + "\n")
 
     model_dir = f"../Report_implementation_attempt/final_specialised_models/" #model_dir = Path(model_dir)
@@ -795,9 +772,8 @@ def aggregate_models_all_layers_with_feature_averaging(
     mappings = {}
     num_subset_classes = {}
 
-    # ==================================================================
-    # STEP 1: Load all models and their mappings
-    # ==================================================================
+
+    # Load all models and their mappings
 
     print("Step 1: Loading specialized models...")
     for model_name in model_names:
@@ -818,19 +794,17 @@ def aggregate_models_all_layers_with_feature_averaging(
             mappings[model_name] = metadata['new_to_original']
             num_subset_classes[model_name] = metadata['num_subset_classes']
 
-            print(f"  ✓ Loaded {model_name}")
+            print(f"  Loaded {model_name}")
             print(f"    - Classifier size: {classifier_size}")
             print(f"    - CIFAR classes: {sorted(mappings[model_name].values())}")
 
         except Exception as e:
-            print(f"  ✗ Failed to load {model_name}: {e}")
+            print(f"  Failed to load {model_name}: {e}")
             raise
 
     print()
 
-    # ==================================================================
-    # STEP 2: Extract features from ALL models
-    # ==================================================================
+    # Extract features from ALL models
 
     print("Step 2: Extracting feature layers from ALL models...")
 
@@ -845,39 +819,12 @@ def aggregate_models_all_layers_with_feature_averaging(
         if feature_layer_keys is None:
             feature_layer_keys = set(features.keys())
 
-        print(f"  ✓ Extracted {len(features)} layer groups from {model_name}")
-
-    print()
-
-    # ==================================================================
-    # STEP 3: Average feature layers across all models (KEY STEP!)
-    # ==================================================================
-
-    print("Step 3: AVERAGING feature layers across all models...")
-    print(f"  (Combining features from {len(model_names)} different CIFAR subsets)")
-    print()
-    print("  Why averaging?")
-    print("  - Each model trained on different classes → biased feature extractor")
-    print("  - Outdoors model: emphasizes landscape/sky/terrain features")
-    print("  - Nature model: emphasizes vegetation/texture features")
-    print("  - People model: emphasizes face/body features")
-    print("  - Objects model: emphasizes object shapes/mechanical features")
-    print("  - Averaged: balanced detector, useful for all 100 CIFAR classes")
-    print()
-
     averaged_features = average_feature_layers(all_feature_layers)
 
-    print(f"  ✓ Averaged feature layers:")
-    for key in list(averaged_features.keys())[:5]:  # Show first 5
-        shape = averaged_features[key].shape
-        print(f"    - {key}: {shape}")
-    print(f"    ... ({len(averaged_features)} layers total)")
-
     print()
 
-    # ==================================================================
-    # STEP 4: Create global model with averaged features
-    # ==================================================================
+
+    # Create global model and load averaged features onto its layers
 
     print("Step 4: Creating global model with averaged features...")
 
@@ -886,10 +833,9 @@ def aggregate_models_all_layers_with_feature_averaging(
 
     # Load averaged feature extraction layers
     global_model = load_averaged_feature_layers(global_model, averaged_features)#load_averaged_feature_layers(global_model, averaged_features) #TODO: IMPORTANT CHANGE
-
-    print(f"  ✓ Created global model with averaged features:")
-    print(f"    - conv1 + bn1: ✓ Averaged from {len(model_names)} models")
-    print(f"    - layer1-3: ✓ Averaged from {len(model_names)} models")
+    #print("global_model.linear.shape", global_model.linear.shape)
+    for name, param in global_model.named_parameters():
+        print(f"Parameter Name: {name}, Parameter Shape: {param.shape}")
 
     print()
 
@@ -897,7 +843,7 @@ def aggregate_models_all_layers_with_feature_averaging(
     # STEP 5: Remap and combine classifiers
     # ==================================================================
 
-    print("Step 5: Remapping classifiers to CIFAR-100 space...")
+    print("Step 5: Remapping classifiers to CIFAR-100 labels and from CIFARR-100 to aggregated labels such that classifier is of appropriate size...")
     with torch.no_grad():
         feature_dim = models[model_names[0]].linear.weight.shape[1]
 
@@ -918,7 +864,6 @@ def aggregate_models_all_layers_with_feature_averaging(
         print("global_classifier_bias INSTEAD OF torch.zero\n", global_classifier_bias)
         print("global_classifier_bias.shape INSTEAD OF torch.zero \n", global_classifier_bias.shape)
 
-        class_coverage = {}
         all_weights = {}
         all_bias = {}
 
@@ -932,7 +877,7 @@ def aggregate_models_all_layers_with_feature_averaging(
             print(f"w to see what it looks like after additions ({model_name}):\n", w)
             print(f"b to see what it looks like after additions ({model_name}):\n", b)
 
-            row_norms = w.norm(p=2, dim=1)
+            '''row_norms = w.norm(p=2, dim=1)
 
             nonzero_rows = torch.where(row_norms > 1e-12)[0]
 
@@ -958,10 +903,12 @@ def aggregate_models_all_layers_with_feature_averaging(
                 print(
                     cifar_idx,
                     w[cifar_idx].norm().item()
-                )
+                )'''
 
             all_weights[model_name] = w
             all_bias[model_name] =b
+
+            print("all_weights",all_weights)
 
             # TODO: Back to original code for global_classifier_weights += w and global_classifier_bias += b. This and the version I developed seem to do the same!!!
             # TODO: This is the version I developed
@@ -971,18 +918,11 @@ def aggregate_models_all_layers_with_feature_averaging(
             print(f"global_weights += w to see what it looks like after additions ({model_name}):\n",global_classifier_weights)
             print(f"global_bias += b to see what it looks like after additions ({model_name}):\n", global_classifier_bias)
 
+            print("print(global_classifier_weights.shape)",global_classifier_weights.shape)
+            print("global_classifier_bias.shape",global_classifier_bias.shape)
 
-            for local_idx, cifar_class in mapping.items():
-                if cifar_class not in class_coverage:
-                    class_coverage[cifar_class] = []
-                class_coverage[cifar_class].append(model_name)
-
-            print(f"  ✓ Remapped {model_name}")
-            print(f"    - Classes: {len(mapping)}")
-            print(f"    - Positions: {sorted(mapping.values())}")
-
-            global_classifier_weights = global_classifier_weights
-            global_classifier_bias = global_classifier_bias
+            #global_classifier_weights = global_classifier_weights
+            #global_classifier_bias = global_classifier_bias
 
 
     print()
@@ -998,7 +938,7 @@ def aggregate_models_all_layers_with_feature_averaging(
 
     test={}
     for layer_name, layer in global_model.state_dict().items():
-        #print(f"{layer_name}.shape:",layer.shape)
+        print(f"{layer_name}.shape:",layer.shape)
         test[layer_name]=layer.shape
 
     ###print("global_model.state_dict() AFTER nn.Parameter",global_model.state_dict())
@@ -1015,42 +955,9 @@ def aggregate_models_all_layers_with_feature_averaging(
 
     print()
 
-    # ==================================================================
-    # STEP 7: Generate aggregation report
-    # ==================================================================
-
-    print("Step 7: Aggregation summary...")
-
-    untrained_classes = set(range(100)) - set(class_coverage.keys())
-
-    report = {
-        'total_cifar_classes': 100,
-        'trained_classes': len(class_coverage),
-        'untrained_classes': len(untrained_classes),
-        'class_coverage': class_coverage,
-        'models_used': model_names,
-        'feature_dim': feature_dim,
-        'device': device,
-        'feature_averaging': True,  # KEY: Mark that features were averaged
-        'num_models_aggregated': len(model_names)
-    }
-
-    print(f"\n  Aggregation method: FEATURE AVERAGING + CLASSIFIER REMAPPING")
-    print(f"  Total CIFAR-100 classes: 100")
-    print(f"  Classes trained: {len(class_coverage)}")
-    print(f"  Classes NOT trained: {len(untrained_classes)}")
-    print(f"  Feature extraction layers: Averaged from {len(model_names)} models")
-    print(f"  Classifier: Remapped per-class (non-overlapping)")
-
-    print(f"\n  ✓ Aggregation complete!")
-
-    if len(untrained_classes) > 0 and len(untrained_classes) <= 20:
-        untrained_list = sorted(untrained_classes)
-        print(f"  Untrained classes: {untrained_list}")
-
     print("\n" + "="*80 + "\n")
 
-    return global_model, report
+    return global_model
 
 
 # ==============================================================================
@@ -1058,8 +965,7 @@ def aggregate_models_all_layers_with_feature_averaging(
 # ==============================================================================
 
 def save_global_model(global_model: nn.Module,
-                      output_path: Path,
-                      report: Dict):
+                      output_path: Path):
     """Save the global model and aggregation report."""
 
     output_path = Path(output_path)
@@ -1070,40 +976,7 @@ def save_global_model(global_model: nn.Module,
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
 
-    # Save report
-    report_path = output_path / 'aggregation_report.pkl'
-    with open(report_path, 'wb') as f:
-        pickle.dump(report, f)
-    print(f"✓ Saved aggregation report to {report_path}")
 
-
-def test_global_model(global_model: nn.Module, device: str = 'cpu'):
-    """
-    Test the global model on a dummy batch.
-    """
-
-    print("\nStep 8: Testing global model...")
-
-    global_model.eval()
-
-    # Create dummy input (batch of 4 images)
-    dummy_input = torch.randn(4, 3, 32, 32, device=device)
-
-    with torch.no_grad():
-        output = global_model(dummy_input)
-
-    print(f"  Input shape: {dummy_input.shape}")
-    print(f"  Output shape: {output.shape}")
-    print(f"  Expected shape: [4, 100]")
-
-    if output.shape == torch.Size([4, 100]):
-        print(f"  ✓ Output shape is correct!")
-    else:
-        print(f"  ✗ Output shape mismatch!")
-
-    print(f"\n✓ Global model test passed!\n")
-
-    return output
 
 def fine_tune_classifier(
         model: nn.Module,
@@ -1213,6 +1086,7 @@ def fine_tune_classifier(
             # Forward pass
             # -------------------------------------------------
             logits = model(batch_data)
+            batch_labels = map_original_to_aggregated(batch_labels)
 
             # -------------------------------------------------
             # Loss
@@ -1383,6 +1257,7 @@ def fine_tune_aggregated_model(
 
             # Forward pass
             logits = model(batch_data)
+            batch_labels = map_original_to_aggregated(batch_labels)
 
             # Calculate loss
             loss = F.cross_entropy(
@@ -1626,7 +1501,7 @@ def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoa
             logits_all_experiences = model(batch_data)
             #print("logits_all_experiences.dim()",logits_all_experiences.dim())
             targets_all_experiences = batch_labels
-            #targets_all_experiences = map_original_to_aggregated(batch_labels)
+            targets_all_experiences = map_original_to_aggregated(batch_labels)
 
 
             #loss_all_experiences = CrossEntropyLoss(logits_all_experiences, targets_all_experiences, reduction='mean')
@@ -1649,38 +1524,6 @@ def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoa
         f"{output_message} --> Loss = {avg_loss_all_experiences:.6f} | Accuracy = {accuracy_all_experiences:.2f}% [correct:{total_correct_all_experiences}, total:{total_samples_all_experiences}. {total_correct_all_experiences} of {total_samples_all_experiences} are correct]"
     )
 
-def evaluate_aggregated_model_FedAvg_code_v3(target_model: nn.Module, loader: torch.utils.data.DataLoader):
-    correct = 0
-    total = 0
-
-    target_model.eval()
-    with torch.no_grad():
-        for batch_data, batch_labels, batch_task_ids in loader:
-            #print(type(batch_data))
-            #print(type(batch_labels))
-            #print(type(batch_task_ids))
-
-            ######print("\nprint(batch_labels)\n",batch_labels)
-            ##print("print(batch_task_ids)",batch_task_ids)
-
-            outputs = target_model(batch_data)
-            targets_all_experiences = batch_labels
-            #batch_labels = map_original_to_aggregated(batch_labels)
-            #####print("predictions before argmax:",predictions)
-            #####print("predictions before argmax SHAPE:", predictions.shape)
-            #####print("predictions before argmax LENGTH:", len(predictions))
-            #####print("batch_labels before argmax SHAPE:", batch_labels.shape)
-            #####print("batch_labels before argmax LENGTH:", len(batch_labels))
-
-            predictions = outputs.argmax(dim=1)
-
-            correct += (predictions == batch_labels).sum().item() #correct += (predictions == batch_labels).sum().item()
-            total += batch_labels.size(0)
-
-    #accuracy = correct / total
-    accuracy = (correct / total ) if total > 0 else 0.0
-    print(f"Fine-tuned model accuracy: {accuracy:.2%}")#print(f"Fine-tuned model accuracy: {accuracy:.2%}")
-
 # ==============================================================================
 # MAIN EXECUTION
 # ==============================================================================
@@ -1702,7 +1545,7 @@ def main():
         # ============================================================
         # Aggregate models with feature averaging
         # ============================================================
-        global_model, report = aggregate_models_all_layers_with_feature_averaging(
+        global_model = aggregate_models_all_layers_with_feature_averaging(
             model_names=model_names,
             model_dir=MODEL_DIR,
             device=DEVICE
@@ -1711,21 +1554,10 @@ def main():
         # ============================================================
         # Save
         # ============================================================
-        save_global_model(global_model, OUTPUT_DIR, report)
+        save_global_model(global_model, OUTPUT_DIR)
 
-        # ============================================================
-        # Test
-        # ============================================================
-        output = test_global_model(global_model, device=DEVICE)
 
         print("="*80)
-        print("AGGREGATION COMPLETE!")
-        print("="*80)
-        print(f"\nGlobal model ready for inference:")
-        print(f"  - Feature extraction: Averaged from 4 models")
-        print(f"  - Classifier: Remapped to CIFAR-100 space")
-        print(f"  - All 43 trained classes: Ready for prediction")
-        print(f"  - 57 untrained classes: Will use averaged features")
         print(f"\nModel saved to: {OUTPUT_DIR / 'summed_features_global_model.pt'}")
         print("="*80 + "\n")
 
