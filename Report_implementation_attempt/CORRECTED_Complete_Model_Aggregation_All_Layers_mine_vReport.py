@@ -1025,7 +1025,7 @@ def save_global_model(global_model: nn.Module,
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Save model weights
-    model_path = output_path / 'summed_features_global_model.pt'
+    model_path = output_path / '100_class_global_classifier_summed_features_global_model.pt'
     torch.save(global_model.state_dict(), model_path)
     print(f"✓ Saved global model to {model_path}")
 
@@ -1455,7 +1455,7 @@ def main():
         print(f"  - Classifier: Remapped to CIFAR-100 space")
         print(f"  - All 43 trained classes: Ready for prediction")
         print(f"  - 57 untrained classes: Will use averaged features")
-        print(f"\nModel saved to: {OUTPUT_DIR / 'summed_features_global_model.pt'}")
+        print(f"\nModel saved to: {OUTPUT_DIR / '100_class_global_classifier_summed_features_global_model.pt'}")
         print("="*80 + "\n")
 
         return global_model
