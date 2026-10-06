@@ -603,6 +603,7 @@ def build_cifar_to_expert_lookup(
     """
     lookup = torch.full((num_cifar_classes,), -1, dtype=torch.long)
     for expert_id, model_name in enumerate(expert_order):
+        #print("expert_id", expert_id)
         for local_idx, cifar_class in mappings[model_name].items():
             lookup[int(cifar_class)] = expert_id
     return lookup
@@ -648,7 +649,12 @@ def train_gating_network(
             batch_data = batch_data.to(device)
             batch_labels = batch_labels.to(device)
 
+            for bl in batch_labels:
+                if bl.item() not in original_to_aggregated_dict.keys():
+                    raise RuntimeError("Labels used in training gate are not known by any specialist model")
+
             expert_targets = cifar_to_expert_lookup[batch_labels]
+            #print("expert_targets", expert_targets, "batch_labels", batch_labels)
             if (expert_targets < 0).any():
                 bad = batch_labels[expert_targets < 0].unique().tolist()
                 raise RuntimeError(
@@ -659,6 +665,7 @@ def train_gating_network(
 
             optimizer.zero_grad()
             gate_logits = gate(batch_data)
+            #print("gate_logits", gate_logits, "expert_targets",expert_targets)
             loss = criterion(gate_logits, expert_targets)
             loss.backward()
             optimizer.step()

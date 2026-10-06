@@ -397,6 +397,87 @@ if DEBUG_2:
 
 avl_val = make_avalanche_dataset(global_model_lwf_baseline_avalanche_dataset_val)
 
+from Final_implementation_attempt.Train_ResNet20_Outdoors_LwF_vFinal import avl_test
+avl_test_outdoors = avl_test
+from Final_implementation_attempt.Train_ResNet20_Nature_LwF_vFinal import avl_test
+avl_test_nature = avl_test
+from Final_implementation_attempt.Train_ResNet20_People_LwF_vFinal import avl_test
+avl_test_people = avl_test
+from Final_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_vFinal import avl_test
+avl_test_objects_and_vehicles = avl_test
+
+print("len(avl_test_outdoors)",len(avl_test_outdoors))
+count_el = 0
+if DEBUG:
+    for i in avl_test_outdoors.targets:
+        print("Index:",count_el, "|| for i in avl_test_outdoors.targets:",i)
+        count_el += 1
+
+count_el = 0
+outdoors_avalanche_dataset_test = AvalancheDataset([avl_test_outdoors],indices=[i for i in range(600)])
+if DEBUG:
+    for i in outdoors_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in outdoors_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+print("len(avl_test_nature)",len(avl_test_nature))
+count_el = 0
+if DEBUG:
+    for i in avl_test_nature.targets:
+        print("Index:",count_el, "|| for i in avl_test_nature.targets:",i)
+        count_el += 1
+
+count_el = 0
+nature_avalanche_dataset_test = AvalancheDataset([avl_test_nature],indices=[i for i in range(900)])
+if DEBUG:
+    for i in nature_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in nature_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+print("len(avl_test_people)",len(avl_test_people))
+count_el = 0
+if DEBUG:
+    for i in avl_test_people.targets:
+        print("Index:",count_el, "|| for i in avl_test_people.targets:",i)
+        count_el += 1
+
+count_el = 0
+people_avalanche_dataset_test = AvalancheDataset([avl_test_people],indices=[i for i in range(300)])
+if DEBUG:
+    for i in people_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in people_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+print("len(avl_test_objects_and_vehicles)",len(avl_test_objects_and_vehicles))
+count_el = 0
+if DEBUG:
+    for i in avl_test_objects_and_vehicles.targets:
+        print("Index:",count_el, "|| for i in avl_test_objects_and_vehicles.targets:",i)
+        count_el += 1
+
+count_el = 0
+objects_and_vehicles_avalanche_dataset_test = AvalancheDataset([avl_test_objects_and_vehicles])
+if DEBUG:
+    for i in objects_and_vehicles_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in objects_and_vehicles_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+count_el = 0
+global_model_lwf_baseline_avalanche_dataset_test = AvalancheDataset([outdoors_avalanche_dataset_test ,nature_avalanche_dataset_test, people_avalanche_dataset_test ,objects_and_vehicles_avalanche_dataset_test])
+if DEBUG:
+    for i in global_model_lwf_baseline_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in global_model_lwf_baseline_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+count_el = 0
+if DEBUG:
+    for i in global_model_lwf_baseline_avalanche_dataset_test.coarse_label:
+        print("Index:",count_el, "|| for i in global_model_lwf_baseline_avalanche_dataset_test.coarse_label:",i)
+        count_el += 1
+
+avl_test = make_avalanche_dataset(global_model_lwf_baseline_avalanche_dataset_test)
+
+
 
 if DEBUG:
     print(
@@ -418,6 +499,11 @@ avl_val = ClassificationDataset(
     [avl_val],
     data_attributes=[DataAttribute(global_model_lwf_baseline_avalanche_dataset_val.coarse_label, "coarse_label"),
                      DataAttribute(global_model_lwf_baseline_avalanche_dataset_val.targets, "targets")],
+)
+avl_test = ClassificationDataset(
+    [avl_test],
+    data_attributes=[DataAttribute(global_model_lwf_baseline_avalanche_dataset_test.coarse_label, "coarse_label"),
+                     DataAttribute(global_model_lwf_baseline_avalanche_dataset_test.targets, "targets")],
 )
 
 
@@ -444,7 +530,9 @@ print(
 class_order = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
 
 
-global_model_lwf_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
+'''global_model_lwf_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
+                                                                  class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])'''
+global_model_lwf_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val, "test": avl_test},
                                                                   class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])
 
 def map_labels_expanding_classifier_benchmark(ds, class_to_idx_new=None):

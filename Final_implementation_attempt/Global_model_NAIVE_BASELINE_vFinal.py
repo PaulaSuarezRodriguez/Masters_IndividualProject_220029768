@@ -1,63 +1,3 @@
-"""IMPORTANT -- NOTES ON LIBRARY SOURCE CODE:
-class CLStream(Generic[TCLExperience]): NOTE: streams should not be used by training strategies since they provide access to past, current, and future data.
-class EagerCLStream(SequenceCLStream[TCLExperience]): NOTE: streams should not be used by training strategies since they provide access to past, current, and future data.
-class CLScenario(Generic[TCLStream]): NOTE: benchmarks should not be used by training strategies since they provide access to past, current, and future data.
-
-HENCE, THE FOR LOOP FOR ITERATING OVER INDIVIDUAL EXPERIENCES!!! Note, the source code for avalanche.training.templates.base_sgd.BaseSGDTemplate def train reads
-"If experiences is a single element trains on it. If it is a sequence, trains the model on each experience in order. Params: experiences – single Experience or sequence",
-meaning SEQUENCE OF EXPERIENCE (i.e. DataExperience) OBJECTS; THE TYPE OF THE OBJECTS THAT MAKE UP A STREAM, MEANING MANUAL EXTRACTION OF THE EXPERIENCES FROM THE STREAM
-IS REQUIRED!!!!!! ONE CANNOT PASS AN ENTIRE STREAM TO A TRAINING STRATEGY (e.g. Naive) FOR TRAINING THE MODEL!!!! THE EXPERIENCES/DatasetExperience objects CONTAINED WITHIN
-THE EagerCLStream OR CLStream (two objects which are in turn contained within a CLScenario object) ARE WHAT MUST BE ITERATED THROUGH AND TRAINED ON (i.e. apply .train once per
-experience/DatasetExperience object contained within a EagerCLStream or CLStream object for training a model on all classes in the stream/subset/dataset in an incremental manner
-where the CL behaviour (such as mitigation of CF) is handled by the Training Strategy object (note: Training Strategy is not a class itself; each training strategy is its own class!!!
-Moreover, each of these classes may be defined as part of a different module!!!! E.g. class Naive is defined in avalanche.training.supervised.strategy_wrappers, but class Culminative
-is defined in avalanche.training.supervised.cumulative, despite them both being Training Strategies))
-
-Print outdoors_specialised_models_benchmark: <avalanche.benchmarks.scenarios.generic_scenario.CLScenario object at 0x000001814CF4B490>
-Print outdoors_specialised_models_benchmark.train_stream: <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000001F5F391CB10>
-Print outdoors_specialised_models_benchmark.streams["train"] <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000001F5F391CB10>
-    The fact that outdoors_specialised_models_benchmark.train_stream and outdoors_specialised_models_benchmark.streams["train"] are both EagerCLStream object at 0x000001F5F391CB10,
-    proves both commands return the same object. That is, the EagerCLStream that is the training stream/subset comprised of DataExperience object (as opposed to a single Dataset object)
-    such that training in a class-IL manner is made possible.
-Print outdoors_specialised_models_benchmark.streams["test"] <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000001F5F3951990>
-Print outdoors_specialised_models_benchmark.streams["valid"] <avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream object at 0x000001F5F3951B50>
-
-######################## REMEMBER!!!! outdoors_specialised_models_train_stream_class_il = outdoors_specialised_models_benchmark.streams["train"] ########################
-type(outdoors_specialised_models_train_stream_class_il -- OBJECT THROUGH WHICH TRAINING LOOP IS CURRENTLY ITERATING) <class 'avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream'>
-type(outdoors_specialised_models_train_stream_class_il.exps_iter -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS) <class 'avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream'>
-type(outdoors_specialised_models_benchmark.train_stream -- OBJECT THROUGH WHICH TRAINING LOOP HAS BEEN SET TO ITERATE THROUGH IN THE PAST FOR TESTING EFFECTS <class 'avalanche.benchmarks.scenarios.generic_scenario.EagerCLStream'> ALSOOOOOO, benchmark.train_stream KNOWN TO BE EQUAL TO benchmark.streams["train"]); CHECK TO VERIFY
-type(outdoors_specialised_models_train_stream_class_il.exps_iter[0]) <class 'avalanche.benchmarks.scenarios.dataset_scenario.DatasetExperience'>
-cl_strategy <avalanche.training.supervised.strategy_wrappers.Naive object at 0x000001F5F4C40990>
-type(cl_strategy) <class 'avalanche.training.supervised.strategy_wrappers.Naive'>
-
-type(experience) WITH LOOP for experience in outdoors_specialised_models_train_stream_class_il <class 'avalanche.benchmarks.scenarios.dataset_scenario.DatasetExperience'>
-    MEANING CURRENT FOR LOOP IS CORRECT!!!! as according to comment on source code for avalanche.training.templates.base_sgd.BaseSGDTemplate def train "If experiences is a single element
-    trains on it. If it is a sequence, trains the model on each experience in order. Params: experiences – single Experience or sequence". IN for experience in outdoors_specialised_models_train_stream_class_il
-    WE ARE TRAINING ON THE EXPERIENCE/DatasetExperience ONE OBJECT/"single element" AT A TIME, MAKING THIS A CORRECT AND VALID TRAINING LOOP!!! Note, that each of the DataExperience objects
-    within the stream can be extracted/references via indexing using outdoors_specialised_models_train_stream_class_il.exps_iter[0]. This is relevant if instead of iterating through all
-    DataExperience objects, I need to specifically retrieve one for inspecting it or such, but is not needed for iterating through the DataExperience objects for applying .train to each
-    of them/for training -- for experience in outdoors_specialised_models_train_stream_class_il will be used for that.
-
-    The signature for avalanche.training.templates.base_sgd.BaseSGDTemplate def train reads
-    def train(self,
-          experiences: TDatasetExperience | Iterable[TDatasetExperience],
-          eval_streams: Sequence[TDatasetExperience | Iterable[TDatasetExperience]] | None = None,
-          **kwargs: Any) -> dict[str, Any]
-    , defining TDatasetExperience or an iterable for such as the type for experiences. However, as can be seen in avalanche/avalanche/training/templates/base_sgd.py and in
-    avalanche/training/templates/common_templates.py, TDatasetExperience = TypeVar("TDatasetExperience", bound=DatasetExperience). TDatasetExperience is a type variable (TypeVar) used
-    solely for Python's type hinting system AND THEREFORE, FOR PRACTICAL PURPOSES, IS ESSENTIALLY JUST DatasetExperience!!!"
-
-    This is also part of avalanche/avalanche/benchmarks/scenarios/deprecated/dataset_scenario.py, but as can be seen from the directory name, it is deprecated. Regardless,
-    TDatasetExperience = TypeVar("TDatasetExperience", bound=DatasetExperience) appears in both so there is no doubt that DatasetExperience object is what is meant by TDatasetExperience.
-
-
-I implemented my own EarlyStoppingPlugin and named it EarlyStoppingPlugin_mine such that I can evaluate on experiences. I did this by overriding the code that prevents a single experience
-from being used as the metric to track in earlyStopping. DO NOT FORGET!!!! If ever training using a training loop that iterates through experiences, instead of a .train() call that accepts
-the entire train and eval stream (though, unlikely, since the latter seems to be the only one for which EWC / TestEWCStrategy_2 works) THEN REMEMBER TO SET metric_name="Top1_Acc_Stream"
-WHEN YOU WANT EarlyStoppingPlugin_mine (just like I would do if I were using the original library source code) TO EVALUATE ON A SINGLE EXPERIENCE, SINCE BY STREAM IT ASSUMES THE WHOLE OF
-WHATEVER IS PROVIDED .train() and if only one experience is provided, then it will manipulate this as if it were the entire stream when it comes to tracking metrics for early stopping
-
-"""
 from avalanche.benchmarks.utils.data_loader import TaskBalancedDataLoader
 from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
 from avalanche.evaluation.metrics.forgetting_bwt import forgetting_to_bwt, bwt_metrics
@@ -395,6 +335,86 @@ if DEBUG:
 
 avl_val = make_avalanche_dataset(global_model_naive_baseline_avalanche_dataset_val)
 
+from Final_implementation_attempt.Train_ResNet20_Outdoors_LwF_vFinal import avl_test
+avl_test_outdoors = avl_test
+from Final_implementation_attempt.Train_ResNet20_Nature_LwF_vFinal import avl_test
+avl_test_nature = avl_test
+from Final_implementation_attempt.Train_ResNet20_People_LwF_vFinal import avl_test
+avl_test_people = avl_test
+from Final_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_vFinal import avl_test
+avl_test_objects_and_vehicles = avl_test
+
+print("len(avl_test_outdoors)",len(avl_test_outdoors))
+count_el = 0
+if DEBUG:
+    for i in avl_test_outdoors.targets:
+        print("Index:",count_el, "|| for i in avl_test_outdoors.targets:",i)
+        count_el += 1
+
+count_el = 0
+outdoors_avalanche_dataset_test = AvalancheDataset([avl_test_outdoors],indices=[i for i in range(600)])
+if DEBUG:
+    for i in outdoors_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in outdoors_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+print("len(avl_test_nature)",len(avl_test_nature))
+count_el = 0
+if DEBUG:
+    for i in avl_test_nature.targets:
+        print("Index:",count_el, "|| for i in avl_test_nature.targets:",i)
+        count_el += 1
+
+count_el = 0
+nature_avalanche_dataset_test = AvalancheDataset([avl_test_nature],indices=[i for i in range(900)])
+if DEBUG:
+    for i in nature_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in nature_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+print("len(avl_test_people)",len(avl_test_people))
+count_el = 0
+if DEBUG:
+    for i in avl_test_people.targets:
+        print("Index:",count_el, "|| for i in avl_test_people.targets:",i)
+        count_el += 1
+
+count_el = 0
+people_avalanche_dataset_test = AvalancheDataset([avl_test_people],indices=[i for i in range(300)])
+if DEBUG:
+    for i in people_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in people_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+print("len(avl_test_objects_and_vehicles)",len(avl_test_objects_and_vehicles))
+count_el = 0
+if DEBUG:
+    for i in avl_test_objects_and_vehicles.targets:
+        print("Index:",count_el, "|| for i in avl_test_objects_and_vehicles.targets:",i)
+        count_el += 1
+
+count_el = 0
+objects_and_vehicles_avalanche_dataset_test = AvalancheDataset([avl_test_objects_and_vehicles])
+if DEBUG:
+    for i in objects_and_vehicles_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in objects_and_vehicles_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+count_el = 0
+global_model_naive_baseline_avalanche_dataset_test = AvalancheDataset([outdoors_avalanche_dataset_test ,nature_avalanche_dataset_test, people_avalanche_dataset_test ,objects_and_vehicles_avalanche_dataset_test])
+if DEBUG:
+    for i in global_model_naive_baseline_avalanche_dataset_test.targets:
+        print("Index:",count_el, "|| for i in global_model_naive_baseline_avalanche_dataset_test.targets:",i)
+        count_el += 1
+
+count_el = 0
+if DEBUG:
+    for i in global_model_naive_baseline_avalanche_dataset_test.coarse_label:
+        print("Index:",count_el, "|| for i in global_model_naive_baseline_avalanche_dataset_test.coarse_label:",i)
+        count_el += 1
+
+avl_test = make_avalanche_dataset(global_model_naive_baseline_avalanche_dataset_test)
+
 
 if DEBUG:
     print(
@@ -416,6 +436,11 @@ avl_val = ClassificationDataset(
     [avl_val],
     data_attributes=[DataAttribute(global_model_naive_baseline_avalanche_dataset_val.coarse_label, "coarse_label"),
                      DataAttribute(global_model_naive_baseline_avalanche_dataset_val.targets, "targets")],
+)
+avl_test = ClassificationDataset(
+    [avl_test],
+    data_attributes=[DataAttribute(global_model_naive_baseline_avalanche_dataset_test.coarse_label, "coarse_label"),
+                     DataAttribute(global_model_naive_baseline_avalanche_dataset_test.targets, "targets")],
 )
 
 
@@ -442,7 +467,10 @@ print(
 class_order = [12, 17, 0, 47, 51, 2, 5, 8, 9, 10, 13, 16, 20, 22, 23, 33, 52, 53, 54, 11, 25, 28, 39, 40, 41, 48, 58, 61, 37, 49, 56, 57, 59, 35, 69, 81, 84, 85, 86, 87, 89, 90, 94]
 
 
-global_model_naive_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
+'''global_model_naive_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val},
+                                                                  class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])'''
+
+global_model_naive_baseline_benchmark = class_incremental_benchmark({"train": avl_train, "valid": avl_val, "test":avl_test},
                                                                   class_order=class_order, num_classes_per_exp=[14, 14, 15, 52])
 
 

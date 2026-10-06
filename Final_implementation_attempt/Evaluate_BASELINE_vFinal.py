@@ -860,25 +860,25 @@ if __name__ == '__main__':
     model_names_BASELINE = ['BASELINE_standard_supervised_global']
     baseline, class_to_idx_new_baseline = main(MODEL_DIR_BASELINE, DEVICE_BASELINE, model_names_BASELINE)
 
-    MODEL_DIR_BASELINE_naive = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    '''MODEL_DIR_BASELINE_naive = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_naive = 'cpu'
     model_names_BASELINE_naive = ['NAIVE_BASELINE_global']
-    baseline_naive, class_to_idx_new_baseline_naive = main(MODEL_DIR_BASELINE_naive, DEVICE_BASELINE_naive, model_names_BASELINE_naive)
+    baseline_naive, class_to_idx_new_baseline_naive = main(MODEL_DIR_BASELINE_naive, DEVICE_BASELINE_naive, model_names_BASELINE_naive)'''
 
     MODEL_DIR_BASELINE_naive_2 = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_naive_2 = 'cpu'
     model_names_BASELINE_naive_2 = ['TEST2_NAIVE_BASELINE_global']
     baseline_naive_2, class_to_idx_new_baseline_naive_2 = main(MODEL_DIR_BASELINE_naive_2, DEVICE_BASELINE_naive_2, model_names_BASELINE_naive_2)
 
-    MODEL_DIR_BASELINE_lwf = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    '''MODEL_DIR_BASELINE_lwf = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_lwf = 'cpu'
     model_names_BASELINE_lwf = ['lwf_BASELINE_global']
-    baseline_lwf, class_to_idx_new_baseline_lwf = main(MODEL_DIR_BASELINE_lwf, DEVICE_BASELINE_lwf, model_names_BASELINE_lwf)
+    baseline_lwf, class_to_idx_new_baseline_lwf = main(MODEL_DIR_BASELINE_lwf, DEVICE_BASELINE_lwf, model_names_BASELINE_lwf)'''
 
-    MODEL_DIR_BASELINE_lwf_CORRECTED = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    '''MODEL_DIR_BASELINE_lwf_CORRECTED = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_lwf_CORRECTED = 'cpu'
     model_names_BASELINE_lwf_CORRECTED = ['TEST_lwf_BASELINE_global']
-    baseline_lwf_CORRECTED, class_to_idx_new_baseline_lwf_CORRECTED = main(MODEL_DIR_BASELINE_lwf_CORRECTED, DEVICE_BASELINE_lwf_CORRECTED, model_names_BASELINE_lwf_CORRECTED)
+    baseline_lwf_CORRECTED, class_to_idx_new_baseline_lwf_CORRECTED = main(MODEL_DIR_BASELINE_lwf_CORRECTED, DEVICE_BASELINE_lwf_CORRECTED, model_names_BASELINE_lwf_CORRECTED)'''
 
     MODEL_DIR_BASELINE_lwf_CORRECTED_2 = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_BASELINE_lwf_CORRECTED_2 = 'cpu'
@@ -951,7 +951,10 @@ if __name__ == '__main__':
                                     "Evaluating BASELINE_standard_supervised_global on first_experience_test_objects_and_vehicles")
 
 
-    print("\n")
+#Commented-out because no NAIVE_BASELINE_global_model has been trained, as this was the baseline global model where the experiences did not contain part of the data from all specialised
+    # #subsets, but the entire train set of a couple of specialised subsets in each experience, making it an unfair baseline, as unless discussing specialised models, there is no reason
+    # for each experience not to include part of each specialised subset
+    '''print("\n")
     evaluate_baseline_vs_specialist(baseline_naive, test_loader, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on test_loader")
     evaluate_baseline_vs_specialist(baseline_naive, outdoors_loader, class_to_idx_new_baseline_naive,
@@ -994,7 +997,7 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_people, class_to_idx_new_baseline_naive,
                                     "Evaluating NAIVE_BASELINE_global on first_experience_test_people")
     evaluate_baseline_vs_specialist(baseline_naive, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive,
-                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_objects_and_vehicles")
+                                    "Evaluating NAIVE_BASELINE_global on first_experience_test_objects_and_vehicles")'''
 
     print("\n")
     evaluate_baseline_vs_specialist(baseline_naive_2, test_loader, class_to_idx_new_baseline_naive_2,
@@ -1021,7 +1024,8 @@ if __name__ == '__main__':
     print("\n")
     evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_first_experience, class_to_idx_new_baseline_naive_2,
                                     "Evaluating NAIVE_BASELINE_global_2 on first_experience (global_model_naive_baseline_val_stream_class_il[0])")
-    
+
+    # Commented-out because baseline_naive_2 was trained on experiences that contained classes from all specialised subsets, so the below do not contain test samples corresponding to the train samples found in its first, middle and last experiences
     '''print("\n")
     evaluate_baseline_vs_specialist(baseline_naive_2, last_experience_test_loader, class_to_idx_new_baseline_naive_2,
                                     "Evaluating NAIVE_BASELINE_global_2 on last_experience_test_loader")
@@ -1055,7 +1059,11 @@ if __name__ == '__main__':
                                     "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_people")
     evaluate_baseline_vs_specialist(baseline_naive_2, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_naive_2,
                                     "Evaluating NAIVE_BASELINE_global_2 on first_experience_test_objects_and_vehicles")'''
-    print("\n")
+
+    # Commented-out because no lwf_baseline_global_model has been trained, as this was the baseline global model where the experiences did not contain part of the data from all specialised
+    # #subsets, but the entire train set of a couple of specialised subsets in each experience, making it an unfair baseline, as unless discussing specialised models, there is no reason
+    # for each experience not to include part of each specialised subset
+    '''print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf, test_loader, class_to_idx_new_baseline_lwf,
                                     "Evaluating lwf_baseline_global on test_loader")
     evaluate_baseline_vs_specialist(baseline_lwf, outdoors_loader, class_to_idx_new_baseline_lwf,
@@ -1116,7 +1124,7 @@ if __name__ == '__main__':
                                     "Evaluating lwf_baseline_global on first_experience_test_people")
     evaluate_baseline_vs_specialist(baseline_lwf, first_experience_test_objects_and_vehicles,
                                     class_to_idx_new_baseline_lwf,
-                                    "Evaluating lwf_baseline_global on first_experience_test_objects_and_vehicles")
+                                    "Evaluating lwf_baseline_global on first_experience_test_objects_and_vehicles")'''
     '''
     print("\n")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED, test_loader, class_to_idx_new_baseline_lwf_CORRECTED,
