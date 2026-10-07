@@ -29,9 +29,9 @@ from Final_implementation_attempt.Train_ResNet20_Objects_and_Vehicles_LwF_vFinal
     objects_and_vehicles_specialised_models_train_stream_class_il, \
     objects_and_vehicles_specialised_models_val_stream_class_il
 from Final_implementation_attempt.Load_cifar100_vFinal import avl_test
-from Final_implementation_attempt.Global_model_LwF_BASELINE_vFinal import global_model_lwf_baseline_val_stream_class_il
+from Final_implementation_attempt.Global_model_LwF_BASELINE_vFinal import global_model_lwf_baseline_test_stream_class_il
 from Final_implementation_attempt.Global_model_NAIVE_BASELINE_vFinal import \
-    global_model_naive_baseline_val_stream_class_il
+    global_model_naive_baseline_test_stream_class_il
 from torch.utils.data import ConcatDataset, DataLoader
 from torch.nn import Module, CrossEntropyLoss
 import torch.nn.functional as F
@@ -1011,19 +1011,19 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline_naive_2, objects_and_vehicles_loader, class_to_idx_new_baseline_naive_2,
                                     "Evaluating NAIVE_BASELINE_global_2 on objects_and_vehicles_loader")
 
-    print("\n") #global_model_lwf_baseline_val_stream_class_il
-    global_model_naive_baseline_val_stream_last_experience = DataLoader(global_model_naive_baseline_val_stream_class_il[2].dataset, batch_size=32, shuffle=False)
-    global_model_naive_baseline_val_stream_middle_experience = DataLoader(global_model_naive_baseline_val_stream_class_il[1].dataset,batch_size=32, shuffle=False)
-    global_model_naive_baseline_val_stream_first_experience = DataLoader(global_model_naive_baseline_val_stream_class_il[0].dataset,batch_size=32, shuffle=False)
+    print("\n") #global_model_lwf_baseline_test_stream_class_il
+    global_model_naive_baseline_test_stream_last_experience = DataLoader(global_model_naive_baseline_test_stream_class_il[2].dataset, batch_size=32, shuffle=False)
+    global_model_naive_baseline_test_stream_middle_experience = DataLoader(global_model_naive_baseline_test_stream_class_il[1].dataset,batch_size=32, shuffle=False)
+    global_model_naive_baseline_test_stream_first_experience = DataLoader(global_model_naive_baseline_test_stream_class_il[0].dataset,batch_size=32, shuffle=False)
 
-    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_last_experience, class_to_idx_new_baseline_naive_2,
-                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience (global_model_naive_baseline_val_stream_class_il[2])")
+    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_test_stream_last_experience, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on last_experience (global_model_naive_baseline_test_stream_class_il[2])")
     print("\n")
-    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_middle_experience, class_to_idx_new_baseline_naive_2,
-                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience (global_model_naive_baseline_val_stream_class_il[2])")
+    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_test_stream_middle_experience, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on middle_experience (global_model_naive_baseline_test_stream_class_il[2])")
     print("\n")
-    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_val_stream_first_experience, class_to_idx_new_baseline_naive_2,
-                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience (global_model_naive_baseline_val_stream_class_il[0])")
+    evaluate_baseline_vs_specialist(baseline_naive_2, global_model_naive_baseline_test_stream_first_experience, class_to_idx_new_baseline_naive_2,
+                                    "Evaluating NAIVE_BASELINE_global_2 on first_experience (global_model_naive_baseline_test_stream_class_il[0])")
 
     # Commented-out because baseline_naive_2 was trained on experiences that contained classes from all specialised subsets, so the below do not contain test samples corresponding to the train samples found in its first, middle and last experiences
     '''print("\n")
@@ -1150,24 +1150,24 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, objects_and_vehicles_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on objects_and_vehicles_loader")
     
-    print("\n") #global_model_lwf_baseline_val_stream_class_il
-    global_model_lwf_baseline_val_stream_last_experience = DataLoader(global_model_lwf_baseline_val_stream_class_il[2].dataset, batch_size=32, shuffle=False)
-    global_model_lwf_baseline_val_stream_middle_experience = DataLoader(global_model_lwf_baseline_val_stream_class_il[1].dataset,batch_size=32, shuffle=False)
-    global_model_lwf_baseline_val_stream_first_experience = DataLoader(global_model_lwf_baseline_val_stream_class_il[0].dataset,batch_size=32, shuffle=False)
+    print("\n") #global_model_lwf_baseline_test_stream_class_il
+    global_model_lwf_baseline_test_stream_last_experience = DataLoader(global_model_lwf_baseline_test_stream_class_il[2].dataset, batch_size=32, shuffle=False)
+    global_model_lwf_baseline_test_stream_middle_experience = DataLoader(global_model_lwf_baseline_test_stream_class_il[1].dataset,batch_size=32, shuffle=False)
+    global_model_lwf_baseline_test_stream_first_experience = DataLoader(global_model_lwf_baseline_test_stream_class_il[0].dataset,batch_size=32, shuffle=False)
 
-    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_val_stream_last_experience,
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_test_stream_last_experience,
                                     class_to_idx_new_baseline_lwf_CORRECTED_2,
-                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience (global_model_lwf_baseline_val_stream_class_il[2])")
-
-    print("\n")
-    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_val_stream_middle_experience,
-                                    class_to_idx_new_baseline_lwf_CORRECTED_2,
-                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience (global_model_lwf_baseline_val_stream_class_il[1])")
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience (global_model_lwf_baseline_test_stream_class_il[2])")
 
     print("\n")
-    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_val_stream_first_experience,
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_test_stream_middle_experience,
                                     class_to_idx_new_baseline_lwf_CORRECTED_2,
-                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience (global_model_lwf_baseline_val_stream_class_il[0],)")
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on middle_experience (global_model_lwf_baseline_test_stream_class_il[1])")
+
+    print("\n")
+    evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, global_model_lwf_baseline_test_stream_first_experience,
+                                    class_to_idx_new_baseline_lwf_CORRECTED_2,
+                                    "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience (global_model_lwf_baseline_test_stream_class_il[0],)")
     '''
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, last_experience_test_loader, class_to_idx_new_baseline_lwf_CORRECTED_2,
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on last_experience_test_loader")

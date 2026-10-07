@@ -584,6 +584,7 @@ print('Print global_model_lwf_baseline_benchmark.streams["valid"]',
 # experience being used for a subsequent incremental training round.
 global_model_lwf_baseline_train_stream_class_il = global_model_lwf_baseline_benchmark.streams["train"]
 global_model_lwf_baseline_val_stream_class_il = global_model_lwf_baseline_benchmark.streams["valid"]
+global_model_lwf_baseline_test_stream_class_il = global_model_lwf_baseline_benchmark.streams["test"]
 
 if DEBUG:
     for i, exp in enumerate(global_model_lwf_baseline_train_stream_class_il):
