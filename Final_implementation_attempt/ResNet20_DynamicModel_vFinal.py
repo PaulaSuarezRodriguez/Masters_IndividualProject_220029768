@@ -90,15 +90,15 @@ class ResNet20_DynamicModel(nn.Module):
         self.in_features = 64
         self.in_planes = 16
 
+        # Feature extractor (fixed; does not expand)
         self.conv1 = nn.Conv2d(3,16,kernel_size=3,stride=1,padding=1,bias=False)
         self.bn1 = nn.BatchNorm2d(16)#, track_running_stats=False)
         self.layer1 = self._make_layer(16,3,stride=1)
         self.layer2 = self._make_layer(32,3,stride=2)
         self.layer3 = self._make_layer(64,3,stride=2)
 
-        # ---------------------------------------------------------
+
         # Dynamic classifier
-        # ---------------------------------------------------------
         self.linear = nn.Linear(in_features=self.in_features,out_features=self.num_classes)
 
         # Preserve your original Kaiming initialization.

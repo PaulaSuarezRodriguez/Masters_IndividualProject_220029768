@@ -493,8 +493,8 @@ class LwFTrainer(SupervisedTemplate):
 
                 # Ordinary CE loss for current experience
                 ce_loss = self.criterion(
-                    self.mb_output,
-                    targets,
+                    self.mb_output, # models prediction
+                    targets, #mapped ground truth labels
                 )
 
                 # LwF -- single teacher
@@ -1061,7 +1061,6 @@ class LwFTrainer(SupervisedTemplate):
 
 
         # Save teacher AFTER completing the experience
-
         self.teacher = copy.deepcopy(self.model)
         print("print(self.teacher.training) -- before self.teacher.eval()", self.teacher.training)
         self.teacher.eval()
