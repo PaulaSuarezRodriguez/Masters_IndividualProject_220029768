@@ -361,10 +361,6 @@ if DEBUG:
         print("Index:",count_el, "|| for i in outdoors_avalanche_dataset_test.targets:",i)
         count_el += 1
 
-for i in outdoors_avalanche_dataset_test.targets:
-    print("Index:",count_el, "|| for i in outdoors_avalanche_dataset_test.targets:",i)
-    count_el += 1
-
 print("len(avl_test_nature)",len(avl_test_nature))
 count_el = 0
 if DEBUG:
@@ -372,9 +368,6 @@ if DEBUG:
         print("Index:",count_el, "|| for i in avl_test_nature.targets:",i)
         count_el += 1
 
-for i in avl_test_nature.targets:
-    print("Index:",count_el, "|| for i in avl_test_nature.targets:",i)
-    count_el += 1
 count_el = 0
 # nature new_to_original: {0: 0, 1: 47, 2: 51, 3: 52, 4: 53, 5: 54, 6: 56, 7: 57, 8: 59}
 #[i for i in chain(range(1400, 1500), range(800, 900), range(600, 700), range(900, 1000), range(400, 500), range(700, 800), range(0, 100), range(1100, 1200))]
@@ -383,10 +376,6 @@ if DEBUG:
     for i in nature_avalanche_dataset_test.targets:
         print("Index:",count_el, "|| for i in nature_avalanche_dataset_test.targets:",i)
         count_el += 1
-
-for i in nature_avalanche_dataset_test.targets:
-    print("Index:",count_el, "|| for i in nature_avalanche_dataset_test.targets:",i)
-    count_el += 1
 
 print("len(avl_test_people)",len(avl_test_people))
 count_el = 0
@@ -403,12 +392,6 @@ if DEBUG:
         print("Index:",count_el, "|| for i in people_avalanche_dataset_test.targets:",i)
         count_el += 1
 
-
-for i in people_avalanche_dataset_test.targets:
-    print("Index:",count_el, "|| for i in people_avalanche_dataset_test.targets:",i)
-    count_el += 1
-
-
 print("len(avl_test_objects_and_vehicles)",len(avl_test_objects_and_vehicles))
 count_el = 0
 #new_to_original: {5, 8, 9, 10, 13, 16, 20, 22, 25, 28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94}
@@ -417,75 +400,7 @@ if DEBUG:
         print("Index:",count_el, "|| for i in avl_test_objects_and_vehicles.targets:",i)
         count_el += 1
 
-
-for i in avl_test_objects_and_vehicles.targets:
-    print("Index:",count_el, "|| for i in avl_test_objects_and_vehicles.targets:",i)
-    count_el += 1
-    #if i == 13: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-     #   print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-
-    '''if i == 22:
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 25:
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 28: #28, 39, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 39: #, 40, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 40: #, 41, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 41: #, 48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 48: #48, 58, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 58: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 61: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 69: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 81: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 84: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 85: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 86: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 87: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 89: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 90: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)
-        if i == 94: #, 61, 69, 81, 84, 85, 86, 87, 89, 90, 94
-            print("Index:", count_el, "|| for i in avl_test_objects_and_vehicles.targets:", i)'''
-
 count_el = 0
-'''objects_and_vehicles_avalanche_dataset_test = AvalancheDataset([avl_test_objects_and_vehicles], indices=[i for i in chain(range(200, 300), #5
-                                                                                                                        range(2000, 2100), #8
-                                                                                                                        range(1400, 1500), #9
-                                                                                                                        range(300, 400), #10
-                                                                                                                        range(500, 600), #13
-                                                                                                                        range(700, 800), #16
-                                                                                                                        range(0, 100), #20
-                                                                                                                        range(1300, 1400), #22
-                                                                                                                        range(1300, 1400), #25
-                                                                                                                          #28
-                                                                                                                          #39
-                                                                                                                          #40
-                                                                                                                          #41
-                                                                                                                        #48,
-                                                                                                                          # 58,
-                                                                                                                          #61,
-                                                                                                                          # #69,
-                                                                                                                        range(1800, 1900), #84
-                                                                                                                        range(1900, 2000), #87
-                                                                                                                        range(2100, 2200), #39
-                                                                                                                        range(2200, 2300), #28
-                                                                                                                        range(2300, 2400), #90
-                                                                                                                        range(2400, 2500), #86
-                                                                                                                        )])'''
 objects_and_vehicles_avalanche_dataset_test = AvalancheDataset(
     [avl_test_objects_and_vehicles],
     indices=[
@@ -525,6 +440,7 @@ if DEBUG:
 
 count_el = 0
 global_model_naive_baseline_avalanche_dataset_test = AvalancheDataset([outdoors_avalanche_dataset_test ,nature_avalanche_dataset_test, people_avalanche_dataset_test ,objects_and_vehicles_avalanche_dataset_test])
+
 if DEBUG:
     for i in global_model_naive_baseline_avalanche_dataset_test.targets:
         print("Index:",count_el, "|| for i in global_model_naive_baseline_avalanche_dataset_test.targets:",i)

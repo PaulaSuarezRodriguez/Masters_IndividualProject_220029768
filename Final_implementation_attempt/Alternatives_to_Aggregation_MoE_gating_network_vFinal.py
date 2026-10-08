@@ -1349,7 +1349,7 @@ if __name__ == '__main__':
                               original_to_aggregated_dict,"Evaluating global model on middle_experience_test_objects_and_vehicles")
 
     print(
-        "\n\n############# Evaluating FINE-TUNED global model on first_experiences -- is it the same as Evaluating FINE-TUNED global model on test_loader? If so, then Temporal-CF may be fixed by my strategy too!!! #############")
+        "\n\n############# Evaluating global model on first_experiences -- is it the same as Evaluating global model on test_loader? If so, then Temporal-CF may be fixed by my strategy too!!! #############")
     evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,
                               "Evaluating global model on first_experience_test_loader")
     evaluate_global_specialist_model(global_model, first_experience_test_outdoors,
