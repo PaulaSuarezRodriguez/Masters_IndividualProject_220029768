@@ -1387,7 +1387,7 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_lwf_CORRECTED_2,
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_objects_and_vehicles")'''
 
-    MODEL_DIR_final_specialised = f"../Final_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_outdoors = ['outdoors']
     final_outdoors_model, class_to_idx_new_final_outdoors = main(MODEL_DIR_final_specialised,
@@ -1439,7 +1439,7 @@ if __name__ == '__main__':
                                     "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_val_loader")
 
     ##############################################################################################################################################################################################################################
-    MODEL_DIR_final_specialised = f"../Final_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    MODEL_DIR_final_specialised = f"../Report_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
     DEVICE_final_specialised = 'cpu'
     model_names_final_outdoors = ['outdoors']
     final_outdoors_model, class_to_idx_new_final_outdoors = main(MODEL_DIR_final_specialised,
