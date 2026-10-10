@@ -492,6 +492,26 @@ val_loader = DataLoader(
     batch_size=32,
     shuffle=True
 )
+outdoors_val_loader = DataLoader(
+    combined_dataset_outdoors_val,
+    batch_size=32,
+    shuffle=False
+)
+nature_val_loader = DataLoader(
+    combined_dataset_nature_val,
+    batch_size=32,
+    shuffle=False
+)
+people_val_loader = DataLoader(
+    combined_dataset_people_val,
+    batch_size=32,
+    shuffle=False
+)
+objects_and_vehicles_val_loader = DataLoader(
+    combined_dataset_objects_and_vehicles_val,
+    batch_size=32,
+    shuffle=False
+)
 print("print val_loader", val_loader)
 print("print val_loader.dataset", val_loader.dataset)
 
@@ -1366,8 +1386,119 @@ if __name__ == '__main__':
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_people")
     evaluate_baseline_vs_specialist(baseline_lwf_CORRECTED_2, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline_lwf_CORRECTED_2,
                                     "Evaluating lwf_baseline_global_CORRECTED_2 on first_experience_test_objects_and_vehicles")'''
-    
-    
+
+    MODEL_DIR_final_specialised = f"../Final_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_final_specialised = 'cpu'
+    model_names_final_outdoors = ['outdoors']
+    final_outdoors_model, class_to_idx_new_final_outdoors = main(MODEL_DIR_final_specialised,
+                                                                 DEVICE_final_specialised,
+                                                                 model_names_final_outdoors)
+
+    model_names_final_nature = ['nature']
+    final_nature_model, class_to_idx_new_final_nature = main(MODEL_DIR_final_specialised,
+                                                             DEVICE_final_specialised,
+                                                             model_names_final_nature)
+
+    model_names_final_people = ['people']
+    final_people_model, class_to_idx_new_final_people = main(MODEL_DIR_final_specialised,
+                                                             DEVICE_final_specialised,
+                                                             model_names_final_people)
+
+    model_names_final_objects_and_vehicles = ['objects_and_vehicles']
+    final_objects_and_vehicles_model, class_to_idx_new_final_objects_and_vehicles = main(MODEL_DIR_final_specialised,
+                                                                                         DEVICE_final_specialised,
+                                                                                         model_names_final_objects_and_vehicles)
+    print(
+        "\n\n############################# Every specialised model evaluated on its own test set: #############################")
+    evaluate_baseline_vs_specialist(final_outdoors_model, outdoors_loader, class_to_idx_new_final_outdoors,
+                                    "Evaluating final_specialised_outdoors_model on outdoors_loader")
+
+    evaluate_baseline_vs_specialist(final_nature_model, nature_loader, class_to_idx_new_final_nature,
+                                    "Evaluating final_specialised_nature_model on nature_loader")
+
+    evaluate_baseline_vs_specialist(final_people_model, people_loader, class_to_idx_new_final_people,
+                                    "Evaluating final_specialised_people_model on people_loader")
+
+    evaluate_baseline_vs_specialist(final_objects_and_vehicles_model, objects_and_vehicles_loader,
+                                    class_to_idx_new_final_objects_and_vehicles,
+                                    "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_loader")
+
+    print(
+        "\n\n############################# Every specialised model evaluated on its own VAL set: #############################")
+    evaluate_baseline_vs_specialist(final_outdoors_model, outdoors_val_loader, class_to_idx_new_final_outdoors,
+                                    "Evaluating final_specialised_outdoors_model on outdoors_val_loader")
+
+    evaluate_baseline_vs_specialist(final_nature_model, nature_val_loader, class_to_idx_new_final_nature,
+                                    "Evaluating final_specialised_nature_model on nature_val_loader")
+
+    evaluate_baseline_vs_specialist(final_people_model, people_val_loader, class_to_idx_new_final_people,
+                                    "Evaluating final_specialised_people_model on people_val_loader")
+
+    evaluate_baseline_vs_specialist(final_objects_and_vehicles_model, objects_and_vehicles_val_loader,
+                                    class_to_idx_new_final_objects_and_vehicles,
+                                    "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_val_loader")
+
+    ##############################################################################################################################################################################################################################
+    MODEL_DIR_final_specialised = f"../Final_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_final_specialised = 'cpu'
+    model_names_final_outdoors = ['outdoors']
+    final_outdoors_model, class_to_idx_new_final_outdoors = main(MODEL_DIR_final_specialised,
+                                                                 DEVICE_final_specialised,
+                                                                 model_names_final_outdoors)
+
+    model_names_final_nature = ['nature']
+    final_nature_model, class_to_idx_new_final_nature = main(MODEL_DIR_final_specialised,
+                                                             DEVICE_final_specialised,
+                                                             model_names_final_nature)
+
+    model_names_final_people = ['people']
+    final_people_model, class_to_idx_new_final_people = main(MODEL_DIR_final_specialised,
+                                                             DEVICE_final_specialised,
+                                                             model_names_final_people)
+
+    model_names_final_objects_and_vehicles = ['objects_and_vehicles']
+    final_objects_and_vehicles_model, class_to_idx_new_final_objects_and_vehicles = main(MODEL_DIR_final_specialised,
+                                                                                         DEVICE_final_specialised,
+                                                                                         model_names_final_objects_and_vehicles)
+    print(
+        "\n\n############################# Every specialised model evaluated on its own test set FOR EACH EXPERIENCE SEPARATELY: #############################")
+    evaluate_baseline_vs_specialist(final_outdoors_model, outdoors_loader, class_to_idx_new_final_outdoors,
+                                    "Evaluating final_specialised_outdoors_model on outdoors_loader")
+    evaluate_baseline_vs_specialist(final_outdoors_model, first_experience_test_outdoors, class_to_idx_new_final_outdoors,
+                                    "Evaluating final_specialised_outdoors_model on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(final_outdoors_model, middle_experience_test_outdoors, class_to_idx_new_final_outdoors,
+                                    "Evaluating final_specialised_outdoors_model on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(final_outdoors_model, last_experience_test_outdoors, class_to_idx_new_final_outdoors,
+                                    "Evaluating final_specialised_outdoors_model on last_experience_test_outdoors")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(final_nature_model, nature_loader, class_to_idx_new_final_nature,
+                                    "Evaluating final_specialised_nature_model on nature_loader")
+    evaluate_baseline_vs_specialist(final_nature_model, first_experience_test_nature, class_to_idx_new_final_nature,
+                                    "Evaluating final_specialised_nature_model on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(final_nature_model, middle_experience_test_nature, class_to_idx_new_final_nature,
+                                    "Evaluating final_specialised_nature_model on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(final_nature_model, last_experience_test_nature, class_to_idx_new_final_nature,
+                                    "Evaluating final_specialised_nature_model on last_experience_test_nature")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(final_people_model, people_loader, class_to_idx_new_final_people,
+                                    "Evaluating final_specialised_people_model on people_loader")
+    evaluate_baseline_vs_specialist(final_people_model, first_experience_test_people, class_to_idx_new_final_people,
+                                    "Evaluating final_specialised_people_model on first_experience_test_people")
+    evaluate_baseline_vs_specialist(final_people_model, middle_experience_test_people, class_to_idx_new_final_people,
+                                    "Evaluating final_specialised_people_model on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(final_people_model, last_experience_test_people, class_to_idx_new_final_people,
+                                    "Evaluating final_specialised_people_model on last_experience_test_people")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(final_objects_and_vehicles_model, objects_and_vehicles_loader, class_to_idx_new_final_objects_and_vehicles,
+                                    "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_loader")
+    evaluate_baseline_vs_specialist(final_objects_and_vehicles_model, first_experience_test_objects_and_vehicles, class_to_idx_new_final_objects_and_vehicles,
+                                    "Evaluating final_specialised_objects_and_vehicles_model on first_experience_test_objects_and_vehicles")
+    evaluate_baseline_vs_specialist(final_objects_and_vehicles_model, middle_experience_test_objects_and_vehicles, class_to_idx_new_final_objects_and_vehicles,
+                                    "Evaluating final_specialised_objects_and_vehicles_model on middle_experience_test_objects_and_vehicles")
+    evaluate_baseline_vs_specialist(final_objects_and_vehicles_model, last_experience_test_objects_and_vehicles, class_to_idx_new_final_objects_and_vehicles,
+                                    "Evaluating final_specialised_objects_and_vehicles_model on last_experience_test_objects_and_vehicles")
+    ##############################################################################################################################################################################################################################
+
     # COMPARISONS THAT CANNOT BE MADE IN THIS FILE DUE TO THE STRUCTURE OF MoE models (whether baselines or final MoE models). Peform this same comparisons by running evaluating the
     # MoE models in their own files and comparing with the results in this file !!!!!!!!!!!!!!!!
     '''MODEL_DIR_BASELINE = f"../Report_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Report_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
