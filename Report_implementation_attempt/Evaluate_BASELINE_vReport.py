@@ -280,16 +280,16 @@ print("print first_experience_test_loader.dataset", first_experience_test_loader
 
 combined_dataset_outdoors_middle_experience_test = ConcatDataset([
     #outdoors_specialised_models_test_stream_class_il[0].dataset,
-    #outdoors_specialised_models_test_stream_class_il[1].dataset,
-    outdoors_specialised_models_test_stream_class_il[2].dataset,
+    outdoors_specialised_models_test_stream_class_il[1].dataset,
+    #outdoors_specialised_models_test_stream_class_il[2].dataset,
     #outdoors_specialised_models_test_stream_class_il[3].dataset,
     #outdoors_specialised_models_test_stream_class_il[4].dataset,
 ])
 
 combined_dataset_nature_middle_experience_test = ConcatDataset([
     #nature_specialised_models_test_stream_class_il[0].dataset,
-    #nature_specialised_models_test_stream_class_il[1].dataset,
-    nature_specialised_models_test_stream_class_il[2].dataset,
+    nature_specialised_models_test_stream_class_il[1].dataset,
+    #nature_specialised_models_test_stream_class_il[2].dataset,
     #nature_specialised_models_test_stream_class_il[3].dataset,
     #nature_specialised_models_test_stream_class_il[4].dataset,
 ])
