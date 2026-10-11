@@ -1182,7 +1182,7 @@ if __name__ == "__main__":
                     'feature_dim': lwf_trainer.model.linear.weight.shape[1],
                     'subset_name': 'outdoors_specialised_models_train_subset'
                 }
-                with open('./final_specialised_models/Experience_0_outdoors_metadata.pkl', 'wb') as f:
+                with open('final_specialised_models/Experience_0_final_outdoors_metadata.pkl', 'wb') as f:
                     pickle.dump(metadata, f)
                 print("✓ Saved metadata for aggregation")
             if i == 2:

@@ -626,9 +626,13 @@ def load_baselines(
     local_to_global_indices = {}
     for model_name in model_names:
         try:
-            if "BASELINE" not in model_name:
+            if "BASELINE" not in model_name and "Experience" not in model_name:#if "BASELINE" not in model_name:
                 state_dict = torch.load(f"{model_dir}final_{model_name}_model.pt", map_location=device)
-            else:
+            if "BASELINE" in model_name and "Experience" not in model_name:#else:
+                state_dict = torch.load(f"{model_dir}{model_name}_model.pt", map_location=device)
+            if "BASELINE" not in model_name and "Experience" in model_name:
+                state_dict = torch.load(f"{model_dir}{model_name}_model.pt", map_location=device)
+            if "BASELINE" in model_name and "Experience" in model_name:
                 state_dict = torch.load(f"{model_dir}{model_name}_model.pt", map_location=device)
 
             # Determine number of classes from classifier weight shape
@@ -790,6 +794,36 @@ if __name__ == '__main__':
                                     "Evaluating standard_Supervised_Learning_BASELINE on outdoors_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, outdoors_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_outdoors_model on outdoors_loader")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(baseline, outdoors_loader, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_outdoors on outdoors_loader")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_outdoors, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_outdoors on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_outdoors, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_outdoors on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_outdoors, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_outdoors on last_experience_test_outdoors")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, outdoors_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_outdoors on outdoors_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, first_experience_test_outdoors, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_outdoors on first_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, middle_experience_test_outdoors, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_outdoors on middle_experience_test_outdoors")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, last_experience_test_outdoors, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_outdoors on last_experience_test_outdoors")
+
+    print("\n\n")
+    MODEL_DIR_final_specialised = f"../Final_implementation_attempt/final_specialised_models/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
+    DEVICE_final_specialised = 'cpu'
+    model_names_final_specialised = ['Experience_0_final_outdoors']
+    final_specialised_model, class_to_idx_new_final_specialised = main(MODEL_DIR_final_specialised,
+                                                                       DEVICE_final_specialised,
+                                                                       model_names_final_specialised)
+
+    evaluate_baseline_vs_specialist(final_specialised_model, first_experience_test_outdoors, class_to_idx_new_final_specialised,
+                                    "Evaluating Experience_0_final_outdoors_model on first_experience_test_outdoors")
+    print("\n")
 
     ###########################################################################################################################################################################################################################################
 
@@ -817,7 +851,25 @@ if __name__ == '__main__':
                                     "Evaluating standard_Supervised_Learning_BASELINE on nature_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, nature_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_nature_model on nature_loader")
-
+    print("\n\n")
+    evaluate_baseline_vs_specialist(baseline, nature_loader, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_nature on nature_loader")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_nature, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_nature on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_nature, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_nature on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_nature, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_nature on last_experience_test_nature")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, nature_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_nature on nature_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, first_experience_test_nature, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_nature on first_experience_test_nature")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, middle_experience_test_nature, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_nature on middle_experience_test_nature")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, last_experience_test_nature, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_nature on last_experience_test_nature")
+    print("\n")
     ###########################################################################################################################################################################################################################################
 
     MODEL_DIR_BASELINE = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')
@@ -845,6 +897,24 @@ if __name__ == '__main__':
     evaluate_baseline_vs_specialist(final_specialised_model, people_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_people_model on people_loader")
     print("\n\n")
+    evaluate_baseline_vs_specialist(baseline, people_loader, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_people on people_loader")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_people, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_people on first_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_people, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_people on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_people, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_people on last_experience_test_people")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, people_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_people on people_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, first_experience_test_people, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_people on first_experience_test_people")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, middle_experience_test_people, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_people on middle_experience_test_people")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, last_experience_test_people, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_people on last_experience_test_people")
+    print("\n")
 
     ###########################################################################################################################################################################################################################################
 
@@ -867,12 +937,31 @@ if __name__ == '__main__':
     print(
         "############################# objects_and_vehicles model --- baseline (objects_and_vehicles model trained in standard supervised learning) vs final_specialised_objects_and_vehicles_model: #############################")
     evaluate_baseline_vs_specialist(baseline, objects_and_vehicles_loader, class_to_idx_new_baseline,
-                                    "Evaluating BASELINE objects_and_vehicles model on objects_and_vehicles_loader")
+                                    "Evaluating NAIVE BASELINE objects_and_vehicles model on objects_and_vehicles_loader")
     evaluate_baseline_vs_specialist(standard_Supervised_Learning, objects_and_vehicles_loader, class_to_idx_new_Standard_Supervised_Learning,
                                     "Evaluating standard_Supervised_Learning_BASELINE on objects_and_vehicles_loader")
     evaluate_baseline_vs_specialist(final_specialised_model, objects_and_vehicles_loader, class_to_idx_new_final_specialised,
                                     "Evaluating final_specialised_objects_and_vehicles_model on objects_and_vehicles_loader")
+    
     print("\n\n")
+    evaluate_baseline_vs_specialist(baseline, objects_and_vehicles_loader, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_objects_and_vehicles on objects_and_vehicles_loader")
+    evaluate_baseline_vs_specialist(baseline, first_experience_test_objects_and_vehicles, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_objects_and_vehicles on first_experience_test_objects_and_vehicles")
+    evaluate_baseline_vs_specialist(baseline, middle_experience_test_objects_and_vehicles, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_objects_and_vehicles on middle_experience_test_objects_and_vehicles")
+    evaluate_baseline_vs_specialist(baseline, last_experience_test_objects_and_vehicles, class_to_idx_new_baseline,
+                                    "Evaluating NAIVE_BASELINE_objects_and_vehicles on last_experience_test_objects_and_vehicles")
+    print("\n\n")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, objects_and_vehicles_loader, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles on objects_and_vehicles_loader")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, first_experience_test_objects_and_vehicles, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles on first_experience_test_objects_and_vehicles")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, middle_experience_test_objects_and_vehicles, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles on middle_experience_test_objects_and_vehicles")
+    evaluate_baseline_vs_specialist(standard_Supervised_Learning, last_experience_test_objects_and_vehicles, class_to_idx_new_Standard_Supervised_Learning,
+                                    "Evaluating STANDARD_SUPERVISED_LEARNING_BASELINE_objects_and_vehicles on last_experience_test_objects_and_vehicles")
+    print("\n")
 
     ###########################################################################################################################################################################################################################################
     MODEL_DIR_BASELINE = f"../Final_implementation_attempt/final_specialised_models_BASELINE/"  # MODEL_DIR = Path(f"../Final_implementation_attempt/final_specialised_models") #MODEL_DIR = Path('./final_specialised_models')

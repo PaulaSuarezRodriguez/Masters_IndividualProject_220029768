@@ -985,6 +985,9 @@ def fine_tune_classifier(
         lr: float = 1e-4,
         momentum: float = 0.9,
         weight_decay: float = 5e-4,
+        EPOCH_GREATER_THAN_12: bool = False,
+        FEATURE_EXTRACTOR_UNFROZEN: bool = False,
+        FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH: bool = False,
 ):
     """
     Fine-tune ONLY the classifier of an aggregated/global model.
@@ -1145,34 +1148,61 @@ def fine_tune_classifier(
             f"Accuracy: {accuracy:.2f}% | "
             f"lr: {lr}"
         )
-        if epoch < 12:
-            lr = lr * 0.1
-        if epoch > 12:
-            lr = lr * 0.1 * 0.1 * 0.1
-        if epoch == 19:
-            # ---------------------------------------------------------
-            print("FEATURE EXTRACTOR UNFROZEN")
-            # ---------------------------------------------------------
-            for param_name, param in model.named_parameters():  # for param in model.feature_extractor.parameters():
-                if "linear" not in param_name:
+        if EPOCH_GREATER_THAN_12:
+            if epoch < 12:
+                lr = lr * 0.1
+            if epoch > 12:
+                lr = lr * 0.1 * 0.1 * 0.1
+        if FEATURE_EXTRACTOR_UNFROZEN:
+            if epoch > 19:#if epoch == 19:
+                # ---------------------------------------------------------
+                print("FEATURE EXTRACTOR UNFROZEN")
+                # ---------------------------------------------------------
+                for param_name, param in model.named_parameters():  # for param in model.feature_extractor.parameters():
+                    if "linear" not in param_name:
+                        param.requires_grad = True
+                    # print("print(param) of if linear not in param_name:", param_name)
+
+                # ---------------------------------------------------------
+                # Ensure classifier remains trainable
+                # ---------------------------------------------------------
+                for param in model.linear.parameters():
                     param.requires_grad = True
-                # print("print(param) of if linear not in param_name:", param_name)
 
-            # ---------------------------------------------------------
-            # Ensure classifier remains trainable
-            # ---------------------------------------------------------
-            for param in model.linear.parameters():
-                param.requires_grad = True
+                # ---------------------------------------------------------
+                # Optimizer: ONLY classifier parameters
+                # ---------------------------------------------------------
+                optimizer = torch.optim.SGD(
+                    model.parameters(),
+                    lr=lr,
+                    momentum=momentum,
+                    weight_decay=weight_decay,
+                )
+            if FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH:
+                if epoch >= 29:#if epoch == 10:
+                    # ---------------------------------------------------------
+                    print("FEATURE EXTRACTOR UNFROZEN FOR_LAST_EPOCH")
+                    # ---------------------------------------------------------
+                    for param_name, param in model.named_parameters():  # for param in model.feature_extractor.parameters():
+                        if "linear" not in param_name:
+                            param.requires_grad = True
+                        # print("print(param) of if linear not in param_name:", param_name)
 
-            # ---------------------------------------------------------
-            # Optimizer: ONLY classifier parameters
-            # ---------------------------------------------------------
-            optimizer = torch.optim.SGD(
-                model.parameters(),
-                lr=lr,
-                momentum=momentum,
-                weight_decay=weight_decay,
-            )
+                    # ---------------------------------------------------------
+                    # Ensure classifier remains trainable
+                    # ---------------------------------------------------------
+                    for param in model.linear.parameters():
+                        param.requires_grad = True
+
+                    # ---------------------------------------------------------
+                    # Optimizer: ONLY classifier parameters
+                    # ---------------------------------------------------------
+                    optimizer = torch.optim.SGD(
+                        model.parameters(),
+                        lr=lr,
+                        momentum=momentum,
+                        weight_decay=weight_decay,
+                    )
 
         if avg_loss >= prev_loss : #and accuracy > prev_accuracy:
             loss_counter += 1
@@ -1577,13 +1607,93 @@ if __name__ == '__main__':
     evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
     evaluate_aggregated_model(global_model, objects_and_vehicles_loader, "Evaluating global model on objects_and_vehicles_loader")
     print("\n\n############# FINE-TUNED CLASSIFIER (not feature extractor) EVALUATION BEGINS NOW!!!! #############")
-    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    '''EPOCH_GREATER_THAN_12 = True
+    FEATURE_EXTRACTOR_UNFROZEN = True
+
+    #EPOCH_GREATER_THAN_12 = False
+    #FEATURE_EXTRACTOR_UNFROZEN = False
+
+    #EPOCH_GREATER_THAN_12 = True
+    #FEATURE_EXTRACTOR_UNFROZEN = False
+
+    #EPOCH_GREATER_THAN_12 = False
+    #FEATURE_EXTRACTOR_UNFROZEN = True
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
     evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on outdoors_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on nature_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on people_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on objects_and_vehicles_loader")
+
+    print("\n\n")'''
+    EPOCH_GREATER_THAN_12 = False
+    FEATURE_EXTRACTOR_UNFROZEN = False
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor) on test_loader (i.e. on the ENTIRE TEST SET)")
+    '''evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED global model on outdoors_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED global model on nature_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED global model on people_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on last_experience_test_loader")
+
+    '''print("\n\n")
+    EPOCH_GREATER_THAN_12 = True
+    FEATURE_EXTRACTOR_UNFROZEN = False
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    '''
+    print("\n\n")
+    EPOCH_GREATER_THAN_12 = False
+    FEATURE_EXTRACTOR_UNFROZEN = True
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    '''evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED global model on outdoors_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED global model on nature_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED global model on people_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on last_experience_test_loader")
+
+    '''print("\n\n")
+    EPOCH_GREATER_THAN_12 = True
+    FEATURE_EXTRACTOR_UNFROZEN = False
+    FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = True
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH={FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    '''
+    print("\n\n")
+    EPOCH_GREATER_THAN_12 = False
+    FEATURE_EXTRACTOR_UNFROZEN = False
+    FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = True
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH={FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    '''evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED global model on outdoors_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED global model on nature_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED global model on people_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,
+                              "Evaluating FINE-TUNED global model on last_experience_test_loader")
 
     '''
     print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
