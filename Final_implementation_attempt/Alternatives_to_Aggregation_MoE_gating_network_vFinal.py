@@ -1,3 +1,6 @@
+from Final_implementation_attempt.Config_vFinal import set_seed
+set_seed()  # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
+
 import torch
 import torch.nn as nn
 import pickle

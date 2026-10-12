@@ -1,3 +1,6 @@
+from Final_implementation_attempt.Config_vFinal import set_seed
+set_seed()  # supposedly ensuring seed in split_validation_class_balanced since this method does not have a seed parameter when split_validation_class_balanced is used and instead pulls from the PyTorch Global Number Generator
+
 import torch
 import torch.nn as nn
 import pickle
@@ -1290,8 +1293,9 @@ def main():
 
 
 if __name__ == '__main__':
-
     global_model = main()
+    print(
+        "\n\n############# Evaluating global model (no fine-tuning) on all specialised test subsets #############")
     evaluate_aggregated_model(global_model, test_loader, "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
     evaluate_aggregated_model(global_model, outdoors_loader, "Evaluating global model on outdoors_loader")
     evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
@@ -1381,7 +1385,7 @@ if __name__ == '__main__':
 
 
     print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
-    global_model = main()
+    #global_model = main()
     fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4)
     evaluate_aggregated_model(fine_tuned_global_model, test_loader,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
     evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader,"Evaluating FINE-TUNED global model on outdoors_loader")
