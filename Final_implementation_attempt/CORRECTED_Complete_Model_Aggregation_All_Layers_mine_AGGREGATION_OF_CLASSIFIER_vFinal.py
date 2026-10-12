@@ -848,6 +848,9 @@ def fine_tune_classifier(
         lr: float = 1e-4,
         momentum: float = 0.9,
         weight_decay: float = 5e-4,
+        EPOCH_GREATER_THAN_12: bool = False,
+        FEATURE_EXTRACTOR_UNFROZEN: bool = False,
+        FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH: bool = False,
 ):
     """
     Fine-tune ONLY the classifier of an aggregated/global model.
@@ -1004,33 +1007,63 @@ def fine_tune_classifier(
             f"Accuracy: {accuracy:.2f}% | "
             f"lr: {lr}"
         )
-        if epoch < 12:
-            lr = lr * 0.1
-        if epoch > 12:
-            lr = lr * 0.1 * 0.1 * 0.1
-        if epoch == 19:
-            print("FEATURE EXTRACTOR UNFROZEN")
-            for param_name, param in model.named_parameters():
-                if "linear" not in param_name:
+        if EPOCH_GREATER_THAN_12:
+            if epoch < 12:
+                lr = lr * 0.1
+            if epoch > 12:
+                lr = lr * 0.1 * 0.1 * 0.1
+        if FEATURE_EXTRACTOR_UNFROZEN:
+            if epoch > 19:  # if epoch == 19:
+                # ---------------------------------------------------------
+                print("FEATURE EXTRACTOR UNFROZEN")
+                # ---------------------------------------------------------
+                for param_name, param in model.named_parameters():  # for param in model.feature_extractor.parameters():
+                    if "linear" not in param_name:
+                        param.requires_grad = True
+                    # print("print(param) of if linear not in param_name:", param_name)
+
+                # ---------------------------------------------------------
+                # Ensure classifier remains trainable
+                # ---------------------------------------------------------
+                for param in model.linear.parameters():
                     param.requires_grad = True
 
-            # ---------------------------------------------------------
-            # Ensure classifier remains trainable
-            # ---------------------------------------------------------
-            for param in model.linear.parameters():
-                param.requires_grad = True
+                # ---------------------------------------------------------
+                # Optimizer: ONLY classifier parameters
+                # ---------------------------------------------------------
+                optimizer = torch.optim.SGD(
+                    model.parameters(),
+                    lr=lr,
+                    momentum=momentum,
+                    weight_decay=weight_decay,
+                )
+            if FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH:
+                if epoch >= 29:  # if epoch == 10:
+                    # ---------------------------------------------------------
+                    print("FEATURE EXTRACTOR UNFROZEN FOR_LAST_EPOCH")
+                    # ---------------------------------------------------------
+                    for param_name, param in model.named_parameters():  # for param in model.feature_extractor.parameters():
+                        if "linear" not in param_name:
+                            param.requires_grad = True
+                        # print("print(param) of if linear not in param_name:", param_name)
 
-            # ---------------------------------------------------------
-            # Optimizer: ONLY classifier parameters
-            # ---------------------------------------------------------
-            optimizer = torch.optim.SGD(
-                model.parameters(),
-                lr=lr,
-                momentum=momentum,
-                weight_decay=weight_decay,
-            )
+                    # ---------------------------------------------------------
+                    # Ensure classifier remains trainable
+                    # ---------------------------------------------------------
+                    for param in model.linear.parameters():
+                        param.requires_grad = True
 
-        if avg_loss >= prev_loss:
+                    # ---------------------------------------------------------
+                    # Optimizer: ONLY classifier parameters
+                    # ---------------------------------------------------------
+                    optimizer = torch.optim.SGD(
+                        model.parameters(),
+                        lr=lr,
+                        momentum=momentum,
+                        weight_decay=weight_decay,
+                    )
+
+        if avg_loss >= prev_loss:  # and accuracy > prev_accuracy:
             loss_counter += 1
             if loss_counter == 3:
                 lr = lr * 0.1
@@ -1178,155 +1211,6 @@ def fine_tune_aggregated_model(
     return model
 
 
-def fine_tune_aggregated_model_GPU(
-        model: nn.Module,
-        loader: torch.utils.data.DataLoader,
-        fine_tune_epochs: int = 10,
-        lr: float = 1e-4,
-        momentum: float = 0.9,
-        weight_decay: float = 5e-4,
-        device: str = "cpu"
-):
-    """
-    Fine-tune an aggregated/global model.
-
-    Args:
-        model:
-            Aggregated PyTorch model to fine-tune.
-
-        loader:
-            DataLoader yielding:
-                batch_data, batch_labels, batch_task_ids
-
-        fine_tune_epochs:
-            Number of fine-tuning epochs.
-
-        lr:
-            Learning rate used for fine-tuning.
-
-        device:
-            Device on which training should be performed.
-
-            Examples:
-                "cpu"
-                "cuda"
-                "cuda:0"
-                "cuda:1"
-
-    Returns:
-        Fine-tuned model. The returned model remains on the
-        specified device.
-    """
-
-    # ---------------------------------------------------------
-    # Device
-    # ---------------------------------------------------------
-
-    device = torch.device(device)
-
-    # Check that CUDA is actually available if requested
-    if device.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError(
-            "CUDA device requested, but CUDA is not available."
-        )
-
-    # Move the entire model, including its parameters and
-    # registered buffers, to the selected device.
-    model = model.to(device)
-
-    # ---------------------------------------------------------
-    # Optimizer
-    # ---------------------------------------------------------
-
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=lr,
-        momentum=momentum,
-        weight_decay=weight_decay,
-    )
-
-    model.train()
-
-    # ---------------------------------------------------------
-    # Training
-    # ---------------------------------------------------------
-
-    for epoch in range(fine_tune_epochs):
-
-        # Reset statistics for this epoch
-        total_loss = 0.0
-        total_correct = 0
-        total_samples = 0
-
-        for batch_data, batch_labels, batch_task_ids in loader:
-            # Move tensors required for computation to the
-            # same device as the model.
-            batch_data = batch_data.to(device)
-            batch_labels = batch_labels.to(device)
-
-            # Remove gradients left from previous minibatch
-            optimizer.zero_grad()
-
-            # Forward pass
-            logits = model(batch_data)
-
-            # Calculate loss
-            loss = F.cross_entropy(
-                logits,
-                batch_labels,
-                reduction="mean"
-            )
-
-            # Backpropagation
-            loss.backward()
-
-            # Update model parameters
-            optimizer.step()
-
-            # -------------------------------------------------
-            # Statistics
-            # -------------------------------------------------
-
-            batch_size = batch_labels.size(0)
-
-            total_loss += loss.item() * batch_size
-
-            predictions = torch.argmax(
-                logits,
-                dim=1
-            )
-
-            total_correct += (
-                    predictions == batch_labels
-            ).sum().item()
-
-            total_samples += batch_size
-
-        # -----------------------------------------------------
-        # Epoch statistics
-        # -----------------------------------------------------
-
-        avg_loss = (
-            total_loss / total_samples
-            if total_samples > 0
-            else 0.0
-        )
-
-        accuracy = (
-            100.0 * total_correct / total_samples
-            if total_samples > 0
-            else 0.0
-        )
-
-        print(
-            f"Epoch {epoch + 1}/{fine_tune_epochs} | "
-            f"Loss: {avg_loss:.6f} | "
-            f"Accuracy: {accuracy:.2f}%"
-        )
-
-    return model
-
-
 def evaluate_aggregated_model(model: nn.Module, loader: torch.utils.data.DataLoader, output_message: str):
     total_loss_all_experiences = 0.0
     total_correct_all_experiences = 0
@@ -1413,40 +1297,8 @@ if __name__ == '__main__':
     evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
     evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
     evaluate_aggregated_model(global_model, objects_and_vehicles_loader, "Evaluating global model on objects_and_vehicles_loader")
-    print("\n\n############# FINE-TUNED CLASSIFIER (not feature extractor) EVALUATION BEGINS NOW!!!! #############")
-    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
-    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on outdoors_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on nature_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on people_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on objects_and_vehicles_loader")
 
-    '''
-    print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
-    fine_tuned_global_model = fine_tune_aggregated_model(global_model, train_loader, lr=0.001, momentum=0.9, weight_decay=5e-4) #device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #TODO: GPU version DOES NOT WORK (at least when device='cuda:0'). Hence, commented-out below:
-    #fine_tuned_global_model = fine_tune_aggregated_model_GPU(global_model, train_loader, lr=0.001, momentum=0.9,weight_decay=5e-4, device='cuda:0')
-    #evaluate_aggregated_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
-    evaluate_aggregated_model(fine_tuned_global_model, test_loader, "Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader, "Evaluating FINE-TUNED global model on outdoors_loader")
-    evaluate_aggregated_model(fine_tuned_global_model, nature_loader, "Evaluating FINE-TUNED global model on nature_loader")
-    evaluate_aggregated_model(fine_tuned_global_model, people_loader, "Evaluating FINE-TUNED global model on people_loader")
-    evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader, "Evaluating FINE-TUNED global model on objects_and_vehicles_loader")
-    '''
-
-    global_model = main()
-    # evaluate_aggregated_model_FedAvg_code_v3(global_model, test_loader)
-    # evaluate_aggregated_model(global_model, test_loader_without_objects_and_vehicles, "Evaluating global model on test_loader_without_objects_and_vehicles")
-    evaluate_aggregated_model(global_model, test_loader,
-                              "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_aggregated_model(global_model, outdoors_loader, "Evaluating global model on outdoors_loader")
-    evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
-    evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
-    evaluate_aggregated_model(global_model, objects_and_vehicles_loader,
-                              "Evaluating global model on objects_and_vehicles_loader")
-    print(
-        "\n\n############# Evaluating global model on last_experiences -- is it the same as Evaluating global model on last_experience_test_loader? If so, then Spatial-CF may be fixed by my strategy, BUT CLEARLY, TEMPORAL-CF IS NOT!!! #############")
+    print("\n\n############# Evaluating global model on last_experiences -- is it the same as Evaluating global model on last_experience_test_loader? If so, then Spatial-CF may be fixed by my strategy, BUT CLEARLY, TEMPORAL-CF IS NOT!!! #############")
     # ORIGINALLY print read: print("\n\n############# Evaluating global model on last_experiences -- is it the same as Evaluating global model on last_experience_test_loader? If so, then Spatial-CF may be fixed by my strategy, BUT CLEARLY, TEMPORAL-CF IS NOT!!! #############")
     evaluate_aggregated_model(global_model, last_experience_test_loader,
                               "Evaluating global model on last_experience_test_loader")
@@ -1487,9 +1339,50 @@ if __name__ == '__main__':
 
 
 
+    print("\n\n############# FINE-TUNED CLASSIFIER (not feature extractor) EVALUATION BEGINS NOW!!!! #############")
+    EPOCH_GREATER_THAN_12 = False
+    FEATURE_EXTRACTOR_UNFROZEN = False
+    FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = False
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH)
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    #evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on outdoors_loader")
+    #evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on nature_loader")
+    #evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on people_loader")
+    #evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on objects_and_vehicles_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED global model on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED global model on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED global model on last_experience_test_loader")
+
+
+    print("\n\n")
+    EPOCH_GREATER_THAN_12 = False
+    FEATURE_EXTRACTOR_UNFROZEN = True
+    FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = False
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH)
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED global model on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED global model on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED global model on last_experience_test_loader")
+
+
+    print("\n\n")
+    EPOCH_GREATER_THAN_12 = False
+    FEATURE_EXTRACTOR_UNFROZEN = False
+    FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = True
+    fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH)
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH={FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED global model on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED global model on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED global model on last_experience_test_loader")
+
+
+
     print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
-    fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4)#fine_tune_epochs=3, lr=0.001, momentum=0.9,weight_decay=5e-4)
-    # evaluate_aggregated_model(fine_tuned_global_model, test_loader_without_objects_and_vehicles, "Evaluating FINE-TUNED global model on test_loader_without_objects_and_vehicles")
+    global_model = main()
+    fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4)
     evaluate_aggregated_model(fine_tuned_global_model, test_loader,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
     evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader,"Evaluating FINE-TUNED global model on outdoors_loader")
     evaluate_aggregated_model(fine_tuned_global_model, nature_loader,"Evaluating FINE-TUNED global model on nature_loader")
