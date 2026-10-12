@@ -388,6 +388,93 @@ print("print val_loader", val_loader)
 print("print val_loader.dataset", val_loader.dataset)
 
 
+combined_dataset_outdoors_first_experience_test = ConcatDataset([
+    outdoors_specialised_models_test_stream_class_il[0].dataset,
+])
+
+combined_dataset_nature_first_experience_test = ConcatDataset([
+    nature_specialised_models_test_stream_class_il[0].dataset,
+])
+
+combined_dataset_people_first_experience_test = ConcatDataset([
+    people_specialised_models_test_stream_class_il[0].dataset,
+])
+
+combined_dataset_objects_and_vehicles_first_experience_test = ConcatDataset([
+    objects_and_vehicles_specialised_models_test_stream_class_il[0].dataset,
+])
+
+combined_dataset_first_experience_test = ConcatDataset([
+    combined_dataset_outdoors_first_experience_test,
+    combined_dataset_nature_first_experience_test,
+    combined_dataset_people_first_experience_test,
+    combined_dataset_objects_and_vehicles_first_experience_test
+])
+
+first_experience_test_loader = DataLoader(
+    combined_dataset_first_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+
+combined_dataset_outdoors_middle_experience_test = ConcatDataset([
+    outdoors_specialised_models_test_stream_class_il[1].dataset,
+])
+
+combined_dataset_nature_middle_experience_test = ConcatDataset([
+    nature_specialised_models_test_stream_class_il[1].dataset,
+])
+
+combined_dataset_people_middle_experience_test = ConcatDataset([
+    people_specialised_models_test_stream_class_il[1].dataset,
+])
+
+combined_dataset_objects_and_vehicles_middle_experience_test = ConcatDataset([
+    objects_and_vehicles_specialised_models_test_stream_class_il[1].dataset,
+])
+
+combined_dataset_middle_experience_test = ConcatDataset([
+    combined_dataset_outdoors_middle_experience_test,
+    combined_dataset_nature_middle_experience_test,
+    combined_dataset_people_middle_experience_test,
+    combined_dataset_objects_and_vehicles_middle_experience_test
+])
+
+middle_experience_test_loader = DataLoader(
+    combined_dataset_middle_experience_test,
+    batch_size=32,
+    shuffle=False)
+
+
+combined_dataset_outdoors_last_experience_test = ConcatDataset([
+    outdoors_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_nature_last_experience_test = ConcatDataset([
+    nature_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_people_last_experience_test = ConcatDataset([
+    people_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_objects_and_vehicles_last_experience_test = ConcatDataset([
+    objects_and_vehicles_specialised_models_test_stream_class_il[2].dataset,
+])
+
+combined_dataset_last_experience_test = ConcatDataset([
+    combined_dataset_outdoors_last_experience_test,
+    combined_dataset_nature_last_experience_test,
+    combined_dataset_people_last_experience_test,
+    combined_dataset_objects_and_vehicles_last_experience_test
+])
+
+last_experience_test_loader = DataLoader(
+    combined_dataset_last_experience_test,
+    batch_size=32,
+    shuffle=False
+)
+
 from collections import Counter
 
 all_labels = []
@@ -4797,3 +4884,10 @@ if __name__ == '__main__':
     evaluate_aggregated_model(fine_tuned_global_model, nature_loader,"Evaluating FINE-TUNED global model on nature_loader")
     evaluate_aggregated_model(fine_tuned_global_model, people_loader,"Evaluating FINE-TUNED global model on people_loader")
     evaluate_aggregated_model(fine_tuned_global_model, objects_and_vehicles_loader,"Evaluating FINE-TUNED global model on objects_and_vehicles_loader")'''
+    print("\n\n")
+    evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,
+                              "Evaluating Mahalanobis global model on first_experience_test_loader")
+    evaluate_global_specialist_model(global_model, middle_experience_test_loader, original_to_aggregated_dict,
+                              "Evaluating Mahalanobis global model on middle_experience_test_loader")
+    evaluate_global_specialist_model(global_model, last_experience_test_loader, original_to_aggregated_dict,
+                              "Evaluating Mahalanobis global model on last_experience_test_loader")

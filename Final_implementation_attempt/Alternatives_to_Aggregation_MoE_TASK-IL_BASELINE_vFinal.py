@@ -216,17 +216,17 @@ combined_dataset_first_experience_test = ConcatDataset([
 first_experience_test_loader = DataLoader(
     combined_dataset_first_experience_test,
     batch_size=32,
-    shuffle=True
+    shuffle=False
 )
 print("print first_experience_test_loader", first_experience_test_loader)
 print("print first_experience_test_loader.dataset", first_experience_test_loader.dataset)
 
 combined_dataset_outdoors_middle_experience_test = ConcatDataset([
-    outdoors_specialised_models_test_stream_class_il[2].dataset,
+    outdoors_specialised_models_test_stream_class_il[1].dataset,
 ])
 
 combined_dataset_nature_middle_experience_test = ConcatDataset([
-    nature_specialised_models_test_stream_class_il[2].dataset,
+    nature_specialised_models_test_stream_class_il[1].dataset,
 ])
 
 combined_dataset_people_middle_experience_test = ConcatDataset([
@@ -247,7 +247,7 @@ combined_dataset_middle_experience_test = ConcatDataset([
 middle_experience_test_loader = DataLoader(
     combined_dataset_middle_experience_test,
     batch_size=32,
-    shuffle=True
+    shuffle=False
 )
 print("print middle_experience_test_loader", middle_experience_test_loader)
 print("print middle_experience_test_loader.dataset", middle_experience_test_loader.dataset)
@@ -278,7 +278,7 @@ combined_dataset_last_experience_test = ConcatDataset([
 last_experience_test_loader = DataLoader(
     combined_dataset_last_experience_test,
     batch_size=32,
-    shuffle=True
+    shuffle=False
 )
 print("print last_experience_test_loader", last_experience_test_loader)
 print("print last_experience_test_loader.dataset", last_experience_test_loader.dataset)
@@ -1102,6 +1102,14 @@ if __name__ == '__main__':
     evaluate_global_specialist_model(global_model, nature_loader, original_to_aggregated_dict,"Evaluating global model on nature_loader")
     evaluate_global_specialist_model(global_model, people_loader, original_to_aggregated_dict,"Evaluating global model on people_loader")
     evaluate_global_specialist_model(global_model, objects_and_vehicles_loader, original_to_aggregated_dict,"Evaluating global model on objects_and_vehicles_loader")
+
+    print("\n\n")
+    evaluate_global_specialist_model(global_model, first_experience_test_loader, original_to_aggregated_dict,
+                                     "Evaluating global model on first_experience_test_loader")
+    evaluate_global_specialist_model(global_model, middle_experience_test_loader, original_to_aggregated_dict,
+                                     "Evaluating global model on middle_experience_test_loader")
+    evaluate_global_specialist_model(global_model, last_experience_test_loader, original_to_aggregated_dict,
+                                     "Evaluating global model on last_experience_test_loader")
 
     if FINE_TUNE:
         print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW!!!! #############")
