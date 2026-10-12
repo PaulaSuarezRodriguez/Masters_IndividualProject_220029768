@@ -1344,48 +1344,59 @@ if __name__ == '__main__':
 
 
     print("\n\n############# FINE-TUNED CLASSIFIER (not feature extractor) EVALUATION BEGINS NOW!!!! #############")
+    global_model = ResNet20_DynamicModel(num_classes=43)
+    global_model.load_state_dict(torch.load("C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Final_implementation_attempt\\final_specialised_models\\summed_features_global_model.pt"))
     EPOCH_GREATER_THAN_12 = False
     FEATURE_EXTRACTOR_UNFROZEN = False
     FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = False
     fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH)
     print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
-    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor; feature extractor permanently frozen) on test_loader (i.e. on the ENTIRE TEST SET)")
     #evaluate_aggregated_model(fine_tuned_classifier, outdoors_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on outdoors_loader")
     #evaluate_aggregated_model(fine_tuned_classifier, nature_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on nature_loader")
     #evaluate_aggregated_model(fine_tuned_classifier, people_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on people_loader")
     #evaluate_aggregated_model(fine_tuned_classifier, objects_and_vehicles_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on objects_and_vehicles_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED global model on first_experience_test_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED global model on middle_experience_test_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED global model on last_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER (not feature extractor; feature extractor permanently frozen) on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER (not feature extractor; feature extractor permanently frozen) on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER (not feature extractor; feature extractor permanently frozen) on last_experience_test_loader")
 
 
     print("\n\n")
+    global_model = ResNet20_DynamicModel(num_classes=43)
+    global_model.load_state_dict(torch.load(
+        "C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Final_implementation_attempt\\final_specialised_models\\summed_features_global_model.pt"))
     EPOCH_GREATER_THAN_12 = False
     FEATURE_EXTRACTOR_UNFROZEN = True
     FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = False
     fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH)
-    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}")
-    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED global model on first_experience_test_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED global model on middle_experience_test_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED global model on last_experience_test_loader")
+    print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH={False}")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the epochs after the classifier-only fine-tuning plateaus on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the epochs after the classifier-only fine-tuning plateaus on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the epochs after the classifier-only fine-tuning plateaus on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the epochs after the classifier-only fine-tuning plateaus on last_experience_test_loader")
 
 
     print("\n\n")
+    global_model = ResNet20_DynamicModel(num_classes=43)
+    global_model.load_state_dict(torch.load(
+        "C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Final_implementation_attempt\\final_specialised_models\\summed_features_global_model.pt"))
     EPOCH_GREATER_THAN_12 = False
     FEATURE_EXTRACTOR_UNFROZEN = False
     FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH = True
     fine_tuned_classifier = fine_tune_classifier(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4, EPOCH_GREATER_THAN_12=EPOCH_GREATER_THAN_12, FEATURE_EXTRACTOR_UNFROZEN=FEATURE_EXTRACTOR_UNFROZEN, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH=FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH)
     print(f"EPOCH_GREATER_THAN_12={EPOCH_GREATER_THAN_12}, FEATURE_EXTRACTOR_UNFROZEN={FEATURE_EXTRACTOR_UNFROZEN}, FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH={FEATURE_EXTRACTOR_UNFROZEN_FOR_LAST_EPOCH}")
-    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER (not feature extractor)  on test_loader (i.e. on the ENTIRE TEST SET)")
-    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED global model on first_experience_test_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED global model on middle_experience_test_loader")
-    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED global model on last_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, test_loader, "Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the last epoch on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(fine_tuned_classifier, first_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the last epoch on first_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, middle_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the last epoch on middle_experience_test_loader")
+    evaluate_aggregated_model(fine_tuned_classifier, last_experience_test_loader,"Evaluating FINE-TUNED CLASSIFIER where feature extractor unfrozen for the last epoch on last_experience_test_loader")
 
 
 
     print("\n\n############# FINE-TUNED GLOBAL MODEL EVALUATION BEGINS NOW -- global model fine-tuned on last set of train experiences of each specialised model!!!! #############")
     #global_model = main()
+    global_model = ResNet20_DynamicModel(num_classes=43)
+    global_model.load_state_dict(torch.load(
+        "C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Final_implementation_attempt\\final_specialised_models\\summed_features_global_model.pt"))
     fine_tuned_global_model = fine_tune_aggregated_model(global_model, last_experience_train_loader, fine_tune_epochs=30, lr=0.001, momentum=0.9,weight_decay=5e-4)
     evaluate_aggregated_model(fine_tuned_global_model, test_loader,"Evaluating FINE-TUNED global model on test_loader (i.e. on the ENTIRE TEST SET)")
     evaluate_aggregated_model(fine_tuned_global_model, outdoors_loader,"Evaluating FINE-TUNED global model on outdoors_loader")
@@ -1415,3 +1426,18 @@ if __name__ == '__main__':
     evaluate_aggregated_model(fine_tuned_global_model, first_experience_test_nature, "Evaluating FINE-TUNED global model on first_experience_test_nature")
     evaluate_aggregated_model(fine_tuned_global_model, first_experience_test_people, "Evaluating FINE-TUNED global model on first_experience_test_people")
     evaluate_aggregated_model(fine_tuned_global_model, first_experience_test_objects_and_vehicles, "Evaluating FINE-TUNED global model on first_experience_test_objects_and_vehicles")
+
+    global_model = ResNet20_DynamicModel(num_classes=43)
+    global_model.load_state_dict(torch.load(
+        "C:\\Users\\lamus\\PycharmProjects\\Masters_IndividualProject_220029768\\Final_implementation_attempt\\final_specialised_models\\summed_features_global_model.pt"))
+    print(
+        "\n\n############# Evaluating global model to check global_model remains unedited and a different instance was fine-tuned at every call #############")
+    evaluate_aggregated_model(global_model, test_loader, "Evaluating global model on test_loader (i.e. on the ENTIRE TEST SET)")
+    evaluate_aggregated_model(global_model, outdoors_loader, "Evaluating global model on outdoors_loader")
+    evaluate_aggregated_model(global_model, nature_loader, "Evaluating global model on nature_loader")
+    evaluate_aggregated_model(global_model, people_loader, "Evaluating global model on people_loader")
+    evaluate_aggregated_model(global_model, objects_and_vehicles_loader, "Evaluating global model on objects_and_vehicles_loader")
+    print("\n")
+    evaluate_aggregated_model(global_model, first_experience_test_loader, "Evaluating global model on first_experience_test_loader")
+    evaluate_aggregated_model(global_model, middle_experience_test_loader,"Evaluating global model on middle_experience_test_loader")
+    evaluate_aggregated_model(global_model, last_experience_test_loader,"Evaluating global model on last_experience_test_loader")
