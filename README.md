@@ -13,13 +13,23 @@ provides the closest reproduction of the environment in which the experiments we
 Nonetheless, a "requirements.txt" file is also provided as an alternative. Although requirements.txt provides the required Python packages and their 
 versions, it does not describe the complete original Conda environment in the same way as environment.yml. Consequently, recreating the environment 
 from environment.yml is the recommended approach when attempting to reproduce the reported experimental results. The requirements.txt file is provided
-primarily for convenience.
+primarily for convenience of the marker in case an alternative to yml is required.
 
 ## Running the code 
 
-First, run Load_cifar100_vFinal.py. This script will cause the CIFAR-100 data to download if not present yet. 
-It also performs imortant data preparation, so it must be executed regardless of whether the CIFAR-100 dataset
+First, run Load_cifar100_vFinal.py. This script will download the CIFAR-100 data if it has not yet been downloaded. 
+It also performs essential data preparation, so it must be executed regardless of whether the CIFAR-100 dataset
 has already been downloaded or not. If the CIFAR-100 dataset has been downloaded, running this script will not
 download it again.
 
-Then, to train any of the specialised models, run 
+Then, to train any of the specialised models, run their respective scripts. Then, to produce the FedAvg or MoE global model from these specialised models, run 
+CORRECTED_Complete_Model_Aggregation_All_Layers_mine_AGGREGATION_OF_CLASSIFIER_vFinal.py for the FedAvg and Alternatives_to_Aggregation_MoE_gating_network_vFinal.py
+for the final MoE. However, all models and baselines presented in the Project Report can be found 
+in folders final_specialised_models and final_specialised_models_BASELINE. To evaluate these models, run script Evaluate_BASELINE_vFinal.py. This is the case 
+for all models except the final MoE model (Alternatives_to_Aggregation_MoE_gating_network_vFinal.py), the MoE baselines 
+(Alternatives_to_Aggregation_MoE_TASK-IL_BASELINE_vFinal.py and Alternatives_to_Aggregation_MoE_NO_OOD_BASELINE_vFinal.py) and the final FedAvg model 
+(CORRECTED_Complete_Model_Aggregation_All_Layers_mine_AGGREGATION_OF_CLASSIFIER_vFinal.py), which need their respective scripts executed for the models to be evaluated.
+
+Whether to re-run the experiments or to evaluate the models in folders final_specialised_models and final_specialised_models_BASELINE, you will have to change the 
+file path whenever the models are loaded into the scripts to the location where the project and relevant folders are located in your machine after downloading the 
+project repository.
