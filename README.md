@@ -16,6 +16,8 @@ from environment.yml is the recommended approach when attempting to reproduce th
 primarily for convenience of the marker in case an alternative to yml is required.
 
 ## Running the code 
+Please note, every intermediate implementation attempt is in a different folder. 
+**The final project software code is in folder Final_implementation_attempt** of the repository.
 
 First, run Load_cifar100_vFinal.py. This script will download the CIFAR-100 data if it has not yet been downloaded. 
 It also performs essential data preparation, so it must be executed regardless of whether the CIFAR-100 dataset
